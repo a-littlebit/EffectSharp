@@ -221,8 +221,8 @@ var effect = Reactive.Effect(() => DoWork(), eff => {
 ## Comparison with Vue 3
 | Vue 3 Concept | EffectSharp Equivalent |
 |---------------|------------------------|
-| `ref()`       | `Reactive.Ref()` / `Ref<T>` |
-| `reactive()`  | `Reactive.Create()` / `CreateDeep()` |
+| `ref()`       | `Reactive.Ref()` |
+| `reactive()`  | `Reactive.Create()` / `Reactive.CreateDeep()` |
 | `computed()`  | `Reactive.Computed()` |
 | `watch()`     | `Reactive.Watch()` |
 | `effect` (internal) | `Reactive.Effect()` |
