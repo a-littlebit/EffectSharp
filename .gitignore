@@ -1,0 +1,12 @@
+**/bin
+**/obj
+
+**/*.dll
+**/*.exe
+**/*.pdb
+**/*.nupkg
+**/*.cache
+
+.vs/
+.vscode/
+.idea/
