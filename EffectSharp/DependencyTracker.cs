@@ -57,11 +57,7 @@ public static class DependencyTracker
 
     public static Dependency GetDependency(object owner, string propertyName)
     {
-        if (!_dependencies.TryGetValue(owner, out var propertyMap))
-        {
-            propertyMap = new Dictionary<string, Dependency>();
-            _dependencies.Add(owner, propertyMap);
-        }
+        var propertyMap = _dependencies.GetOrCreateValue(owner);
 
         if (!propertyMap.TryGetValue(propertyName, out var dependency))
         {
