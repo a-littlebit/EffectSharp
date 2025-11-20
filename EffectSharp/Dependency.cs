@@ -4,46 +4,47 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace EffectSharp;
-
-/// <summary>
-/// A class that manages dependencies between reactive variables and their subscribers.
-/// </summary>
-public class Dependency
+namespace EffectSharp
 {
-    private readonly HashSet<Effect> _subscribers = new();
-
-    public void AddSubscriber(Effect effect)
+    /// <summary>
+    /// A class that manages dependencies between reactive variables and their subscribers.
+    /// </summary>
+    public class Dependency
     {
-        _subscribers.Add(effect);
-    }
+        private readonly HashSet<Effect> _subscribers = new HashSet<Effect>();
 
-    public void RemoveSubscriber(Effect effect)
-    {
-        _subscribers.Remove(effect);
-    }
-
-    public void ClearSubscribers()
-    {
-        _subscribers.Clear();
-    }
-
-    public Effect? Track()
-    {
-        var currentEffect = Effect.CurrentEffect;
-        if (currentEffect != null)
+        public void AddSubscriber(Effect effect)
         {
-            AddSubscriber(currentEffect);
-            DependencyTracker.DependencyTracked(this);
+            _subscribers.Add(effect);
         }
-        return currentEffect;
-    }
 
-    public void Trigger()
-    {
-        foreach (var subscriber in _subscribers.ToList())
+        public void RemoveSubscriber(Effect effect)
         {
-            subscriber.ScheduleExecution();
+            _subscribers.Remove(effect);
+        }
+
+        public void ClearSubscribers()
+        {
+            _subscribers.Clear();
+        }
+
+        public Effect Track()
+        {
+            var currentEffect = Effect.CurrentEffect;
+            if (currentEffect != null)
+            {
+                AddSubscriber(currentEffect);
+                DependencyTracker.DependencyTracked(this);
+            }
+            return currentEffect;
+        }
+
+        public void Trigger()
+        {
+            foreach (var subscriber in _subscribers.ToList())
+            {
+                subscriber.ScheduleExecution();
+            }
         }
     }
 }
