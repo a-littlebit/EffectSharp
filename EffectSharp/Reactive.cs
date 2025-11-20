@@ -73,6 +73,11 @@ public static class Reactive
         return new ReactiveCollection<T>(list);
     }
 
+    public static ReactiveDictionary<TKey, TValue> Dictionary<TKey, TValue>() where TKey : notnull
+    {
+        return new ReactiveDictionary<TKey, TValue>();
+    }
+
     public static Ref<T> Ref<T>(T initialValue)
     {
         if (initialValue == null)

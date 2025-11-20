@@ -10,6 +10,7 @@ namespace EffectSharp;
 /// <summary>
 /// Represents a computed reactive value that automatically updates when its dependencies change.
 /// </summary>
+/// <typeparam name="T">The type of the computed value. </typeparam>
 public class Computed<T> : INotifyPropertyChanging, INotifyPropertyChanged, IReactive, IRef<T>, IDisposable
 {
     private T _value = default!;

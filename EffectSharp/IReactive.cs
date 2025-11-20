@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace EffectSharp;
 
+/// <summary>
+/// An interface for reactive objects that can provide dependencies for their properties.
+/// </summary>
 public interface IReactive
 {
     Dependency? GetDependency(string propertyName);

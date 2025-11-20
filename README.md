@@ -12,7 +12,7 @@
   - Computed Values (`Reactive.Computed`)
   - Effects (`Reactive.Effect`)
   - Watching Changes (`Reactive.Watch`)
-  - Reactive Collections (`Reactive.Collection`)
+  - Reactive Collections (`Reactive.Collection`/`Reactive.Dictionary`)
 - [Usage Examples](#usage-examples)
 - [Advanced Topics](#advanced-topics)
   - Notification Batching & `DependencyTracker.FlushNotifyQueue()`
@@ -38,6 +38,7 @@ It focuses on:
 - Effects that auto re-run when dependencies change; optional scheduling.
 - Flexible watchers: ref values, object properties, computed getter functions, deep trees.
 - Reactive observable collection with dependable `Count` and item tracking.
+- Reactive dictionary that tracks dependencies on individual keys and the overall key set.
 - Batched property change notifications (flush manually when required).
 - Simple, test-first API (mirrors concepts in Vue 3).
 
@@ -166,8 +167,9 @@ refA.Value = 2; // triggers
 refB.Value = 20; // triggers
 ```
 
-### Reactive Collections (`Reactive.Collection<T>`)
-Extends `ObservableCollection<T>` with tracked dependencies for:
+### Reactive Collections (`Reactive.Collection<T>`/`Reactive.Dictionary<TKey, TValue>`)
+`ReactiveCollection<T>` extends `ObservableCollection<T>` with tracked dependencies for:
+
 - `Count`
 - Indexed access (`Item[]`)
 ```csharp
@@ -177,7 +179,21 @@ list[0] = 100; // invalidates first
 Console.WriteLine(first.Value); // 100
 ```
 
+`ReactiveDictionary<TKey, TValue>` implements `IDictionary<TKey, TValue>` with tracked dependencies for:
+
+- Individual keys
+- Overall key set
+
+```csharp
+var dict = Reactive.Dictionary<string, string>();
+var hasFoo = Reactive.Computed(() => reactiveDict.ContainsKey("foo"));
+Console.WriteLine(hasFoo.value); // false
+dict["foo"] = "bar"; // invalidates hasFoo
+Console.WriteLine(hasFoo.value); // true
+```
+
 ## Usage Examples
+
 ### Computed Chaining
 ```csharp
 var discounted = Reactive.Computed(() => product.Price - 20);
@@ -195,7 +211,8 @@ var sub = Reactive.Watch(orderRef, () => {
 orderRef.Value.Product.Price = 150; // triggers
 ```
 ### Manual Flush (if needed for UI testing)
-PropertyChanged notifications are batched (default 16ms). In test code or tight loops:
+`PropertyChanged` notifications are batched (default 16ms). In test code or tight loops:
+
 ```csharp
 DependencyTracker.FlushNotifyQueue();
 ```

@@ -8,6 +8,10 @@ using System.ComponentModel;
 
 namespace EffectSharp;
 
+/// <summary>
+/// A reactive collection that tracks dependencies on its items and count.
+/// </summary>
+/// <typeparam name="T">Type of the element. </typeparam>
 public class ReactiveCollection<T> : ObservableCollection<T>, IReactive, ICollection<T>, IEnumerable<T>, IEnumerable, IList<T>, IReadOnlyCollection<T>, IReadOnlyList<T>, ICollection, IList
 {
     const string ItemsPropertyName = "Item[]";
