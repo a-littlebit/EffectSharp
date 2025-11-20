@@ -3,21 +3,20 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace EffectSharp
 {
     /// <summary>
     /// A reactive dictionary that tracks dependencies on individual keys and the overall key set.
     /// </summary>
-    /// <typeparam name="TKey">Type of the key.</typeparam>
+    /// <typeparam name="TKey">Type of the key. </typeparam>
     /// <typeparam name="TValue">Type of the value. </typeparam>
     public class ReactiveDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IReactive
     {
-        // inner storage for actual data
-        private readonly Dictionary<TKey, TValue> _innerDictionary = new Dictionary<TKey, TValue>();
-
-        // maintain dependencies for each key
-        private readonly Dictionary<TKey, Dependency> _keyDependencies = new Dictionary<TKey, Dependency>();
+        // inner storage for actual data and key-specific dependencies
+        private readonly Dictionary<TKey, (TValue, Dependency)> _innerDictionary =
+            new Dictionary<TKey, (TValue, Dependency)>();
 
         // dependency to track changes to the entire set of keys
         private readonly Dependency _keySetDependency = new Dependency();
@@ -28,9 +27,9 @@ namespace EffectSharp
         {
             if (typeof(TKey) == typeof(string))
             {
-                if (ContainsKey((TKey)(object)propertyName))
+                if (_innerDictionary.TryGetValue((TKey)(object)propertyName, out var data))
                 {
-                    return GetOrCreateKeyDependency((TKey)(object)propertyName);
+                    return data.Item2;
                 }
                 else
                 {
@@ -53,11 +52,11 @@ namespace EffectSharp
             {
                 // when accessing Values, track KeySet and each individual key
                 _keySetDependency.Track();
-                foreach (var key in _innerDictionary.Keys)
+                return new ReadOnlyCollection<TValue>(_innerDictionary.Values.Select(data =>
                 {
-                    GetOrCreateKeyDependency(key).Track();
-                }
-                return new ReadOnlyCollection<TValue>(new List<TValue>(_innerDictionary.Values));
+                    data.Item2.Track();
+                    return data.Item1;
+                }).ToList());
             }
         }
 
@@ -70,11 +69,11 @@ namespace EffectSharp
             get
             {
                 // check if the key exists
-                if (_innerDictionary.TryGetValue(key, out TValue value))
+                if (_innerDictionary.TryGetValue(key, out (TValue, Dependency) data))
                 {
                     // if it exists, track its dependency
-                    GetOrCreateKeyDependency(key).Track();
-                    return value;
+                    data.Item2.Track();
+                    return data.Item1;
                 }
                 else
                 {
@@ -87,17 +86,18 @@ namespace EffectSharp
             set
             {
                 // check if the key already exists
-                bool keyExists = _innerDictionary.ContainsKey(key);
-
-                // update the value in the inner dictionary
-                _innerDictionary[key] = value;
-
-                // trigger the dependency for this specific key
-                GetOrCreateKeyDependency(key).Trigger();
-
-                // if the key is new, trigger the KeySet dependency
-                if (!keyExists)
+                if (_innerDictionary.ContainsKey(key))
                 {
+                    // if it exists, update the value and trigger its dependency
+                    var data = _innerDictionary[key];
+                    data.Item1 = value;
+                    _innerDictionary[key] = data;
+                    data.Item2.Trigger();
+                }
+                else
+                {
+                    // otherwise, add a new entry with a new Dependency
+                    _innerDictionary[key] = (value, new Dependency());
                     _keySetDependency.Trigger();
                 }
             }
@@ -108,11 +108,8 @@ namespace EffectSharp
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
 
-            // add the key-value pair to the inner dictionary
-            _innerDictionary.Add(key, value);
-
-            // create a new Dependency for this key (but not tracking it yet)
-            _keyDependencies[key] = new Dependency();
+            // add the key-value pair with its dependency to the inner dictionary
+            _innerDictionary.Add(key, (value, new Dependency()));
 
             // trigger the KeySet dependency to indicate a new key has been added
             _keySetDependency.Trigger();
@@ -120,18 +117,18 @@ namespace EffectSharp
 
         public bool ContainsKey(TKey key)
         {
-            bool exists = _innerDictionary.ContainsKey(key);
-            if (exists)
+            if (_innerDictionary.TryGetValue(key, out var data))
             {
                 // if Key exists, additionally track this Key itself
-                GetOrCreateKeyDependency(key).Track();
+                data.Item2.Track();
+                return true;
             }
             else
             {
                 // otherwise, track the KeySet
                 _keySetDependency.Track();
+                return false;
             }
-            return exists;
         }
 
         public bool Remove(TKey key)
@@ -140,14 +137,13 @@ namespace EffectSharp
                 throw new ArgumentNullException(nameof(key));
 
             // check if the key exists and remove it
-            if (_innerDictionary.Remove(key))
+            if (_innerDictionary.TryGetValue(key, out var data))
             {
-                // if existed and removed, trigger its Dependency
-                if (_keyDependencies.TryGetValue(key, out Dependency dependency))
-                {
-                    dependency.Trigger();
-                    _keyDependencies.Remove(key); // also remove its Dependency tracking
-                }
+                // if existed, remove it
+                _innerDictionary.Remove(key);
+
+                // trigger its Dependency
+                data.Item2.Trigger();
 
                 // trigger KeySet change
                 _keySetDependency.Trigger();
@@ -159,18 +155,22 @@ namespace EffectSharp
 
         public bool TryGetValue(TKey key, out TValue value)
         {
-            if (_innerDictionary.TryGetValue(key, out value))
+            if (_innerDictionary.TryGetValue(key, out var data))
             {
                 // if Key exists, track this Key itself
-                GetOrCreateKeyDependency(key).Track();
+                data.Item2.Track();
+                // return the value
+                value = data.Item1;
                 return true;
             }
             else
             {
                 // otherwise, track the KeySet
                 _keySetDependency.Track();
+                // set default value
+                value = default;
+                return false;
             }
-            return false;
         }
 
         public void Clear()
@@ -178,15 +178,17 @@ namespace EffectSharp
             if (_innerDictionary.Count == 0)
                 return;
 
+            // collect dependencies to trigger before clearing
+            var dependenciesToTrigger = _innerDictionary.Values.Select(data => data.Item2).ToList();
+
             // clear the inner dictionary and key dependencies
             _innerDictionary.Clear();
 
             // trigger dependencies for all existing keys before clearing
-            foreach (var dependency in _keyDependencies.Values)
+            foreach (var dependency in dependenciesToTrigger)
             {
                 dependency.Trigger();
             }
-            _keyDependencies.Clear();
 
             // trigger KeySet change
             _keySetDependency.Trigger();
@@ -200,16 +202,19 @@ namespace EffectSharp
         bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> item)
         {
             // similar to ContainsKey
-            bool exists = ((ICollection<KeyValuePair<TKey, TValue>>)_innerDictionary).Contains(item);
-            if (exists)
+            if (_innerDictionary.TryGetValue(item.Key, out var data))
             {
-                GetOrCreateKeyDependency(item.Key).Track();
+                // if Key exists, track this Key itself
+                data.Item2.Track();
+                // check value equality
+                return EqualityComparer<TValue>.Default.Equals(data.Item1, item.Value);
             }
             else
             {
+                // otherwise, track the KeySet
                 _keySetDependency.Track();
+                return false;
             }
-            return exists;
         }
 
         void ICollection<KeyValuePair<TKey, TValue>>.CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
@@ -232,25 +237,14 @@ namespace EffectSharp
             foreach (var pair in _innerDictionary)
             {
                 // when yielding each pair, track its Key dependency
-                GetOrCreateKeyDependency(pair.Key).Track();
-                yield return pair;
+                pair.Value.Item2.Track();
+                yield return new KeyValuePair<TKey, TValue>(pair.Key, pair.Value.Item1);
             }
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
-        }
-
-        // utility to get or create Dependency for a specific key
-        private Dependency GetOrCreateKeyDependency(TKey key)
-        {
-            if (!_keyDependencies.TryGetValue(key, out Dependency dependency))
-            {
-                dependency = new Dependency();
-                _keyDependencies[key] = dependency;
-            }
-            return dependency;
         }
 
         // wrapper for Keys collection to intercept access
@@ -269,18 +263,18 @@ namespace EffectSharp
 
             public bool Contains(TKey item)
             {
-                bool exists = _parent._innerDictionary.ContainsKey(item);
-                if (exists)
+                if (_parent._innerDictionary.TryGetValue(item, out var data))
                 {
                     // if Key exists, track this Key itself
-                    _parent.GetOrCreateKeyDependency(item).Track();
+                    data.Item2.Track();
+                    return true;
                 }
                 else
                 {
                     // otherwise, track the KeySet
                     _parent._keySetDependency.Track();
+                    return false;
                 }
-                return exists;
             }
 
             public void CopyTo(TKey[] array, int arrayIndex)
