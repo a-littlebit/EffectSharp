@@ -20,7 +20,7 @@ namespace EffectSharp
         public Action<Effect> Scheduler { get; set; } = null;
         public bool Lazy { get; } = false;
 
-        private List<Dependency> _dependencies = null;
+        private HashSet<Dependency> _dependencies = null;
 
         public Effect(Action action, Action<Effect> scheduler = null, bool lazy = false)
         {

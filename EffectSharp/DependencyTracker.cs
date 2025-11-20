@@ -18,8 +18,8 @@ namespace EffectSharp
         private static readonly ConditionalWeakTable<object, Dictionary<string, Dependency>> _dependencies
             = new ConditionalWeakTable<object, Dictionary<string, Dependency>>();
 
-        private static readonly AsyncLocal<Stack<List<Dependency>>> _currentTrackingDependencies
-            = new AsyncLocal<Stack<List<Dependency>>>();
+        private static readonly AsyncLocal<Stack<HashSet<Dependency>>> _currentTrackingDependencies
+            = new AsyncLocal<Stack<HashSet<Dependency>>>();
 
         private static readonly TaskBatcher<NotifyTask> _notifyBatcher
             = new TaskBatcher<NotifyTask>((tasks) => NotifyBatch(tasks), 16);
@@ -83,8 +83,8 @@ namespace EffectSharp
         internal static void StartDependencyTracking()
         {
             if (_currentTrackingDependencies.Value is null)
-                _currentTrackingDependencies.Value = new Stack<List<Dependency>>();
-            _currentTrackingDependencies.Value.Push(new List<Dependency>());
+                _currentTrackingDependencies.Value = new Stack<HashSet<Dependency>>();
+            _currentTrackingDependencies.Value.Push(new HashSet<Dependency>());
         }
 
         internal static void DependencyTracked(Dependency dependency)
@@ -94,7 +94,7 @@ namespace EffectSharp
             _currentTrackingDependencies.Value.Peek().Add(dependency);
         }
 
-        internal static List<Dependency> RetrieveAndClearTrackedDependencies()
+        internal static HashSet<Dependency> RetrieveAndClearTrackedDependencies()
         {
             if (_currentTrackingDependencies.Value is null || _currentTrackingDependencies.Value.Count == 0)
                 throw new InvalidOperationException("No active dependency tracking session.");
