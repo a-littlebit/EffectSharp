@@ -21,8 +21,12 @@ namespace EffectSharp
         // The TaskScheduler to use for executing the batch processing action
         public TaskScheduler Scheduler { get; set; }
 
-        // 1 indicates that processing is ongoing, 0 indicates idle
-        private int _isProcessing = 0;
+        // 0 - idle; 1 - processing; -1 - disposed
+        private int _state = 0;
+
+        // number of currently working consumers
+        private int _workingCount = 0;
+
         // cancellation token source for delaying task processing
         private CancellationTokenSource _cancellationTokenSource;
 
@@ -50,19 +54,35 @@ namespace EffectSharp
 
         /// <summary>
         /// Process all queued tasks immediately
-        /// <paramref name="useScheduler">True to use the specified TaskScheduler for processing; false to process on the current thread.</paramref>
         /// </summary>
-        public void Flush()
+        public void Flush(bool waitForComplete = true)
         {
-            if (_isProcessing == 0)
+            if (_state == -1 || _taskQueue.IsEmpty)
             {
                 // No processing cycle is active; nothing to flush
                 return;
             }
+            // Cancel any pending delayed processing
             _cancellationTokenSource?.Cancel();
+            // Set state to idle so that a new processing cycle can be started later
+            Interlocked.Exchange(ref _state, 0);
+            // Indicate that a worker is active
+            Interlocked.Increment(ref _workingCount);
+            // Do the actual flushing
             DoFlush();
-            Interlocked.Exchange(ref _isProcessing, 0);
-            DoFlush();
+            // Indicate that the worker is done
+            lock (_taskQueue)
+            {
+                var remainingWorkers = Interlocked.Decrement(ref _workingCount);
+                if (remainingWorkers == 0)
+                {
+                    Monitor.PulseAll(_taskQueue);
+                }
+                else if (waitForComplete)
+                {
+                    Monitor.Wait(_taskQueue);
+                }
+            }
         }
 
         private void DoFlush()
@@ -87,13 +107,24 @@ namespace EffectSharp
         /// </summary>
         private void StartProcessingCycle()
         {
-            if (_isProcessing == 1)
+            if (_state == 1)
             {
-                // Already processing; no need to start a new cycle
+                // Already started.
+                return;
+            }
+            else if (_state == -1)
+            {
+                // Already disposed.
+                throw new ObjectDisposedException(nameof(TaskBatcher<T>));
+            }
+
+            if (_taskQueue.IsEmpty)
+            {
+                // No tasks to process.
                 return;
             }
 
-            if (Interlocked.CompareExchange(ref _isProcessing, 1, 0) == 0)
+            if (Interlocked.CompareExchange(ref _state, 1, 0) == 0)
             {
                 _cancellationTokenSource?.Cancel();
                 _cancellationTokenSource = new CancellationTokenSource();
@@ -104,7 +135,7 @@ namespace EffectSharp
                     {
                         if (!t.IsCanceled)
                         {
-                            Flush();
+                            Flush(false);
                         }
                     }, Scheduler);
             }
@@ -115,6 +146,7 @@ namespace EffectSharp
         /// </summary>
         public void Dispose()
         {
+            Interlocked.Exchange(ref _state, -1);
             _cancellationTokenSource?.Cancel();
             _cancellationTokenSource?.Dispose();
             // _taskQueue.Clear();
