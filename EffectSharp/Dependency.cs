@@ -13,19 +13,14 @@ namespace EffectSharp
     {
         private readonly HashSet<Effect> _subscribers = new HashSet<Effect>();
 
-        public void AddSubscriber(Effect effect)
+        public bool AddSubscriber(Effect effect)
         {
-            _subscribers.Add(effect);
+            return _subscribers.Add(effect);
         }
 
-        public void RemoveSubscriber(Effect effect)
+        public bool RemoveSubscriber(Effect effect)
         {
-            _subscribers.Remove(effect);
-        }
-
-        public void ClearSubscribers()
-        {
-            _subscribers.Clear();
+            return _subscribers.Remove(effect);
         }
 
         public Effect Track()
@@ -33,8 +28,10 @@ namespace EffectSharp
             var currentEffect = Effect.CurrentEffect;
             if (currentEffect != null)
             {
-                AddSubscriber(currentEffect);
-                DependencyTracker.DependencyTracked(this);
+                if (AddSubscriber(currentEffect))
+                {
+                    DependencyTracker.DependencyTracked(this);
+                }
             }
             return currentEffect;
         }

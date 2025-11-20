@@ -46,19 +46,7 @@ namespace EffectSharp
         // readonly wrapper to intercept access
         public ICollection<TKey> Keys => new KeyCollection(this);
 
-        public ICollection<TValue> Values
-        {
-            get
-            {
-                // when accessing Values, track KeySet and each individual key
-                _keySetDependency.Track();
-                return new ReadOnlyCollection<TValue>(_innerDictionary.Values.Select(data =>
-                {
-                    data.Item2.Track();
-                    return data.Item1;
-                }).ToList());
-            }
-        }
+        public ICollection<TValue> Values => new ValueCollection(this);
 
         public int Count => _innerDictionary.Count;
 
@@ -179,7 +167,8 @@ namespace EffectSharp
                 return;
 
             // collect dependencies to trigger before clearing
-            var dependenciesToTrigger = _innerDictionary.Values.Select(data => data.Item2).ToList();
+            var dependenciesToTrigger = new HashSet<Dependency>(
+                _innerDictionary.Values.Select(data => data.Item2));
 
             // clear the inner dictionary and key dependencies
             _innerDictionary.Clear();
@@ -300,6 +289,62 @@ namespace EffectSharp
             public void Add(TKey item) => throw new NotSupportedException("Mutating the Keys collection is not supported.");
             public void Clear() => throw new NotSupportedException("Mutating the Keys collection is not supported.");
             public bool Remove(TKey item) => throw new NotSupportedException("Mutating the Keys collection is not supported.");
+        }
+
+        // wrapper for Values collection to intercept access
+        private class ValueCollection : ICollection<TValue>
+        {
+            private readonly ReactiveDictionary<TKey, TValue> _parent;
+            public ValueCollection(ReactiveDictionary<TKey, TValue> parent)
+            {
+                _parent = parent ?? throw new ArgumentNullException(nameof(parent));
+            }
+            public int Count => _parent.Count;
+            public bool IsReadOnly => true;
+            public bool Contains(TValue item)
+            {
+                // accessing Values, track KeySet and each individual key
+                foreach (var data in _parent._innerDictionary.Values)
+                {
+                    if (EqualityComparer<TValue>.Default.Equals(data.Item1, item))
+                    {
+                        data.Item2.Track();
+                        return true;
+                    }
+                }
+                _parent._keySetDependency.Track();
+                foreach (var data in _parent._innerDictionary.Values)
+                {
+                    data.Item2.Track();
+                }
+                return false;
+            }
+            public void CopyTo(TValue[] array, int arrayIndex)
+            {
+                // accessing Values, track KeySet and each individual key
+                _parent._keySetDependency.Track();
+                int i = arrayIndex;
+                foreach (var data in _parent._innerDictionary.Values)
+                {
+                    data.Item2.Track();
+                    array[i++] = data.Item1;
+                }
+            }
+            public IEnumerator<TValue> GetEnumerator()
+            {
+                // accessing Values, track KeySet and each individual key
+                _parent._keySetDependency.Track();
+                foreach (var data in _parent._innerDictionary.Values)
+                {
+                    data.Item2.Track();
+                    yield return data.Item1;
+                }
+            }
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+            // the Values collection is read-only; mutating methods throw NotSupportedException
+            public void Add(TValue item) => throw new NotSupportedException("Mutating the Values collection is not supported.");
+            public void Clear() => throw new NotSupportedException("Mutating the Values collection is not supported.");
+            public bool Remove(TValue item) => throw new NotSupportedException("Mutating the Values collection is not supported.");
         }
     }
 }
