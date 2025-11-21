@@ -15,7 +15,7 @@
   - Reactive Collections (`Reactive.Collection`/`Reactive.Dictionary`)
 - [Usage Examples](#usage-examples)
 - [Advanced Topics](#advanced-topics)
-  - Notification Batching & `DependencyTracker.FlushNotifyQueue()`
+  - Notification Batching & `Reactive.NextTick()` & `DependencyTracker.FlushNotifyQueue()`
   - Custom Effect Schedulers
   - Deep Watching
 - [Comparison with Vue 3](#comparison-with-vue-3)
@@ -194,32 +194,11 @@ Console.WriteLine(hasFoo.value); // true
 
 ## Usage Examples
 
-### Computed Chaining
-```csharp
-var discounted = Reactive.Computed(() => product.Price - 20);
-var final = Reactive.Computed(() => discounted.Value + (int)(discounted.Value * 0.1));
-```
-### Watching Deep Nested Structures
-```csharp
-var orderRef = Reactive.Ref(new Order {
-    Product = new Product { Name = "Widget", Price = 100 },
-    Quantity = 1
-});
-var sub = Reactive.Watch(orderRef, () => {
-    _ = orderRef.Value.Product.Price; // track nested
-}, new WatchOptions { Deep = true });
-orderRef.Value.Product.Price = 150; // triggers
-```
-### Manual Flush (if needed for UI testing)
-`PropertyChanged` notifications are batched (default 16ms). In test code or tight loops:
-
-```csharp
-DependencyTracker.FlushNotifyQueue();
-```
+See [a-littlebit/EffectSharp · GitHub](https://github.com/a-littlebit/EffectSharp/tree/main/Examples/) for more usage examples.
 
 ## Advanced Topics
 ### Notification Batching
-`TaskBatcher` collects property change notifications and raises them in grouped batches to reduce UI overhead. Use `DependencyTracker.FlushNotifyQueue()` to force synchronous dispatch (e.g., unit tests).
+`TaskBatcher` collects property change notifications and raises them in grouped batches to reduce UI overhead. Use `await Reactive.NextTick()`. Use `await DependencyTracker.FlushNotifyQueue()` to force synchronous dispatch (e.g., unit tests).
 
 ### Custom Effect Schedulers
 Provide a scheduler to delay or merge effect executions:
@@ -244,6 +223,7 @@ var effect = Reactive.Effect(() => DoWork(), eff => {
 | `watch()`     | `Reactive.Watch()` |
 | `effect` (internal) | `Reactive.Effect()` |
 | Track dependencies | Property interception / `DependencyTracker` |
+| `nextTick()` | `Reactive.NextTick()` |
 | Flush microtasks | `DependencyTracker.FlushNotifyQueue()` |
 
 ## Limitations
