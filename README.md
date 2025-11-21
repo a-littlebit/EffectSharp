@@ -245,3 +245,6 @@ Pass a setter action: `Reactive.Computed(getter, setter)`; writing calls the set
 
 **Q: How does caching work?**  
 A computed recomputes only when invalidated by dependency triggers since its last evaluation.
+
+## License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
