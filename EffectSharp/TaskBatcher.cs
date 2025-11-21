@@ -67,23 +67,31 @@ namespace EffectSharp
             {
                 // No processing cycle is active; nothing to flush
                 await Task.WhenAll(_workingConsumers);
-                return;
             }
-
-            // Keep track of the working consumers
-            var taskCompletionSource = new TaskCompletionSource<object>();
-            _workingConsumers.Add(taskCompletionSource.Task);
-            // Start a new task to process the queued items
-            await Task.Factory.StartNew(DoFlush, CancellationToken.None, TaskCreationOptions.None, Scheduler);
-            taskCompletionSource.SetResult(null);
-            // Wait for all working consumers to complete
-            await Task.WhenAll(_workingConsumers);
+            else
+            {
+                // Keep track of the working consumers
+                var taskCompletionSource = new TaskCompletionSource<object>();
+                _workingConsumers.Add(taskCompletionSource.Task);
+                // Start a new task to process the queued items
+                try
+                {
+                    await Task.Factory.StartNew(DoFlush, CancellationToken.None, TaskCreationOptions.None, Scheduler);
+                    taskCompletionSource.SetResult(null);
+                }
+                catch (Exception ex)
+                {
+                    taskCompletionSource.SetException(ex);
+                }
+                // Wait for all working consumers to complete
+                await Task.WhenAll(_workingConsumers);
+                // Remove completed tasks from the working consumers
+                var filtered = _workingConsumers.Where(t => !t.IsCompleted);
+                _workingConsumers = new ConcurrentBag<Task>(filtered);
+            }
             // Signal next tick completion
             var completionSource = Interlocked.Exchange(ref _nextTickCompletionSource, null);
             completionSource?.SetResult(null);
-            // Remove completed tasks from the working consumers
-            var filtered = _workingConsumers.Where(t => !t.IsCompleted);
-            _workingConsumers = new ConcurrentBag<Task>(filtered);
         }
 
         private void DoFlush()
