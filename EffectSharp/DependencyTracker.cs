@@ -41,9 +41,9 @@ namespace EffectSharp
             _notifyBatcher.Enqueue(task);
         }
 
-        public static void FlushNotifyQueue()
+        public static async Task FlushNotifyQueue()
         {
-            _notifyBatcher.Flush();
+            await _notifyBatcher.Flush();
         }
 
         private static void NotifyBatch(IEnumerable<NotifyTask> tasks)

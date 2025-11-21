@@ -9,7 +9,7 @@ namespace EffectSharp.Tests
     public class ComputedTests
     {
         [Fact]
-        public void Computed_WhenDependentPropertyChanges_RecomputesValue()
+        public async Task Computed_WhenDependentPropertyChanges_RecomputesValue()
         {
             var product = Reactive.Create(new Product
             {
@@ -24,7 +24,7 @@ namespace EffectSharp.Tests
                 notifiedProperty = e.PropertyName;
             };
             product.Price = 400;
-            DependencyTracker.FlushNotifyQueue();
+            await DependencyTracker.FlushNotifyQueue();
             Assert.Equal(440, computedPriceWithTax.Value);
             Assert.Equal(nameof(computedPriceWithTax.Value), notifiedProperty);
         }

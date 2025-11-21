@@ -5,7 +5,7 @@ namespace EffectSharp.Tests
     public class ReactiveTests
     {
         [Fact]
-        public void Reactive_WhenSetProperty_TriggerPropertyChange()
+        public async Task Reactive_WhenSetProperty_TriggerPropertyChange()
         {
             var product = Reactive.Create(new Product
             {
@@ -19,12 +19,12 @@ namespace EffectSharp.Tests
             };
             product.Price = 1200;
             // Flush the notify queue to ensure the PropertyChanged event is raised
-            DependencyTracker.FlushNotifyQueue();
+            await DependencyTracker.FlushNotifyQueue();
             Assert.Equal(nameof(product.Price), changedPropertyName);
         }
 
         [Fact]
-        public void Reactive_WhenSetNestedProperty_TriggerPropertyChange()
+        public async Task Reactive_WhenSetNestedProperty_TriggerPropertyChange()
         {
             var order = Reactive.CreateDeep(new Order
             {
@@ -42,7 +42,7 @@ namespace EffectSharp.Tests
             };
             order.Product.Price = 600;
             // Flush the notify queue to ensure the PropertyChanged event is raised
-            DependencyTracker.FlushNotifyQueue();
+            await DependencyTracker.FlushNotifyQueue();
             Assert.Equal(nameof(order.Product.Price), changedPropertyName);
         }
 

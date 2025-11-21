@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -24,11 +25,11 @@ namespace EffectSharp
         // 0 - idle; 1 - processing; -1 - disposed
         private int _state = 0;
 
-        // number of currently working consumers
-        private int _workingCount = 0;
+        // current working consumers.
+        private ConcurrentBag<Task> _workingConsumers = new ConcurrentBag<Task>();
 
         // cancellation token source for delaying task processing
-        private CancellationTokenSource _cancellationTokenSource;
+        private volatile CancellationTokenSource _cancellationTokenSource;
 
         public TaskBatcher(
             Action<IEnumerable<T>> processBatchAction,
@@ -55,38 +56,34 @@ namespace EffectSharp
         /// <summary>
         /// Process all queued tasks immediately
         /// </summary>
-        public void Flush(bool waitForComplete = true)
+        public async Task Flush()
         {
+            // Cancel any pending delayed processing
+            _cancellationTokenSource?.Cancel();
             if (_state == -1 || _taskQueue.IsEmpty)
             {
                 // No processing cycle is active; nothing to flush
+                await Task.WhenAll(_workingConsumers);
                 return;
             }
-            // Cancel any pending delayed processing
-            _cancellationTokenSource?.Cancel();
-            // Set state to idle so that a new processing cycle can be started later
-            Interlocked.Exchange(ref _state, 0);
-            // Indicate that a worker is active
-            Interlocked.Increment(ref _workingCount);
-            // Do the actual flushing
-            DoFlush();
-            // Indicate that the worker is done
-            lock (_taskQueue)
-            {
-                var remainingWorkers = Interlocked.Decrement(ref _workingCount);
-                if (remainingWorkers == 0)
-                {
-                    Monitor.PulseAll(_taskQueue);
-                }
-                else if (waitForComplete)
-                {
-                    Monitor.Wait(_taskQueue);
-                }
-            }
+
+            // Keep track of the working consumers
+            var taskCompletionSource = new TaskCompletionSource<object>();
+            _workingConsumers.Add(taskCompletionSource.Task);
+            // Start a new task to process the queued items
+            await Task.Factory.StartNew(DoFlush, CancellationToken.None, TaskCreationOptions.None, Scheduler);
+            taskCompletionSource.SetResult(null);
+            // Wait for all working consumers to complete
+            await Task.WhenAll(_workingConsumers);
+            // Remove completed tasks from the working consumers
+            var filtered = _workingConsumers.Where(t => !t.IsCompleted);
+            _workingConsumers = new ConcurrentBag<Task>(filtered);
         }
 
         private void DoFlush()
         {
+            // Set state to idle so that a new processing cycle can be started later
+            Interlocked.Exchange(ref _state, 0);
             if (!_taskQueue.IsEmpty)
             {
                 var tasksToProcess = new List<T>();
@@ -131,13 +128,13 @@ namespace EffectSharp
                 var token = _cancellationTokenSource.Token;
 
                 _ = Task.Delay(_delayMilliseconds, token)
-                    .ContinueWith(t =>
+                    .ContinueWith(async t =>
                     {
                         if (!t.IsCanceled)
                         {
-                            Flush(false);
+                            await Flush();
                         }
-                    }, Scheduler);
+                    });
             }
         }
 
