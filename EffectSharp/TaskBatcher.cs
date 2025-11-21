@@ -78,6 +78,9 @@ namespace EffectSharp
             taskCompletionSource.SetResult(null);
             // Wait for all working consumers to complete
             await Task.WhenAll(_workingConsumers);
+            // Signal next tick completion
+            var completionSource = Interlocked.Exchange(ref _nextTickCompletionSource, null);
+            completionSource?.SetResult(null);
             // Remove completed tasks from the working consumers
             var filtered = _workingConsumers.Where(t => !t.IsCompleted);
             _workingConsumers = new ConcurrentBag<Task>(filtered);
@@ -100,8 +103,6 @@ namespace EffectSharp
                     _processBatchAction(tasksToProcess);
                 }
             }
-            var completionSource = Interlocked.Exchange(ref _nextTickCompletionSource, null);
-            completionSource?.SetResult(null);
         }
 
         /// <summary>
