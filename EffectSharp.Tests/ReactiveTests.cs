@@ -18,8 +18,8 @@ namespace EffectSharp.Tests
                 changedPropertyName = e.PropertyName;
             };
             product.Price = 1200;
-            // Flush the notify queue to ensure the PropertyChanged event is raised
-            await DependencyTracker.FlushNotifyQueue();
+            // Wait for the next tick to ensure the PropertyChanged event is raised
+            await DependencyTracker.NextTick();
             Assert.Equal(nameof(product.Price), changedPropertyName);
         }
 

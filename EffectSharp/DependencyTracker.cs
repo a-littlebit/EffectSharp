@@ -46,6 +46,11 @@ namespace EffectSharp
             await _notifyBatcher.Flush();
         }
 
+        public static Task NextTick()
+        {
+            return _notifyBatcher.NextTick();
+        }
+
         private static void NotifyBatch(IEnumerable<NotifyTask> tasks)
         {
             var grouped = tasks.GroupBy(t => (t.Model, t.PropertyName));

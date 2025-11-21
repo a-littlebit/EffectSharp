@@ -31,6 +31,9 @@ namespace EffectSharp
         // cancellation token source for delaying task processing
         private volatile CancellationTokenSource _cancellationTokenSource;
 
+        // completion source for next tick processing
+        private TaskCompletionSource<object> _nextTickCompletionSource = null;
+
         public TaskBatcher(
             Action<IEnumerable<T>> processBatchAction,
             int delayMilliseconds = 16,
@@ -97,6 +100,8 @@ namespace EffectSharp
                     _processBatchAction(tasksToProcess);
                 }
             }
+            var completionSource = Interlocked.Exchange(ref _nextTickCompletionSource, null);
+            completionSource?.SetResult(null);
         }
 
         /// <summary>
@@ -123,6 +128,7 @@ namespace EffectSharp
 
             if (Interlocked.CompareExchange(ref _state, 1, 0) == 0)
             {
+                Interlocked.Exchange(ref _nextTickCompletionSource, new TaskCompletionSource<object>());
                 _cancellationTokenSource?.Cancel();
                 _cancellationTokenSource = new CancellationTokenSource();
                 var token = _cancellationTokenSource.Token;
@@ -135,6 +141,19 @@ namespace EffectSharp
                             await Flush();
                         }
                     });
+            }
+        }
+
+        public Task NextTick()
+        {
+            var tcs = _nextTickCompletionSource;
+            if (tcs != null)
+            {
+                return tcs.Task;
+            }
+            else
+            {
+                return Task.CompletedTask;
             }
         }
 

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace EffectSharp
 {
@@ -211,6 +212,11 @@ namespace EffectSharp
                 computed.Dispose();
                 sub.Dispose();
             });
+        }
+
+        public static async Task NextTick()
+        {
+            await DependencyTracker.NextTick();
         }
     }
 
