@@ -66,7 +66,7 @@
 
         <ScrollViewer Grid.Row="3" Margin="20,20,20,20" VerticalScrollBarVisibility="Auto">
             <StackPanel Orientation="Vertical">
-                <ItemsControl ItemsSource="{Binding FilteredTodoItems.Value}">
+                <ItemsControl ItemsSource="{Binding FilteredTodoItems}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" Margin="0,5">

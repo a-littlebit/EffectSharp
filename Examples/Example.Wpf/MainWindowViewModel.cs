@@ -2,6 +2,7 @@
 using EffectSharp;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
@@ -27,16 +28,16 @@ namespace Example.Wpf
         public Ref<bool> ShowPendingItems { get; } = Reactive.Ref(false);
         public Ref<bool> ShowAllItems { get; } = Reactive.Ref(true);
 
-        public Computed<List<TodoItem>> FilteredTodoItems { get; }
+        public ObservableCollection<TodoItem> FilteredTodoItems { get; } = new();
 
         public MainWindowViewModel()
         {
-            FilteredTodoItems = Reactive.Computed(() =>
+            Reactive.DiffAndBindToCollection(Reactive.Computed(() =>
             {
                 return ShowAllItems.Value
                     ? TodoItems.ToList()
                     : TodoItems.Where(item => item.IsCompleted == ShowCompletedItems.Value).ToList();
-            });
+            }), FilteredTodoItems);
         }
 
         [RelayCommand]
