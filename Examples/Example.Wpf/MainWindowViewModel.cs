@@ -32,12 +32,12 @@ namespace Example.Wpf
 
         public MainWindowViewModel()
         {
-            Reactive.DiffAndBindToCollection(Reactive.Computed(() =>
+            Reactive.Computed(() =>
             {
                 return ShowAllItems.Value
                     ? TodoItems.ToList()
                     : TodoItems.Where(item => item.IsCompleted == ShowCompletedItems.Value).ToList();
-            }), FilteredTodoItems);
+            }).DiffAndBindTo(FilteredTodoItems);
         }
 
         [RelayCommand]

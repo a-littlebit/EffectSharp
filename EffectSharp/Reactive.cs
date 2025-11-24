@@ -1,4 +1,5 @@
 ﻿using Castle.DynamicProxy;
+using ListDiff;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -214,120 +215,35 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Synchronizes an observable collection with the contents of a source collection, applying minimal changes to
-        /// reflect updates, insertions, and deletions based on item identity and content.
+        /// Synchronizes the contents of an observable collection with the current value of a referenced collection,
+        /// updating the observable collection whenever the source changes.
         /// </summary>
-        /// <remarks>This method efficiently updates the target observable collection by computing the
-        /// minimal set of changes required to match the source collection, including insertions, deletions, and updates
-        /// to item content. Item identity is determined by the idSelector function, and content changes are detected
-        /// using the specified contentComparer. The synchronization continues until the returned IDisposable is
-        /// disposed. Thread safety is not guaranteed; callers should ensure appropriate synchronization if collections
-        /// are accessed from multiple threads.</remarks>
         /// <typeparam name="T">The type of elements contained in the collections.</typeparam>
-        /// <typeparam name="TCollection">The type of the source collection, which must implement ICollection&lt;T&gt;.</typeparam>
-        /// <typeparam name="TId">The type used to uniquely identify each element in the collections.</typeparam>
-        /// <param name="source">A reference to the source collection whose changes will be observed and reflected in the target observable
-        /// collection. Cannot be null.</param>
-        /// <param name="observableCollection">The target observable collection to be updated in response to changes in the source collection. Cannot be
-        /// null.</param>
-        /// <param name="idSelector">A function that returns the unique identifier for a given element. Used to match items between the source
-        /// and target collections. Cannot be null.</param>
-        /// <param name="contentComparer">An equality comparer used to determine whether the content of two items with the same identifier is
-        /// equivalent. If null, the default equality comparer for type T is used.</param>
-        /// <returns>An IDisposable that, when disposed, stops synchronizing changes from the source collection to the observable
-        /// collection.</returns>
-        /// <exception cref="ArgumentNullException">Thrown if source, observableCollection, or idSelector is null.</exception>
-        public static IDisposable DiffAndBindToCollection<T, TCollection, TId>(
+        /// <typeparam name="TCollection">The type of the source collection, which must implement <see cref="IEnumerable{T}"/>.</typeparam>
+        /// <param name="source">A reference to the collection whose changes will be observed and reflected in the observable collection.
+        /// Cannot be null.</param>
+        /// <param name="observableCollection">The <see cref="ObservableCollection{T}"/> to be kept in sync with the source collection. Cannot be null.</param>
+        /// <param name="match">An optional function used to determine whether two items are considered equal. If null, the default equality
+        /// comparer for <typeparamref name="T"/> is used.</param>
+        /// <returns>An <see cref="IDisposable"/> that, when disposed, stops synchronizing changes from the source collection to
+        /// the observable collection.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="source"/> or <paramref name="observableCollection"/> is null.</exception>
+        public static IDisposable DiffAndBindTo<T, TCollection>(
             this IRef<TCollection> source,
             ObservableCollection<T> observableCollection,
-            Func<T, TId> idSelector,
-            IEqualityComparer<T> contentComparer = null)
+            Func<T, T, bool> match = null)
             where TCollection : IEnumerable<T>
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (observableCollection == null) throw new ArgumentNullException(nameof(observableCollection));
-            if (idSelector == null) throw new ArgumentNullException(nameof(idSelector));
-            if (contentComparer == null)
-            {
-                contentComparer = EqualityComparer<T>.Default;
-            }
+            if (match == null) match = EqualityComparer<T>.Default.Equals;
+
+            if (match == null) match = (a, b) => EqualityComparer<T>.Default.Equals(a, b);
 
             return Watch(source, (newCollection, _) =>
             {
-                if (newCollection == null)
-                {
-                    observableCollection.Clear();
-                    return;
-                }
-
-                // --- Conpute the diff ---
-                // Define how to determine if two elements "match" (i.e., have the same ID)
-                bool AreItemsMatching(T oldItem, T newItem)
-                {
-                    return EqualityComparer<TId>.Default.Equals(idSelector(oldItem), idSelector(newItem));
-                }
-
-                // Compute the minimal set of edits required to transform the current observable collection into the new collection
-                // Reverse to avoid index shifting issues during edit application
-                var edits = SequenceDiffer.ComputeDiff(observableCollection, newCollection, AreItemsMatching, true);
-
-                // --- Apply deletions ---
-                foreach (var edit in edits)
-                {
-                    switch (edit.Type)
-                    {
-                        case EditType.Delete:
-                            observableCollection.RemoveAt(edit.Index);
-                            break;
-                        case EditType.Insert:
-                            observableCollection.Insert(edit.Index, edit.Item);
-                            break;
-                    }
-                }
-
-                // --- Update existing items if their content has changed ---
-                var i = 0;
-                foreach (var newItem in newCollection)
-                {
-                    var existingItem = observableCollection[i];
-                    if (!contentComparer.Equals(existingItem, newItem))
-                    {
-                        observableCollection[i] = newItem;
-                    }
-                    i++;
-                }
-
+                observableCollection.MergeInto(newCollection, match);
             }, new WatchOptions { Immediate = true });
-        }
-
-        /// <summary>
-        /// Synchronizes the contents of an observable collection with the items in a source collection reference,
-        /// updating the observable collection to reflect changes in the source.
-        /// </summary>
-        /// <remarks>This method automatically updates the observable collection to reflect additions,
-        /// removals, or replacements in the source collection reference. Thread safety is not guaranteed; callers
-        /// should ensure appropriate synchronization if accessing collections from multiple threads.</remarks>
-        /// <typeparam name="T">The type of elements contained in the collections.</typeparam>
-        /// <typeparam name="TCollection">The type of the source collection, which must implement ICollection&lt;T&gt;.</typeparam>
-        /// <param name="source">A reference to the source collection whose items will be mirrored in the observable collection. Cannot be
-        /// null.</param>
-        /// <param name="observableCollection">The observable collection to update so that its contents match those of the source collection. Cannot be
-        /// null.</param>
-        /// <param name="itemComparer">An optional equality comparer used to determine whether items in the collections are considered equal. If
-        /// null, the default equality comparer for type T is used.</param>
-        /// <returns>An IDisposable that, when disposed, stops synchronizing changes from the source collection to the observable
-        /// collection.</returns>
-        public static IDisposable DiffAndBindToCollection<T, TCollection>(
-            this IRef<TCollection> source,
-            ObservableCollection<T> observableCollection,
-            IEqualityComparer<T> itemComparer = null)
-            where TCollection : IEnumerable<T>
-        {
-            return DiffAndBindToCollection(
-                source,
-                observableCollection,
-                item => item,
-                itemComparer);
         }
 
         public static async Task NextTick()

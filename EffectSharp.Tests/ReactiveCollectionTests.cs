@@ -82,7 +82,7 @@ namespace EffectSharp.Tests
             var reactiveList = Reactive.Collection<(int, string)>();
             var sourceList = Reactive.Ref(new List<(int, string)> { (1, "1"), (2, "2"), (3, "3") });
             // Initial binding
-            Reactive.DiffAndBindToCollection(sourceList, reactiveList, tuple => tuple.Item1);
+            Reactive.DiffAndBindTo(sourceList, reactiveList);
             Assert.Equal([(1, "1"), (2, "2"), (3, "3")], reactiveList);
             // Update source list
             sourceList.Value = [(2, "2"), (3, "updated"), (4, "4")];
