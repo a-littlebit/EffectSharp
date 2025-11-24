@@ -119,7 +119,7 @@ namespace EffectSharp.Tests
             {
                 Product = new Product { Name = "Widget", Price = 100 },
                 Quantity = 1
-            });
+            }, true);
             int effectRunCount = 0;
             // Act
             IDisposable sub = Reactive.Watch(nestedRef, () =>
