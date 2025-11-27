@@ -32,7 +32,7 @@ namespace EffectSharp
                     {
                         throw new ArgumentNullException("Property name cannot be null.");
                     }
-                    invocation.ReturnValue = DependencyTracker.GetDependency(target, propertyName);
+                    invocation.ReturnValue = DependencyManager.GetDependency(target, propertyName);
                 }
                 else
                 {
@@ -49,17 +49,17 @@ namespace EffectSharp
                 invocation.Proceed();
                 if (PropertyChanged != null)
                 {
-                    DependencyTracker.EnqueueNotify(this, propertyName, (e) =>
+                    TaskManager.EnqueueNotify(this, propertyName, (e) =>
                     {
                         PropertyChanged?.Invoke(this, e);
                     });
                 }
-                DependencyTracker.TriggerDependency(target, propertyName);
+                DependencyManager.TriggerDependency(target, propertyName);
             }
             else if (methodName.StartsWith("get_"))
             {
                 var propertyName = methodName.Substring(4);
-                DependencyTracker.TrackDependency(target, propertyName);
+                DependencyManager.TrackDependency(target, propertyName);
                 invocation.Proceed();
             }
             else if (targetMethod.Name == "add_PropertyChanging")

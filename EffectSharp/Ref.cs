@@ -34,7 +34,7 @@ namespace EffectSharp
                     _value = value;
                     if (PropertyChanged != null)
                     {
-                        DependencyTracker.EnqueueNotify(this, nameof(Value), (e) =>
+                        TaskManager.EnqueueNotify(this, nameof(Value), (e) =>
                         {
                             PropertyChanged?.Invoke(this, e);
                         });

@@ -11,7 +11,7 @@ namespace EffectSharp
     /// </summary>
     public class Dependency
     {
-        private readonly HashSet<Effect> _subscribers = new HashSet<Effect>();
+        private readonly ConcurrentSet<Effect> _subscribers = new ConcurrentSet<Effect>();
 
         public bool AddSubscriber(Effect effect)
         {
@@ -30,7 +30,7 @@ namespace EffectSharp
             {
                 if (AddSubscriber(currentEffect))
                 {
-                    DependencyTracker.DependencyTracked(this);
+                    currentEffect.AddDependency(this);
                 }
             }
             return currentEffect;

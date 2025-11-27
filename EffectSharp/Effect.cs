@@ -17,64 +17,88 @@ namespace EffectSharp
 
         private readonly Action _action;
 
-        public Action<Effect> Scheduler { get; set; } = null;
+        private Action<Effect> _scheduler;
+
+        private object _lock = new object();
+
+        private volatile bool _disposed = false;
+
+        public Action<Effect> Scheduler => _scheduler;
+        public bool IsDisposed => _disposed;
         public bool Lazy { get; } = false;
 
-        private HashSet<Dependency> _dependencies = null;
+        private HashSet<Dependency> _dependencies = new HashSet<Dependency>();
 
         public Effect(Action action, Action<Effect> scheduler = null, bool lazy = false)
         {
             _action = action;
-            Scheduler = scheduler;
+            _scheduler = scheduler;
             Lazy = lazy;
             Execute();
         }
 
         public void Execute()
         {
-            if (Lazy)
+            lock (_lock)
             {
-                _action();
-                return;
-            }
+                if (_disposed) return;
 
-            Dispose();
-            var previousEffect = CurrentEffectContext.Value;
-            CurrentEffectContext.Value = this;
-            DependencyTracker.StartDependencyTracking();
-            try
-            {
-                _action();
-            }
-            finally
-            {
-                _dependencies = DependencyTracker.RetrieveAndClearTrackedDependencies();
-                CurrentEffectContext.Value = previousEffect;
+                if (Lazy)
+                {
+                    _action();
+                    return;
+                }
+
+                ClearDependencies();
+                var previousEffect = CurrentEffectContext.Value;
+                CurrentEffectContext.Value = this;
+                try
+                {
+                    _action();
+                }
+                finally
+                {
+                    CurrentEffectContext.Value = previousEffect;
+                }
             }
         }
 
         public void ScheduleExecution()
         {
-            if (Scheduler != null)
+            if (_disposed) return;
+
+            var scheduler = Scheduler;
+            if (scheduler != null)
             {
-                Scheduler(this);
+                scheduler(this);
             }
             else
             {
-                Execute();
+                TaskManager.EnqueueEffectTrigger(this);
             }
+        }
+
+        private void ClearDependencies()
+        {
+            foreach (var dependency in _dependencies)
+            {
+                dependency.RemoveSubscriber(this);
+            }
+            _dependencies.Clear();
+        }
+
+        internal void AddDependency(Dependency dependency)
+        {
+            _dependencies.Add(dependency);
         }
 
         public void Dispose()
         {
-            if (_dependencies != null)
+            lock (_lock)
             {
-                foreach (var dep in _dependencies)
-                {
-                    dep.RemoveSubscriber(this);
-                }
-                _dependencies.Clear();
-                _dependencies = null;
+                if (_disposed) return;
+                ClearDependencies();
+                _disposed = true;
             }
         }
     }

@@ -246,9 +246,13 @@ namespace EffectSharp
             }, new WatchOptions { Immediate = true });
         }
 
+        /// <summary>
+        /// Flush all pending property change notifications and return a task that completes
+        /// when next effect and notification ticks are done.
+        /// </summary>
         public static async Task NextTick()
         {
-            await DependencyTracker.NextTick();
+            await Task.WhenAll(TaskManager.NextEffectTick(), TaskManager.FlushNotifyQueue());
         }
     }
 
