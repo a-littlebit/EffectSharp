@@ -94,15 +94,26 @@ public class TaskBatcher<T> : IDisposable
             if (_batchLoopTask.IsCompleted)
             {
                 _batchLoopTask = StartBatchProcessingLoopAsync();
+<<<<<<< HEAD
                 // Observe exceptions so they don't become unobserved
+=======
+                // trace if exception occurs during loop
+>>>>>>> fix/thread-safety
                 _batchLoopTask.ContinueWith(t =>
                 {
                     if (t.IsFaulted)
                     {
+<<<<<<< HEAD
                         // 用你自己的日志系统记录
                         System.Diagnostics.Trace.TraceError($"TaskBatcher loop faulted: {t.Exception}");
                     }
                 }, TaskScheduler.Default);
+=======
+                        System.Diagnostics.Trace.TraceError($"TaskBatcher processing loop failed: {t.Exception}");
+                    }
+                },
+                TaskContinuationOptions.OnlyOnFaulted);
+>>>>>>> fix/thread-safety
             }
         }
     }
@@ -320,18 +331,27 @@ public class TaskBatcher<T> : IDisposable
                 TaskCreationOptions.DenyChildAttach,
                 currentScheduler);
 
+<<<<<<< HEAD
             // Wait and handle exceptions so a single-batch exception doesn't kill the loop
+=======
+            // Wait and handle exceptions: propagate failure to caller
+>>>>>>> fix/thread-safety
             try
             {
                 await WaitTaskAsync(processTask, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
+<<<<<<< HEAD
                 // rethrow cancellation to caller (or handle based on semantics)
+=======
+                // Re-throw cancellation (expected flow)
+>>>>>>> fix/thread-safety
                 throw;
             }
             catch (Exception ex)
             {
+<<<<<<< HEAD
                 // LOG the exception, but do not let the loop die silently.
                 // Choose your policy: swallow and continue, or rethrow to stop the loop.
                 // For now: swallow after logging so subsequent batches still run.
@@ -344,11 +364,35 @@ public class TaskBatcher<T> : IDisposable
             long observed;
             do
             {
+=======
+                // Log with batch details, then re-throw to notify caller
+                System.Diagnostics.Trace.TraceError(
+                    $"TaskBatcher batch processing failed (batch size: {batch.Count}, max sequence: {batch.Max(t => t.Sequence)}): {ex}");
+                throw new InvalidOperationException("Failed to process batch", ex);
+            }
+
+            // Update processed counter with CAS (monotonic increment guarantee)
+            long maxProcessedSeq = batch.Max(t => t.Sequence);
+            long observed;
+            int spinCount = 0;
+            do
+            {
+                if (spinCount++ > 10)
+                {
+                    System.Diagnostics.Trace.TraceWarning(
+                        $"TaskBatcher CAS loop timeout: maxProcessedSeq={maxProcessedSeq}, current={Volatile.Read(ref _processedCounter)}");
+                    break;
+                }
+>>>>>>> fix/thread-safety
                 observed = Volatile.Read(ref _processedCounter);
                 if (maxProcessedSeq <= observed) break;
             } while (Interlocked.CompareExchange(ref _processedCounter, maxProcessedSeq, observed) != observed);
 
+<<<<<<< HEAD
             // Notify waiters
+=======
+            // Notify waiters (only if batch processed successfully)
+>>>>>>> fix/thread-safety
             NotifyNextTickWaiters();
         }
         finally
