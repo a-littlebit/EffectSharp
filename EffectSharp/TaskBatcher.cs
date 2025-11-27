@@ -97,12 +97,9 @@ public class TaskBatcher<T> : IDisposable
                 // trace if exception occurs during loop
                 _batchLoopTask.ContinueWith(t =>
                 {
-                    if (t.IsFaulted)
-                    {
-                        System.Diagnostics.Trace.TraceError($"TaskBatcher processing loop failed: {t.Exception}");
-                    }
+                    System.Diagnostics.Trace.TraceError($"TaskBatcher processing loop failed: {t.Exception}");
                 },
-                TaskContinuationOptions.OnlyOnFaulted);
+                TaskScheduler.Default);
             }
         }
     }
