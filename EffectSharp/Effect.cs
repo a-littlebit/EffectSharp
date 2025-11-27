@@ -21,10 +21,10 @@ namespace EffectSharp
 
         private object _lock = new object();
 
-        private volatile bool _disposed = false;
+        private volatile bool _isDisposed = false;
 
         public Action<Effect> Scheduler => _scheduler;
-        public bool IsDisposed => _disposed;
+        public bool IsDisposed => _isDisposed;
         public bool Lazy { get; } = false;
 
         private HashSet<Dependency> _dependencies = new HashSet<Dependency>();
@@ -41,7 +41,7 @@ namespace EffectSharp
         {
             lock (_lock)
             {
-                if (_disposed) return;
+                if (_isDisposed) return;
 
                 if (Lazy)
                 {
@@ -65,7 +65,7 @@ namespace EffectSharp
 
         public void ScheduleExecution()
         {
-            if (_disposed) return;
+            if (_isDisposed) return;
 
             var scheduler = Scheduler;
             if (scheduler != null)
@@ -96,9 +96,9 @@ namespace EffectSharp
         {
             lock (_lock)
             {
-                if (_disposed) return;
+                if (_isDisposed) return;
                 ClearDependencies();
-                _disposed = true;
+                _isDisposed = true;
             }
         }
     }

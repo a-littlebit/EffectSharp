@@ -14,7 +14,7 @@ namespace EffectSharp
     public class Computed<T> : INotifyPropertyChanging, INotifyPropertyChanged, IReactive, IRef<T>, IDisposable
     {
         private T _value = default;
-        private bool _isDirty = true;
+        private volatile bool _isDirty = true;
         private readonly Func<T> _getter;
         private readonly Action _setter;
         private readonly Dependency _dependency = new Dependency();
@@ -29,6 +29,7 @@ namespace EffectSharp
             _setter = setter;
             _effect = new Effect(() =>
             {
+                if (!_isDirty) return;
                 _value = _getter();
                 _isDirty = false;
             }, (_) => Invalidate());
@@ -38,7 +39,7 @@ namespace EffectSharp
         {
             get
             {
-                var currentEffect = _dependency.Track();
+                _dependency.Track();
 
                 if (_isDirty)
                 {
