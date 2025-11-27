@@ -86,16 +86,23 @@ public class TaskBatcher<T> : IDisposable
     {
         ThrowIfDisposed();
 
-        // Generate a unique sequence number (atomic increment to ensure ordering)
         long sequence = Interlocked.Increment(ref _enqueueCounter);
         _taskQueue.Enqueue((item, sequence));
 
-        // Start the processing loop if it's not running (lock guarantees memory visibility, no need for Volatile.Read)
         lock (_stateLock)
         {
             if (_batchLoopTask.IsCompleted)
             {
                 _batchLoopTask = StartBatchProcessingLoopAsync();
+                // Observe exceptions so they don't become unobserved
+                _batchLoopTask.ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                    {
+                        // 用你自己的日志系统记录
+                        System.Diagnostics.Trace.TraceError($"TaskBatcher loop faulted: {t.Exception}");
+                    }
+                }, TaskScheduler.Default);
             }
         }
     }
@@ -279,54 +286,73 @@ public class TaskBatcher<T> : IDisposable
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Optimize: Skip List creation if queue is empty (ConcurrentQueue.IsEmpty is snapshot, but reduces empty List overhead)
             if (_taskQueue.IsEmpty)
             {
                 return;
             }
 
-            // Dequeue all tasks currently in the queue (atomic operation)
+            // Dequeue all tasks currently in the queue
             var batch = new List<(T Item, long Sequence)>();
             while (_taskQueue.TryDequeue(out var taskWithSeq))
             {
                 batch.Add(taskWithSeq);
             }
 
-            // Exit if no tasks to process (queue emptied between IsEmpty check and Dequeue)
             if (batch.Count == 0)
             {
                 return;
             }
 
-            // Extract task data and get the latest scheduler
-            var taskData = batch.Select(t => t.Item);
+            // Materialize the task data to avoid deferred enumeration across threads
+            var taskData = batch.Select(t => t.Item).ToList();
+
+            // Get the latest scheduler
             var currentScheduler = Scheduler;
 
-            // Start synchronous batch processing on the specified scheduler
-            // DenyChildAttach: Prevent child tasks from attaching to this task (defensive)
+            // Run the synchronous batch processor on the specified scheduler
             var processTask = Task.Factory.StartNew(
                 () =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    _batchProcessor(taskData); // Callback is guaranteed to run synchronously
+                    _batchProcessor(taskData); // synchronous callback
                 },
                 cancellationToken,
                 TaskCreationOptions.DenyChildAttach,
                 currentScheduler);
 
-            // Wait for the batch to complete (with cancellation support)
-            await WaitTaskAsync(processTask, cancellationToken).ConfigureAwait(false);
+            // Wait and handle exceptions so a single-batch exception doesn't kill the loop
+            try
+            {
+                await WaitTaskAsync(processTask, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // rethrow cancellation to caller (or handle based on semantics)
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // LOG the exception, but do not let the loop die silently.
+                // Choose your policy: swallow and continue, or rethrow to stop the loop.
+                // For now: swallow after logging so subsequent batches still run.
+                // Replace this with your logging facility:
+                System.Diagnostics.Trace.TraceError($"TaskBatcher batch processor threw: {ex}");
+            }
 
-            // Update the highest processed sequence number (atomic operation)
+            // Update processed counter to the max of previous and this batch's max sequence (CAS loop)
             long maxProcessedSeq = batch.Max(t => t.Sequence);
-            Interlocked.Exchange(ref _processedCounter, maxProcessedSeq);
+            long observed;
+            do
+            {
+                observed = Volatile.Read(ref _processedCounter);
+                if (maxProcessedSeq <= observed) break;
+            } while (Interlocked.CompareExchange(ref _processedCounter, maxProcessedSeq, observed) != observed);
 
-            // Notify all NextTick waiters whose target sequence has been processed
+            // Notify waiters
             NotifyNextTickWaiters();
         }
         finally
         {
-            // Reset processing state (release lock for next batch)
             lock (_stateLock)
             {
                 _isProcessing = false;
