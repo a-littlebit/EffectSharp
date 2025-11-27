@@ -96,6 +96,15 @@ public class TaskBatcher<T> : IDisposable
             if (_batchLoopTask.IsCompleted)
             {
                 _batchLoopTask = StartBatchProcessingLoopAsync();
+                // trace if exception occurs during loop
+                _batchLoopTask.ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                    {
+                        System.Diagnostics.Trace.TraceError($"TaskBatcher processing loop failed: {t.Exception}");
+                    }
+                },
+                TaskContinuationOptions.OnlyOnFaulted);
             }
         }
     }
@@ -302,26 +311,52 @@ public class TaskBatcher<T> : IDisposable
             var taskData = batch.Select(t => t.Item);
             var currentScheduler = Scheduler;
 
-            // Start synchronous batch processing on the specified scheduler
-            // DenyChildAttach: Prevent child tasks from attaching to this task (defensive)
+            // Run the synchronous batch processor on the specified scheduler
             var processTask = Task.Factory.StartNew(
                 () =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    _batchProcessor(taskData); // Callback is guaranteed to run synchronously
+                    _batchProcessor(taskData); // synchronous callback
                 },
                 cancellationToken,
                 TaskCreationOptions.DenyChildAttach,
                 currentScheduler);
 
-            // Wait for the batch to complete (with cancellation support)
-            await WaitTaskAsync(processTask, cancellationToken).ConfigureAwait(false);
+            // Wait and handle exceptions: propagate failure to caller
+            try
+            {
+                await WaitTaskAsync(processTask, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Re-throw cancellation (expected flow)
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // Log with batch details, then re-throw to notify caller
+                System.Diagnostics.Trace.TraceError(
+                    $"TaskBatcher batch processing failed (batch size: {batch.Count}, max sequence: {batch.Max(t => t.Sequence)}): {ex}");
+                throw new InvalidOperationException("Failed to process batch", ex);
+            }
 
-            // Update the highest processed sequence number (atomic operation)
+            // Update processed counter with CAS (monotonic increment guarantee)
             long maxProcessedSeq = batch.Max(t => t.Sequence);
-            Interlocked.Exchange(ref _processedCounter, maxProcessedSeq);
+            long observed;
+            int spinCount = 0;
+            do
+            {
+                if (spinCount++ > 10)
+                {
+                    System.Diagnostics.Trace.TraceWarning(
+                        $"TaskBatcher CAS loop timeout: maxProcessedSeq={maxProcessedSeq}, current={Volatile.Read(ref _processedCounter)}");
+                    break;
+                }
+                observed = Volatile.Read(ref _processedCounter);
+                if (maxProcessedSeq <= observed) break;
+            } while (Interlocked.CompareExchange(ref _processedCounter, maxProcessedSeq, observed) != observed);
 
-            // Notify all NextTick waiters whose target sequence has been processed
+            // Notify waiters (only if batch processed successfully)
             NotifyNextTickWaiters();
         }
         finally
