@@ -15,6 +15,7 @@ namespace Example.Wpf
     {
         public event PropertyChangedEventHandler? PropertyChanged;
 
+        public Guid Id { get; } = Guid.NewGuid();
         public virtual required string Title { get; set; }
         public virtual bool IsCompleted { get; set; }
     }
@@ -37,7 +38,7 @@ namespace Example.Wpf
                 return ShowAllItems.Value
                     ? TodoItems.ToList()
                     : TodoItems.Where(item => item.IsCompleted == ShowCompletedItems.Value).ToList();
-            }).DiffAndBindTo(FilteredTodoItems);
+            }).DiffAndBindTo(FilteredTodoItems, item => item.Id);
         }
 
         [RelayCommand]

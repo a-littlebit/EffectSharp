@@ -1,5 +1,4 @@
 ﻿using Castle.DynamicProxy;
-using ListDiff;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -254,7 +253,7 @@ namespace EffectSharp
 
             return Watch(source, (newList, _) =>
             {
-                ListSynchronizer.SyncKeyed(newList, observableCollection, keySelector, equalityComparer);
+                ListSynchronizer.SyncKeyed(observableCollection, newList, keySelector, equalityComparer);
             }, new WatchOptions { Immediate = true });
         }
 
@@ -270,7 +269,7 @@ namespace EffectSharp
 
             return Watch(source, (newList, _) =>
             {
-                ListSynchronizer.SyncUnkeyed(newList, observableCollection, equalityComparer);
+                ListSynchronizer.SyncUnkeyed(observableCollection, newList, equalityComparer);
             }, new WatchOptions { Immediate = true });
         }
 
