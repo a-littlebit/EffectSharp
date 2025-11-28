@@ -16,7 +16,7 @@ namespace EffectSharp
     {
         #region Private Fields
         private readonly Action<IEnumerable<T>> _batchProcessor; // Synchronous batch processing callback (must run sync)
-        private readonly int _intervalMs; // Execution interval in milliseconds (0 = merge tasks rapidly)
+        private int _intervalMs; // Execution interval in milliseconds (0 = merge tasks rapidly)
         private TaskScheduler _scheduler; // Task scheduler (supports dynamic switching with eventual consistency)
         private readonly ConcurrentQueue<(T Item, long Sequence)> _taskQueue = new ConcurrentQueue<(T Item, long Sequence)>(); // Task queue with sequence numbers for NextTick tracking
         private readonly object _stateLock = new object(); // Synchronization lock for critical state changes
@@ -54,6 +54,24 @@ namespace EffectSharp
         #endregion
 
         #region Public Properties
+        /// <summary>
+        /// Interval between batch executions in milliseconds (0 = no delay, merge tasks rapidly).
+        /// Supports dynamic updating with eventual consistency:
+        /// - Current in-progress delays use the old interval
+        /// - Subsequent delays use the new interval
+        /// </summary>
+        public int IntervalMs
+        {
+            get => Volatile.Read(ref _intervalMs); // Ensure latest value is read across threads
+            set
+            {
+                ThrowIfDisposed();
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException(nameof(value), "Execution interval cannot be negative");
+                Interlocked.Exchange(ref _intervalMs, value);
+            }
+        }
+
         /// <summary>
         /// Task scheduler for batch execution. Supports dynamic switching with eventual consistency:
         /// - Current in-progress batches use the old scheduler
@@ -240,7 +258,7 @@ namespace EffectSharp
                     try
                     {
                         // Wait for the specified interval (first task waits unless flushed; 0ms = immediate)
-                        await Task.Delay(_intervalMs, delayCts.Token).ConfigureAwait(false);
+                        await Task.Delay(Volatile.Read(ref _intervalMs), delayCts.Token).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException) when (!_disposed)
                     {

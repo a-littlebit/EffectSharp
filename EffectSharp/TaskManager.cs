@@ -18,17 +18,61 @@ namespace EffectSharp
     {
 
         private static readonly TaskBatcher<Effect> _triggerBatcher
-            = new TaskBatcher<Effect>(TriggerBatchEffects, 0, TaskScheduler.Default);
+            = new TaskBatcher<Effect>(TriggerBatchEffects, 0, TaskScheduler.FromCurrentSynchronizationContext());
 
         private static readonly TaskBatcher<NotifyTask> _notifyBatcher
-            = new TaskBatcher<NotifyTask>((tasks) => NotifyBatch(tasks), 16, TaskScheduler.FromCurrentSynchronizationContext());
+            = new TaskBatcher<NotifyTask>(NotifyBatch, 16, TaskScheduler.FromCurrentSynchronizationContext());
 
-        public static TaskScheduler EffectScheduler
+        /// <summary>
+        /// Gets or sets the interval, in milliseconds, between effect trigger batches.
+        /// </summary>
+        /// <remarks>
+        /// Setting a lower value may increase responsiveness but can result in higher resource
+        /// usage. The interval must be a non-negative integer.
+        /// Default is 0 ms, meaning effects are processed as soon as possible.
+        /// </remarks>
+        public static int EffectIntervalMs
+        {
+            get => _triggerBatcher.IntervalMs;
+            set => _triggerBatcher.IntervalMs = value;
+        }
+
+        /// <summary>
+        /// Gets or sets the <see cref="TaskScheduler"/> used to schedule effect-related tasks.
+        /// </summary>
+        /// <remarks>
+        /// Changing this property affects how effect tasks are dispatched and may impact
+        /// concurrency or execution order. Ensure that the assigned <see cref="TaskScheduler"/> is appropriate for the
+        /// application's threading model.
+        /// </remarks>
+        public static TaskScheduler EffectTaskScheduler
         {
             get => _triggerBatcher.Scheduler;
             set => _triggerBatcher.Scheduler = value;
         }
 
+        /// <summary>
+        /// Gets or sets the interval, in milliseconds, between UI notification batches.
+        /// </summary>
+        /// <remarks>
+        /// Setting a lower value may increase UI responsiveness but can result in higher resource
+        /// usage. The interval must be a non-negative integer.
+        /// Default is 16 ms, aligning with a typical 60Hz UI refresh rate.
+        /// </remarks>
+        public static int NotifyIntervalMs
+        {
+            get => _notifyBatcher.IntervalMs;
+            set => _notifyBatcher.IntervalMs = value;
+        }
+
+        /// <summary>
+        /// Gets or sets the <see cref="TaskScheduler"/> used to schedule UI notification tasks.
+        /// </summary>
+        /// <remarks>
+        /// Changing this property affects how UI notification tasks are dispatched and may impact
+        /// concurrency or execution order. Ensure that the assigned <see cref="TaskScheduler"/> is appropriate for the
+        /// UI threading model.
+        /// </remarks>
         public static TaskScheduler NotifyTaskScheduler
         {
             get => _notifyBatcher.Scheduler;
