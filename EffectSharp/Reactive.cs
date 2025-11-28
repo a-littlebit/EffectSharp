@@ -215,34 +215,62 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Synchronizes the contents of an observable collection with the current value of a referenced collection,
-        /// updating the observable collection whenever the source changes.
+        /// Synchronizes the contents of an observable collection with the source list, updating the collection to
+        /// reflect changes in the source using key-based diffing.
         /// </summary>
-        /// <typeparam name="T">The type of elements contained in the collections.</typeparam>
-        /// <typeparam name="TCollection">The type of the source collection, which must implement <see cref="IEnumerable{T}"/>.</typeparam>
-        /// <param name="source">A reference to the collection whose changes will be observed and reflected in the observable collection.
-        /// Cannot be null.</param>
-        /// <param name="observableCollection">The <see cref="ObservableCollection{T}"/> to be kept in sync with the source collection. Cannot be null.</param>
-        /// <param name="match">An optional function used to determine whether two items are considered equal. If null, the default equality
-        /// comparer for <typeparamref name="T"/> is used.</param>
-        /// <returns>An <see cref="IDisposable"/> that, when disposed, stops synchronizing changes from the source collection to
-        /// the observable collection.</returns>
-        /// <exception cref="ArgumentNullException">Thrown if <paramref name="source"/> or <paramref name="observableCollection"/> is null.</exception>
-        public static IDisposable DiffAndBindTo<T, TCollection>(
-            this IRef<TCollection> source,
+        /// <typeparam name="T">The type of elements contained in the source list and observable collection.</typeparam>
+        /// <typeparam name="TList">The type of the source list, which must implement <see cref="IList{T}"/>.</typeparam>
+        /// <typeparam name="TKey">The type of the key used to identify elements for diffing.</typeparam>
+        /// <param name="source">
+        /// A reactive reference to the source list whose changes will be observed and reflected in the observable collection.
+        /// Cannot be null.
+        /// </param>
+        /// <param name="observableCollection">
+        /// The <see cref="ObservableCollection{T}"/> to be synchronized with the source list. Cannot be null.
+        /// </param>
+        /// <param name="keySelector">
+        /// A function that extracts the unique key from each element, used to determine identity during diffing. Cannot be null.
+        /// </param>
+        /// <param name="equalityComparer">
+        /// An optional equality comparer for keys. If null, the default equality comparer for <typeparamref name="TKey"/> is used.
+        /// </param>
+        /// <returns>
+        /// An <see cref="IDisposable"/> that, when disposed, stops synchronizing changes from the source list to the observable collection.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown if <paramref name="source"/>, <paramref name="observableCollection"/>, or <paramref name="keySelector"/> is null.
+        /// </exception>
+        public static IDisposable DiffAndBindTo<T, TList, TKey>(
+            this IRef<TList> source,
             ObservableCollection<T> observableCollection,
-            Func<T, T, bool> match = null)
-            where TCollection : IEnumerable<T>
+            Func<T, TKey> keySelector,
+            IEqualityComparer<TKey> equalityComparer = null)
+            where TList : IList<T>
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (observableCollection == null) throw new ArgumentNullException(nameof(observableCollection));
-            if (match == null) match = EqualityComparer<T>.Default.Equals;
+            if (keySelector == null) throw new ArgumentNullException(nameof(keySelector));
+            if (equalityComparer == null) equalityComparer = EqualityComparer<TKey>.Default;
 
-            if (match == null) match = (a, b) => EqualityComparer<T>.Default.Equals(a, b);
-
-            return Watch(source, (newCollection, _) =>
+            return Watch(source, (newList, _) =>
             {
-                observableCollection.MergeInto(newCollection, match);
+                ListSynchronizer.SyncKeyed(newList, observableCollection, keySelector, equalityComparer);
+            }, new WatchOptions { Immediate = true });
+        }
+
+        public static IDisposable DiffAndBindTo<T, TList>(
+            this IRef<TList> source,
+            ObservableCollection<T> observableCollection,
+            IEqualityComparer<T> equalityComparer = null)
+            where TList : IList<T>
+        {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            if (observableCollection == null) throw new ArgumentNullException(nameof(observableCollection));
+            if (equalityComparer == null) equalityComparer = EqualityComparer<T>.Default;
+
+            return Watch(source, (newList, _) =>
+            {
+                ListSynchronizer.SyncUnkeyed(newList, observableCollection, equalityComparer);
             }, new WatchOptions { Immediate = true });
         }
 

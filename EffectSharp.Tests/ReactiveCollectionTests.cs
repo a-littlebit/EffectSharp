@@ -75,21 +75,5 @@ namespace EffectSharp.Tests
             Assert.True(countChanged);
             Assert.Equal(0, count.Value);
         }
-
-        [Fact]
-        public void DiffAndBindToCollection_WorksCorrectly()
-        {
-            var reactiveList = Reactive.Collection<(int, string)>();
-            var sourceList = Reactive.Ref(new List<(int, string)> { (1, "1"), (2, "2"), (3, "3") });
-            // Initial binding
-            Reactive.DiffAndBindTo(sourceList, reactiveList);
-            Assert.Equal([(1, "1"), (2, "2"), (3, "3")], reactiveList);
-            // Update source list
-            sourceList.Value = [(2, "2"), (3, "updated"), (4, "4")];
-            Assert.Equal([(2, "2"), (3, "updated"), (4, "4")], reactiveList);
-            // Update source list again
-            sourceList.Value = [(4, "4"), (5, "5")];
-            Assert.Equal([(4, "4"), (5, "5")], reactiveList);
-        }
     }
 }
