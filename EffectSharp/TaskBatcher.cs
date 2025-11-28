@@ -19,16 +19,14 @@ namespace EffectSharp
         private int _intervalMs; // Execution interval in milliseconds (0 = merge tasks rapidly)
         private TaskScheduler _scheduler; // Task scheduler (supports dynamic switching with eventual consistency)
         private readonly ConcurrentQueue<(T Item, long Sequence)> _taskQueue = new ConcurrentQueue<(T Item, long Sequence)>(); // Task queue with sequence numbers for NextTick tracking
-        private readonly object _stateLock = new object(); // Synchronization lock for critical state changes
         private readonly ConcurrentQueue<TaskCompletionSource<bool>> _nextTickTcsQueue = new ConcurrentQueue<TaskCompletionSource<bool>>(); // Queue for NextTick waiters
         private readonly ConcurrentDictionary<TaskCompletionSource<bool>, long> _nextTickTargets = new ConcurrentDictionary<TaskCompletionSource<bool>, long>(); // Maps waiters to their target sequence number
 
-        private bool _isProcessing; // Flag to prevent parallel batch processing
-        private Task _batchLoopTask; // Background loop task for periodic processing
+        private int _startLoopFlag; // Flag to ensure single batch processing loop
         private CancellationTokenSource _currentDelayCts; // Cancellation source for the current interval delay
         private long _enqueueCounter; // Atomic counter for generating unique task sequence numbers
         private long _processedCounter; // Atomic counter for the highest processed sequence number
-        private bool _disposed; // Flag to track disposal state
+        private int _disposed; // Flag to track disposal state
         #endregion
 
         #region Constructor
@@ -47,9 +45,6 @@ namespace EffectSharp
                 throw new ArgumentOutOfRangeException(nameof(intervalMs), "Execution interval cannot be negative");
             _intervalMs = intervalMs;
             _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
-
-            // Initialize loop task to completed state to avoid null reference exceptions
-            _batchLoopTask = Task.CompletedTask;
         }
         #endregion
 
@@ -107,33 +102,11 @@ namespace EffectSharp
         {
             ThrowIfDisposed();
 
-            // 1. Lock-free operations: generate unique sequence (atomic increment) + enqueue (ConcurrentQueue is lock-free)
             long sequence = Interlocked.Increment(ref _enqueueCounter);
             _taskQueue.Enqueue((item, sequence));
 
-            // 2. Lock-free check whether to start the processing loop (core optimization)
-            // Volatile.Read ensures reading latest _batchLoopTask to avoid stale cached value
-            Task currentLoopTask = Volatile.Read(ref _batchLoopTask);
-            if (currentLoopTask.IsCompleted)
-            {
-                // Create a new loop task (not yet started executing)
-                Task newLoopTask = StartBatchProcessingLoopAsync();
-                // CAS atomic replace: only replace _batchLoopTask when it is still currentLoopTask (completed)
-                // Ensures only one thread successfully starts a new loop under concurrent attempts
-                Task originalTask = Interlocked.CompareExchange(ref _batchLoopTask, newLoopTask, currentLoopTask);
-                if (originalTask == currentLoopTask)
-                {
-                    // Replace succeeded: attach an error observer to avoid unobserved exceptions (only once)
-                    newLoopTask.ContinueWith(t =>
-                    {
-                        if (t.IsFaulted)
-                        {
-                            System.Diagnostics.Trace.TraceError($"TaskBatcher processing loop failed: {t.Exception}");
-                        }
-                    }, TaskContinuationOptions.OnlyOnFaulted);
-                }
-                // If replace failed: another thread started the loop; newLoopTask will be GC'd without side effects
-            }
+            // Start the batch processing loop asynchronously (fire-and-forget)
+            _ = StartBatchProcessingLoopAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -203,8 +176,7 @@ namespace EffectSharp
                 return Task.CompletedTask;
             }
 
-            // Create TCS (no RunContinuationsAsynchronously for .NET Standard 2.0 compatibility)
-            var tcs = new TaskCompletionSource<bool>();
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             _nextTickTargets.TryAdd(tcs, targetSequence);
             _nextTickTcsQueue.Enqueue(tcs);
 
@@ -243,54 +215,44 @@ namespace EffectSharp
         /// </summary>
         private async Task StartBatchProcessingLoopAsync()
         {
-            while (!_disposed && !_taskQueue.IsEmpty)
+            // Outermost loop: ensure continuous processing while there are tasks
+            while (Volatile.Read(ref _disposed) == 0 && !_taskQueue.IsEmpty)
             {
-                // Create a new cancellation source for the current interval delay
-                using (var delayCts = new CancellationTokenSource())
+                if (Interlocked.CompareExchange(ref _startLoopFlag, 1, 0) == 1)
                 {
-                    // Safely assign the current delay cancellation source
-                    lock (_stateLock)
+                    // Another loop is already running—exit
+                    return;
+                }
+                // Inner loop: process batches until the queue is empty
+                while (Volatile.Read(ref _disposed) == 0 && !_taskQueue.IsEmpty)
+                {
+                    // Create a new cancellation source for the current interval delay
+                    using (var delayCts = new CancellationTokenSource())
                     {
-                        if (_disposed) break;
-                        _currentDelayCts = delayCts;
-                    }
-
-                    try
-                    {
-                        // Wait for the specified interval (first task waits unless flushed; 0ms = immediate)
-                        await Task.Delay(Volatile.Read(ref _intervalMs), delayCts.Token).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (!_disposed)
-                    {
-                        // Cancellation triggered by FlushAsync—proceed to process immediately
-                    }
-                    finally
-                    {
-                        // Clear the reference to the delay cancellation source (thread-safe)
-                        lock (_stateLock)
+                        Interlocked.Exchange(ref _currentDelayCts, delayCts);
+                        try
                         {
-                            if (_currentDelayCts == delayCts)
-                            {
-                                _currentDelayCts = null;
-                            }
+                            // Wait for the specified interval (first task waits unless flushed; 0ms = immediate)
+                            await Task.Delay(Volatile.Read(ref _intervalMs), delayCts.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // Cancellation triggered by FlushAsync—proceed to process immediately
+                        }
+                        finally
+                        {
+                            // Clear the reference to the delay cancellation source (thread-safe)
+                            Interlocked.Exchange(ref _currentDelayCts, null);
                         }
                     }
+
+                    // Exit loop if disposed during the delay
+                    if (Volatile.Read(ref _disposed) == 1) break;
+
+                    // Process one batch of tasks (uses the latest scheduler)
+                    await ProcessBatchAsync().ConfigureAwait(false);
                 }
-
-                // Exit loop if disposed during the delay
-                if (_disposed) break;
-
-                // Process one batch of tasks (uses the latest scheduler)
-                await ProcessBatchAsync().ConfigureAwait(false);
-            }
-
-            // Reset the loop task to completed state when done (prevents memory leaks)
-            lock (_stateLock)
-            {
-                if (_batchLoopTask.IsCompleted)
-                {
-                    _batchLoopTask = Task.CompletedTask;
-                }
+                Interlocked.Exchange(ref _startLoopFlag, 0); // Reset loop flag
             }
         }
 
@@ -298,97 +260,74 @@ namespace EffectSharp
         /// Processes a single batch of tasks from the queue.
         /// Ensures only one batch runs at a time.
         /// </summary>
-        /// <param name="cancellationToken">Cancellation token to abort processing</param>
-        private async Task ProcessBatchAsync(CancellationToken cancellationToken = default)
+        private async Task ProcessBatchAsync()
         {
-            // Acquire lock to check/set processing state (prevent parallel batches)
-            lock (_stateLock)
+            // Optimize: Skip List creation if queue is empty (ConcurrentQueue.IsEmpty is snapshot, but reduces empty List overhead)
+            if (_taskQueue.IsEmpty)
             {
-                if (_disposed || _isProcessing)
-                {
-                    return;
-                }
-                _isProcessing = true;
+                return;
             }
 
+            // Dequeue all tasks currently in the queue (atomic operation)
+            var batch = new List<(T Item, long Sequence)>();
+            while (_taskQueue.TryDequeue(out var taskWithSeq))
+            {
+                batch.Add(taskWithSeq);
+            }
+
+            // Exit if no tasks to process (queue emptied between IsEmpty check and Dequeue)
+            if (batch.Count == 0)
+            {
+                return;
+            }
+
+            // Extract task data and get the latest scheduler
+            var taskData = batch.Select(t => t.Item).ToList();
+            var currentScheduler = Scheduler;
+
+            // Run the synchronous batch processor on the specified scheduler
+            var processTask = Task.Factory.StartNew(
+                () =>
+                {
+                    _batchProcessor(taskData); // synchronous callback
+                },
+                CancellationToken.None,
+                TaskCreationOptions.DenyChildAttach,
+                currentScheduler);
+
+            // Wait and handle exceptions: propagate failure to caller
             try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                // Optimize: Skip List creation if queue is empty (ConcurrentQueue.IsEmpty is snapshot, but reduces empty List overhead)
-                if (_taskQueue.IsEmpty)
-                {
-                    return;
-                }
-
-                // Dequeue all tasks currently in the queue (atomic operation)
-                var batch = new List<(T Item, long Sequence)>();
-                while (_taskQueue.TryDequeue(out var taskWithSeq))
-                {
-                    batch.Add(taskWithSeq);
-                }
-
-                // Exit if no tasks to process (queue emptied between IsEmpty check and Dequeue)
-                if (batch.Count == 0)
-                {
-                    return;
-                }
-
-                // Extract task data and get the latest scheduler
-                var taskData = batch.Select(t => t.Item);
-                var currentScheduler = Scheduler;
-
-                // Run the synchronous batch processor on the specified scheduler
-                var processTask = Task.Factory.StartNew(
-                    () =>
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        _batchProcessor(taskData); // synchronous callback
-                    },
-                    cancellationToken,
-                    TaskCreationOptions.DenyChildAttach,
-                    currentScheduler);
-
-                // Wait and handle exceptions: propagate failure to caller
-                try
-                {
-                    await WaitTaskAsync(processTask, cancellationToken).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    // Re-throw cancellation (expected flow)
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    var maxSeq = batch.Max(t => t.Sequence);
-                    // Log with batch details, then re-throw to notify caller
-                    System.Diagnostics.Trace.TraceError(
-                        $"TaskBatcher batch processing failed (batch size: {batch.Count}, max sequence: {maxSeq}): {ex}");
-                    CancelWaitersForSequence(maxSeq, ex);
-                    throw new InvalidOperationException("Failed to process batch", ex);
-                }
-
-                // Update processed counter with CAS (monotonic increment guarantee)
-                long maxProcessedSeq = batch.Max(t => t.Sequence);
-                long observed;
-                do
-                {
-                    observed = Volatile.Read(ref _processedCounter);
-                    if (maxProcessedSeq <= observed) break;
-                } while (Interlocked.CompareExchange(ref _processedCounter, maxProcessedSeq, observed) != observed);
-
-                // Notify waiters (only if batch processed successfully)
-                NotifyNextTickWaiters();
+                await processTask.ConfigureAwait(false);
             }
-            finally
+            catch (OperationCanceledException)
             {
-                // Reset processing state (release lock for next batch)
-                lock (_stateLock)
-                {
-                    _isProcessing = false;
-                }
+                // Re-throw cancellation (expected flow)
+                throw;
             }
+            catch (Exception ex)
+            {
+                var maxSeq = batch.Max(t => t.Sequence);
+                // Log with batch details, then re-throw to notify caller
+                System.Diagnostics.Trace.TraceError(
+                    $"TaskBatcher batch processing failed (batch size: {batch.Count}, max sequence: {maxSeq}): {ex}");
+                CancelWaitersForSequence(maxSeq, ex);
+            }
+
+            // Update processed counter
+            long maxProcessedSeq = batch.Max(t => t.Sequence);
+            long observedProcessedSeq;
+            do
+            {
+                observedProcessedSeq = Volatile.Read(ref _processedCounter);
+                if (maxProcessedSeq <= observedProcessedSeq)
+                {
+                    break; // No update needed
+                }
+            } while (Interlocked.CompareExchange(ref _processedCounter, maxProcessedSeq, observedProcessedSeq) != observedProcessedSeq);
+
+            // Notify waiters (only if batch processed successfully)
+            NotifyNextTickWaiters();
         }
 
         /// <summary>
@@ -404,6 +343,7 @@ namespace EffectSharp
 
             long processedSeq = Volatile.Read(ref _processedCounter);
             var completedWaiters = new List<TaskCompletionSource<bool>>();
+            var pendingWaiters = new List<(TaskCompletionSource<bool>, long)>();
 
             // Process waiters in queue order (guaranteed to be in sequence order)
             while (_nextTickTcsQueue.TryDequeue(out var tcs))
@@ -418,9 +358,27 @@ namespace EffectSharp
                     }
                     else
                     {
-                        // Queue is ordered—remaining waiters have higher sequences, re-enqueue and exit
-                        _nextTickTcsQueue.Enqueue(tcs);
-                        break;
+                        pendingWaiters.Add((tcs, targetSeq));
+                    }
+                }
+            }
+
+            // Add pending waiters back
+            foreach (var (tcs, _) in pendingWaiters)
+            {
+                _nextTickTcsQueue.Enqueue(tcs);
+            }
+
+            // Ensure waiters processed when dequeued completed
+            var newProcessedSeq = Volatile.Read(ref _processedCounter);
+            if (newProcessedSeq != processedSeq)
+            {    
+                foreach (var (tcs, targetSeq) in pendingWaiters)
+                {
+                    if (targetSeq <= newProcessedSeq)
+                    {
+                        tcs.TrySetResult(true);
+                        completedWaiters.Add(tcs);
                     }
                 }
             }
@@ -432,6 +390,13 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Cancels all pending waiters whose target sequence is less than or equal to the specified failed sequence,
+        /// setting the provided exception on each.
+        /// </summary>
+        /// <param name="failedSeq">The sequence number that has failed. All waiters targeting this sequence or any earlier sequence will be
+        /// cancelled.</param>
+        /// <param name="ex">The exception to set on each cancelled waiter. This exception will be propagated to the affected tasks.</param>
         private void CancelWaitersForSequence(long failedSeq, Exception ex)
         {
             var toCancel = new List<TaskCompletionSource<bool>>();
@@ -457,53 +422,13 @@ namespace EffectSharp
         /// </summary>
         private void CancelCurrentDelay()
         {
-            CancellationTokenSource delayCts = null;
-
             // Safely retrieve and clear the current delay cancellation source
-            lock (_stateLock)
-            {
-                delayCts = _currentDelayCts;
-                _currentDelayCts = null;
-            }
+            var delayCts = Interlocked.Exchange(ref _currentDelayCts, null);
 
             // Cancel the delay if it's active (avoid redundant calls)
             if (delayCts != null && !delayCts.IsCancellationRequested)
             {
                 delayCts.Cancel();
-            }
-        }
-
-        /// <summary>
-        /// .NET Standard 2.0-compatible replacement for Task.WaitAsync (available in .NET 5+).
-        /// Waits for a task to complete or a cancellation token to trigger, propagating exceptions.
-        /// </summary>
-        /// <param name="task">Task to wait for</param>
-        /// <param name="cancellationToken">Cancellation token to abort the wait</param>
-        /// <returns>Task representing the completion of the target task</returns>
-        /// <exception cref="OperationCanceledException">Thrown if the wait is canceled</exception>
-        private async Task WaitTaskAsync(Task task, CancellationToken cancellationToken)
-        {
-            // Return immediately if the task is already completed
-            if (task.IsCompleted)
-            {
-                await task.ConfigureAwait(false);
-                return;
-            }
-
-            // Simulate WaitAsync with Task.WhenAny (TaskCompletionSource doesn't implement IDisposable—no using needed)
-            var cancellationTcs = new TaskCompletionSource<bool>();
-            using (cancellationToken.Register(() => cancellationTcs.TrySetCanceled(cancellationToken)))
-            {
-                var completedTask = await Task.WhenAny(task, cancellationTcs.Task).ConfigureAwait(false);
-
-                // Throw if cancellation was requested
-                if (completedTask == cancellationTcs.Task)
-                {
-                    throw new OperationCanceledException(cancellationToken);
-                }
-
-                // Await the original task to propagate exceptions (e.g., task faulted)
-                await task.ConfigureAwait(false);
             }
         }
         #endregion
@@ -525,21 +450,16 @@ namespace EffectSharp
         /// <param name="disposing">True to release managed resources; false for unmanaged only</param>
         protected virtual void Dispose(bool disposing)
         {
-            if (_disposed)
-                return;
+            var disposed = Interlocked.Exchange(ref _disposed, 1);
 
-            if (disposing)
+            if (disposed == 0 && disposing)
             {
                 // Cancel all pending delays and clean up
-                lock (_stateLock)
+                var delayCts = Interlocked.Exchange(ref _currentDelayCts, null);
+                if (delayCts != null)
                 {
-                    if (_currentDelayCts != null)
-                    {
-                        _currentDelayCts.Cancel();
-                        _currentDelayCts.Dispose();
-                        _currentDelayCts = null;
-                    }
-                    _disposed = true;
+                    delayCts.Cancel();
+                    delayCts.Dispose();
                 }
 
                 // Cancel all NextTick waiters and clean up dictionary (prevent memory leaks)
@@ -556,8 +476,6 @@ namespace EffectSharp
                     _nextTickTargets.TryRemove(tcs, out _);
                 }
             }
-
-            _disposed = true;
         }
 
         /// <summary>
@@ -566,7 +484,7 @@ namespace EffectSharp
         /// <exception cref="ObjectDisposedException">Thrown if disposed</exception>
         private void ThrowIfDisposed()
         {
-            if (_disposed)
+            if (Volatile.Read(ref _disposed) == 1)
                 throw new ObjectDisposedException(nameof(TaskBatcher<T>));
         }
         #endregion
