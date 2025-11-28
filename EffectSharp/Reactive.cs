@@ -214,8 +214,8 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Synchronizes the contents of an observable collection with the source list, updating the collection to
-        /// reflect changes in the source using key-based diffing.
+        /// Binds the contents of an observable collection to a reactive list reference,
+        /// synchronizing changes using a key selector to identify items.
         /// </summary>
         /// <typeparam name="T">The type of elements contained in the source list and observable collection.</typeparam>
         /// <typeparam name="TList">The type of the source list, which must implement <see cref="IList{T}"/>.</typeparam>
@@ -257,6 +257,27 @@ namespace EffectSharp
             }, new WatchOptions { Immediate = true });
         }
 
+        /// <summary>
+        /// Binds the contents of an observable collection to a reactive list reference,
+        /// synchronizing changes without using keys.
+        /// </summary>
+        /// <typeparam name="T">The type of elements contained in the list and observable collection.</typeparam>
+        /// <typeparam name="TList">The type of the referenced list, which must implement <see cref="IList{T}"/>.</typeparam>
+        /// <param name="source">
+        /// A reactive reference to the source list whose changes will be observed and reflected in the observable collection.
+        /// Cannot be null.
+        /// </param>
+        /// <param name="observableCollection">
+        /// The observable collection to be synchronized with the source list. Cannot be null.
+        /// </param>
+        /// <param name="equalityComparer">
+        /// An optional equality comparer used to determine whether items are equal. If null, the default equality
+        /// comparer for type <typeparamref name="T"/> is used.
+        /// </param>
+        /// <returns>
+        /// An <see cref="IDisposable"/> that, when disposed, stops synchronizing changes from the source list to the observable collection.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="source"/> or <paramref name="observableCollection"/> is null.</exception>
         public static IDisposable DiffAndBindTo<T, TList>(
             this IRef<TList> source,
             ObservableCollection<T> observableCollection,
