@@ -78,6 +78,28 @@ namespace EffectSharp
             }
         }
 
+        public static T NoTrack<T>(Func<T> getter)
+        {
+            var previousEffect = CurrentEffectContext.Value;
+            if (previousEffect == null)
+            {
+                return getter();
+            }
+
+            lock (previousEffect._lock)
+            {
+                CurrentEffectContext.Value = null;
+                try
+                {
+                    return getter();
+                }
+                finally
+                {
+                    CurrentEffectContext.Value = previousEffect;
+                }
+            }
+        }
+
         private void ClearDependencies()
         {
             foreach (var dependency in _dependencies)
