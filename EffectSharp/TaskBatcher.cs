@@ -265,10 +265,15 @@ namespace EffectSharp
             }
 
             // Dequeue all tasks currently in the queue (atomic operation)
-            var batch = new List<(T Item, long Sequence)>();
+            var batch = new List<(T Item, long Sequence)>(_taskQueue.Count);
+            long maxProcessedSeq = 0;
             while (_taskQueue.TryDequeue(out var taskWithSeq))
             {
                 batch.Add(taskWithSeq);
+                if (taskWithSeq.Sequence > maxProcessedSeq)
+                {
+                    maxProcessedSeq = taskWithSeq.Sequence;
+                }
             }
 
             // Exit if no tasks to process (queue emptied between IsEmpty check and Dequeue)
@@ -279,7 +284,6 @@ namespace EffectSharp
 
             // Extract task data and get the latest scheduler
             var taskData = batch.Select(t => t.Item);
-            long maxProcessedSeq = batch.Max(t => t.Sequence);
             var currentScheduler = Scheduler;
 
             // Run the synchronous batch processor on the specified scheduler
@@ -323,11 +327,11 @@ namespace EffectSharp
             if (ex == null)
             {
                 NotifyNextTickWaiters();
-                BatchProcessingFailed?.Invoke(this, new BatchProcessingFailedEventArgs<T>(ex, taskData.ToList()));
             }
             else
             {
                 NotifyNextTickWaitersForException(ex);
+                BatchProcessingFailed?.Invoke(this, new BatchProcessingFailedEventArgs<T>(ex, taskData.ToList()));
             }
         }
 
@@ -456,10 +460,10 @@ namespace EffectSharp
     {
         public Exception Exception { get; }
         public List<T> FailedItems { get; }
-        public BatchProcessingFailedEventArgs(Exception exception, List<T> failItems)
+        public BatchProcessingFailedEventArgs(Exception exception, List<T> failedItems)
         {
             Exception = exception;
-            FailedItems = failItems;
+            FailedItems = failedItems;
         }
     }
 }
