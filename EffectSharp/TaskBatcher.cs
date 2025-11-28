@@ -19,14 +19,18 @@ namespace EffectSharp
         private int _intervalMs; // Execution interval in milliseconds (0 = merge tasks rapidly)
         private TaskScheduler _scheduler; // Task scheduler (supports dynamic switching with eventual consistency)
         private readonly ConcurrentQueue<(T Item, long Sequence)> _taskQueue = new ConcurrentQueue<(T Item, long Sequence)>(); // Task queue with sequence numbers for NextTick tracking
-        private readonly ConcurrentQueue<TaskCompletionSource<bool>> _nextTickTcsQueue = new ConcurrentQueue<TaskCompletionSource<bool>>(); // Queue for NextTick waiters
-        private readonly ConcurrentDictionary<TaskCompletionSource<bool>, long> _nextTickTargets = new ConcurrentDictionary<TaskCompletionSource<bool>, long>(); // Maps waiters to their target sequence number
+        private readonly ConcurrentDictionary<TaskCompletionSource<bool>, long> _waiters
+            = new ConcurrentDictionary<TaskCompletionSource<bool>, long>(); // Waiters for FlushAsync and NextTick
 
         private int _startLoopFlag; // Flag to ensure single batch processing loop
         private CancellationTokenSource _currentDelayCts; // Cancellation source for the current interval delay
         private long _enqueueCounter; // Atomic counter for generating unique task sequence numbers
         private long _processedCounter; // Atomic counter for the highest processed sequence number
         private int _disposed; // Flag to track disposal state
+        #endregion
+
+        #region Events
+        public event EventHandler<BatchProcessingFailedEventArgs<T>> BatchProcessingFailed;
         #endregion
 
         #region Constructor
@@ -177,8 +181,7 @@ namespace EffectSharp
             }
 
             var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            _nextTickTargets.TryAdd(tcs, targetSequence);
-            _nextTickTcsQueue.Enqueue(tcs);
+            _waiters.TryAdd(tcs, targetSequence);
 
             // Register cancellation callback: ALWAYS remove TCS from dictionary to prevent memory leaks
             if (cancellationToken.CanBeCanceled)
@@ -187,7 +190,7 @@ namespace EffectSharp
                 {
                     // TrySetCanceled will fail if TCS is already completed (SetResult), but we still need to clean up the dictionary
                     tcs.TrySetCanceled(cancellationToken);
-                    _nextTickTargets.TryRemove(tcs, out _);
+                    _waiters.TryRemove(tcs, out _);
                 }, useSynchronizationContext: false);
             }
 
@@ -195,15 +198,8 @@ namespace EffectSharp
             processedSequence = Volatile.Read(ref _processedCounter);
             if (targetSequence <= processedSequence)
             {
-                if (tcs.TrySetResult(true))
-                {
-                    _nextTickTargets.TryRemove(tcs, out _);
-                }
-                else
-                {
-                    // In rare cases (TCS already canceled), clean up dictionary
-                    _nextTickTargets.TryRemove(tcs, out _);
-                }
+                tcs.TrySetResult(true);
+                _waiters.TryRemove(tcs, out _);
             }
 
             return tcs.Task;
@@ -282,7 +278,8 @@ namespace EffectSharp
             }
 
             // Extract task data and get the latest scheduler
-            var taskData = batch.Select(t => t.Item).ToList();
+            var taskData = batch.Select(t => t.Item);
+            long maxProcessedSeq = batch.Max(t => t.Sequence);
             var currentScheduler = Scheduler;
 
             // Run the synchronous batch processor on the specified scheduler
@@ -295,6 +292,7 @@ namespace EffectSharp
                 TaskCreationOptions.DenyChildAttach,
                 currentScheduler);
 
+            Exception ex = null;
             // Wait and handle exceptions: propagate failure to caller
             try
             {
@@ -305,17 +303,12 @@ namespace EffectSharp
                 // Re-throw cancellation (expected flow)
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception e)
             {
-                var maxSeq = batch.Max(t => t.Sequence);
-                // Log with batch details, then re-throw to notify caller
-                System.Diagnostics.Trace.TraceError(
-                    $"TaskBatcher batch processing failed (batch size: {batch.Count}, max sequence: {maxSeq}): {ex}");
-                CancelWaitersForSequence(maxSeq, ex);
+                ex = e;
             }
 
             // Update processed counter
-            long maxProcessedSeq = batch.Max(t => t.Sequence);
             long observedProcessedSeq;
             do
             {
@@ -326,8 +319,16 @@ namespace EffectSharp
                 }
             } while (Interlocked.CompareExchange(ref _processedCounter, maxProcessedSeq, observedProcessedSeq) != observedProcessedSeq);
 
-            // Notify waiters (only if batch processed successfully)
-            NotifyNextTickWaiters();
+            // Notify waiters
+            if (ex == null)
+            {
+                NotifyNextTickWaiters();
+                BatchProcessingFailed?.Invoke(this, new BatchProcessingFailedEventArgs<T>(ex, taskData.ToList()));
+            }
+            else
+            {
+                NotifyNextTickWaitersForException(ex);
+            }
         }
 
         /// <summary>
@@ -336,83 +337,50 @@ namespace EffectSharp
         /// </summary>
         private void NotifyNextTickWaiters()
         {
-            if (_nextTickTcsQueue.IsEmpty)
+            if (_waiters.IsEmpty)
             {
                 return;
             }
 
             long processedSeq = Volatile.Read(ref _processedCounter);
-            var completedWaiters = new List<TaskCompletionSource<bool>>();
-            var pendingWaiters = new List<(TaskCompletionSource<bool>, long)>();
 
             // Process waiters in queue order (guaranteed to be in sequence order)
-            while (_nextTickTcsQueue.TryDequeue(out var tcs))
+            foreach (var pair in _waiters.ToList())
             {
-                if (_nextTickTargets.TryGetValue(tcs, out long targetSeq))
+                var tcs = pair.Key;
+                var targetSeq = pair.Value;
+                if (targetSeq <= processedSeq)
                 {
-                    // If target sequence is processed, complete the waiter
-                    if (targetSeq <= processedSeq)
-                    {
-                        tcs.TrySetResult(true);
-                        completedWaiters.Add(tcs);
-                    }
-                    else
-                    {
-                        pendingWaiters.Add((tcs, targetSeq));
-                    }
+                    // Target sequence has been processed—complete the waiter
+                    tcs.TrySetResult(true);
+                    _waiters.TryRemove(tcs, out _);
                 }
-            }
-
-            // Add pending waiters back
-            foreach (var (tcs, _) in pendingWaiters)
-            {
-                _nextTickTcsQueue.Enqueue(tcs);
-            }
-
-            // Ensure waiters processed when dequeued completed
-            var newProcessedSeq = Volatile.Read(ref _processedCounter);
-            if (newProcessedSeq != processedSeq)
-            {    
-                foreach (var (tcs, targetSeq) in pendingWaiters)
-                {
-                    if (targetSeq <= newProcessedSeq)
-                    {
-                        tcs.TrySetResult(true);
-                        completedWaiters.Add(tcs);
-                    }
-                }
-            }
-
-            // Clean up completed waiters from the dictionary (prevent memory leaks)
-            foreach (var tcs in completedWaiters)
-            {
-                _nextTickTargets.TryRemove(tcs, out _);
             }
         }
 
         /// <summary>
-        /// Cancels all pending waiters whose target sequence is less than or equal to the specified failed sequence,
-        /// setting the provided exception on each.
+        /// Notifies all pending waiters for the next tick that an exception has occurred, causing their associated
+        /// tasks to complete with the specified exception.
         /// </summary>
-        /// <param name="failedSeq">The sequence number that has failed. All waiters targeting this sequence or any earlier sequence will be
-        /// cancelled.</param>
-        /// <param name="ex">The exception to set on each cancelled waiter. This exception will be propagated to the affected tasks.</param>
-        private void CancelWaitersForSequence(long failedSeq, Exception ex)
+        /// <param name="ex">The exception to propagate to all waiters whose target sequence has been processed. Cannot be null.</param>
+        private void NotifyNextTickWaitersForException(Exception ex)
         {
-            var toCancel = new List<TaskCompletionSource<bool>>();
-            foreach (var pair in _nextTickTargets.ToList())
+            if (_waiters.IsEmpty)
+            {
+                return;
+            }
+
+            long processedSeq = Volatile.Read(ref _processedCounter);
+
+            foreach (var pair in _waiters.ToList())
             {
                 var tcs = pair.Key;
                 var targetSeq = pair.Value;
-                if (targetSeq <= failedSeq)
+                if (targetSeq <= processedSeq)
                 {
-                    toCancel.Add(tcs);
+                    tcs.TrySetException(ex);
+                    _waiters.TryRemove(tcs, out _);
                 }
-            }
-            foreach (var tcs in toCancel)
-            {
-                tcs.TrySetException(ex);
-                _nextTickTargets.TryRemove(tcs, out _);
             }
         }
 
@@ -463,17 +431,11 @@ namespace EffectSharp
                 }
 
                 // Cancel all NextTick waiters and clean up dictionary (prevent memory leaks)
-                while (_nextTickTcsQueue.TryDequeue(out var tcs))
+                foreach (var pair in _waiters)
                 {
+                    var tcs = pair.Key;
                     tcs.TrySetCanceled();
-                    _nextTickTargets.TryRemove(tcs, out _);
-                }
-
-                // Clear remaining entries in _nextTickTargets (defensive cleanup)
-                foreach (var tcs in _nextTickTargets.Keys.ToList())
-                {
-                    tcs.TrySetCanceled();
-                    _nextTickTargets.TryRemove(tcs, out _);
+                    _waiters.TryRemove(tcs, out _);
                 }
             }
         }
@@ -488,5 +450,16 @@ namespace EffectSharp
                 throw new ObjectDisposedException(nameof(TaskBatcher<T>));
         }
         #endregion
+    }
+
+    public class BatchProcessingFailedEventArgs<T> : EventArgs
+    {
+        public Exception Exception { get; }
+        public List<T> FailedItems { get; }
+        public BatchProcessingFailedEventArgs(Exception exception, List<T> failItems)
+        {
+            Exception = exception;
+            FailedItems = failItems;
+        }
     }
 }
