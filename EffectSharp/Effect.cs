@@ -100,6 +100,15 @@ namespace EffectSharp
             }
         }
 
+        public static void NoTrack(Action action)
+        {
+            NoTrack(() =>
+            {
+                action();
+                return true;
+            });
+        }
+
         private void ClearDependencies()
         {
             foreach (var dependency in _dependencies)
