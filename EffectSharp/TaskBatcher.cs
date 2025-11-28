@@ -98,7 +98,6 @@ namespace EffectSharp
         #region Public Methods
         /// <summary>
         /// Enqueues a single task for batch processing.
-        /// Optimization: lock-free in most cases; only when the loop isn't running will a CAS start it (much cheaper than locking).
         /// </summary>
         /// <param name="item">Task data to enqueue</param>
         /// <exception cref="ObjectDisposedException">Thrown if the batcher is disposed</exception>
@@ -254,7 +253,6 @@ namespace EffectSharp
 
         /// <summary>
         /// Processes a single batch of tasks from the queue.
-        /// Ensures only one batch runs at a time.
         /// </summary>
         private async Task ProcessBatchAsync()
         {
@@ -337,7 +335,6 @@ namespace EffectSharp
 
         /// <summary>
         /// Notifies NextTick waiters that their target sequence number has been processed.
-        /// Processes waiters in order (sequence numbers are strictly increasing).
         /// </summary>
         private void NotifyNextTickWaiters()
         {
