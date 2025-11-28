@@ -38,7 +38,7 @@ namespace EffectSharp
             }
 
             // remove items not in newList
-            var newKeys = new HashSet<TKey>(newList.Select(keySelector));
+            var newKeys = new HashSet<TKey>(newList.Select(keySelector), equalityComparer);
             for (int i = target.Count - 1; i >= 0; i--)
             {
                 var key = keySelector(target[i]);
