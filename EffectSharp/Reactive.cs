@@ -102,12 +102,16 @@ namespace EffectSharp
         {
             if (options == null) options = WatchOptions<T>.Default;
 
-            T oldValue = getter();
+            T oldValue = default;
             bool firstRun = true;
 
             return Effect(() =>
             {
-                T newValue = firstRun && options.Immediate ? oldValue : getter();
+                T newValue = getter();
+                if (firstRun)
+                {
+                    oldValue = newValue;
+                }
 
                 if (options.Deep)
                 {

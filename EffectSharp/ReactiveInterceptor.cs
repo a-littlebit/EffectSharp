@@ -119,17 +119,21 @@ namespace EffectSharp
 
             if (!targetMethod.IsSpecialName)
             {
-                if (targetMethod.DeclaringType == typeof(IReactive) && targetMethod.Name == nameof(IReactive.SetDeep))
+                if (targetMethod.DeclaringType != typeof(IReactive))
+                {
+                    invocation.Proceed();
+                }
+                else if (targetMethod.Name == nameof(IReactive.SetDeep))
                 {
                     invocation.ReturnValue = SetDeep(target);
                 }
-                else if (targetMethod.DeclaringType == typeof(IReactive) && targetMethod.Name == nameof(IReactive.TrackDeep))
+                else if (targetMethod.Name == nameof(IReactive.TrackDeep))
                 {
                     TrackDeep(target);
                 }
                 else
                 {
-                    invocation.Proceed();
+                    throw new NotImplementedException($"Method {targetMethod.Name} is not implemented in ReactiveInterceptor.");
                 }
                 return;
             }
