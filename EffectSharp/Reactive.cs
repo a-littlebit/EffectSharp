@@ -295,12 +295,11 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Flush all pending property change notifications and return a task that completes
-        /// when next effect and notification ticks are done.
+        /// Asynchronously waits until the next effect and notification ticks have been processed.
         /// </summary>
         public static async Task NextTick()
         {
-            await Task.WhenAll(TaskManager.NextEffectTick(), TaskManager.FlushNotifyQueue());
+            await Task.WhenAll(TaskManager.NextEffectTick(), TaskManager.NextNotifyTick());
         }
     }
 

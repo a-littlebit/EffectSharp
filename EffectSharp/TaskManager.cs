@@ -23,6 +23,8 @@ namespace EffectSharp
         private static readonly TaskBatcher<NotifyTask> _notifyBatcher
             = new TaskBatcher<NotifyTask>(NotifyBatch, 16, TaskScheduler.FromCurrentSynchronizationContext());
 
+        private static volatile bool _flushNotifyAfterEffectBatch = true;
+
         /// <summary>
         /// Gets or sets the interval, in milliseconds, between effect trigger batches.
         /// </summary>
@@ -79,6 +81,21 @@ namespace EffectSharp
             set => _notifyBatcher.Scheduler = value;
         }
 
+        /// <summary>
+        /// Gets or sets a value indicating whether to automatically flush the notification queue
+        /// after each effect execution batch. Default is true.
+        /// </summary>
+        /// <remarks>
+        /// Enabling this option ensures that UI updates occur promptly after effects are executed,
+        /// but may increase the frequency of UI updates. Disable this option if you want to
+        /// manually control when the notification queue is flushed.
+        /// </remarks>
+        public static bool FlushNotifyAfterEffectBatch
+        {
+            get => _flushNotifyAfterEffectBatch;
+            set => _flushNotifyAfterEffectBatch = value;
+        }
+
         public static void EnqueueEffectTrigger(Effect effect)
         {
             _triggerBatcher.Enqueue(effect);
@@ -100,6 +117,10 @@ namespace EffectSharp
             foreach (var effect in uniqueEffects)
             {
                 effect.Execute();
+            }
+            if (FlushNotifyAfterEffectBatch)
+            {
+                _ = _notifyBatcher.FlushAsync();
             }
         }
 
