@@ -148,6 +148,11 @@ namespace EffectSharp
             lock (_nextTickLock)
             {
                 nextTickTask = _nextTickTcs.Task;
+                if (_taskQueue.IsEmpty)
+                {
+                    // No pending tasks; complete immediately
+                    return;
+                }
             }
             await WithCancellationAsync(nextTickTask, cancellationToken).ConfigureAwait(false);
         }
