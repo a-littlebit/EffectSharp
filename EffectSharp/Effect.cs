@@ -25,7 +25,6 @@ namespace EffectSharp
 
         public Action<Effect> Scheduler => _scheduler;
         public bool IsDisposed => _isDisposed;
-        public bool Lazy { get; } = false;
 
         private HashSet<Dependency> _dependencies = new HashSet<Dependency>();
 
@@ -33,8 +32,10 @@ namespace EffectSharp
         {
             _action = action;
             _scheduler = scheduler;
-            Lazy = lazy;
-            Execute();
+            if (!lazy)
+            {
+                Execute();
+            }
         }
 
         public void Execute()
@@ -43,13 +44,8 @@ namespace EffectSharp
             {
                 if (_isDisposed) return;
 
-                if (Lazy)
-                {
-                    _action();
-                    return;
-                }
+                Stop();
 
-                ClearDependencies();
                 var previousEffect = CurrentEffectContext.Value;
                 CurrentEffectContext.Value = this;
                 try
@@ -78,7 +74,7 @@ namespace EffectSharp
             }
         }
 
-        public static T NoTrack<T>(Func<T> getter)
+        public static T Untracked<T>(Func<T> getter)
         {
             var previousEffect = CurrentEffectContext.Value;
             if (previousEffect == null)
@@ -100,22 +96,25 @@ namespace EffectSharp
             }
         }
 
-        public static void NoTrack(Action action)
+        public static void Untracked(Action action)
         {
-            NoTrack(() =>
+            Untracked(() =>
             {
                 action();
                 return true;
             });
         }
 
-        private void ClearDependencies()
+        public void Stop()
         {
-            foreach (var dependency in _dependencies)
+            lock (_lock)
             {
-                dependency.RemoveSubscriber(this);
+                foreach (var dependency in _dependencies)
+                {
+                    dependency.RemoveSubscriber(this);
+                }
+                _dependencies.Clear();
             }
-            _dependencies.Clear();
         }
 
         internal void AddDependency(Dependency dependency)
@@ -128,7 +127,7 @@ namespace EffectSharp
             lock (_lock)
             {
                 if (_isDisposed) return;
-                ClearDependencies();
+                Stop();
                 _isDisposed = true;
             }
         }
