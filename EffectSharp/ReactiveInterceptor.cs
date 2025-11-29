@@ -1,4 +1,5 @@
-﻿using Castle.DynamicProxy;
+﻿using Castle.Core.Internal;
+using Castle.DynamicProxy;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -18,65 +19,113 @@ namespace EffectSharp
         public event PropertyChangingEventHandler PropertyChanging;
         public event PropertyChangedEventHandler PropertyChanged;
 
+        private static object Deep(object value)
+        {
+            if (value == null) return null;
+            if (value is IReactive r)
+            {
+                r.SetDeep();
+                return value;
+            }
+            else
+            {
+                var reactiveValue = Reactive.TryCreate(value);
+                if (reactiveValue is IReactive rNew)
+                {
+                    rNew.SetDeep();
+                    return reactiveValue;
+                }
+                return value;
+            }
+        }
+
+        private static bool SetDeep(object target)
+        {
+            if (!DependencyManager.SetDeep(target))
+            {
+                return false;
+            }
+
+            foreach (var property in DependencyManager.GetReactiveProperties(target.GetType()))
+            {
+                var value = property.GetValue(target);
+                var deepValue = Deep(value);
+                if (!ReferenceEquals(value, deepValue))
+                {
+                    property.SetValue(target, deepValue);
+                }
+            }
+            return true;
+        }
+
+        private static void TrackDeep(object target)
+        {
+            foreach (var property in DependencyManager.GetReactiveProperties(target.GetType()))
+            {
+                DependencyManager.TrackDependency(target, property.Name);
+                var value = property.GetValue(target);
+                if (value == null) return;
+                if (value is IReactive r)
+                {
+                    r.TrackDeep();
+                }
+            }
+        }
+
+        private void SetProperty(object target, string propertyName, IInvocation invocation)
+        {
+            var propertyInfo = target.GetType().GetProperty(propertyName);
+            if (propertyInfo.GetAttribute<NonReactive>() != null)
+            {
+                invocation.Proceed();
+                return;
+            }
+            PropertyChanging?.Invoke(this, new PropertyChangingEventArgs(propertyName));
+            if (DependencyManager.IsDeep(target))
+            {
+                var value = invocation.Arguments[0];
+                var deepValue = Deep(value);
+                if (!ReferenceEquals(value, deepValue))
+                {
+                    invocation.SetArgumentValue(0, deepValue);
+                }
+            }
+            invocation.Proceed();
+            if (PropertyChanged != null)
+            {
+                TaskManager.EnqueueNotify(this, propertyName, (e) =>
+                {
+                    PropertyChanged?.Invoke(this, e);
+                });
+            }
+            DependencyManager.TriggerDependency(target, propertyName);
+        }
+
+        private static void GetProperty(object target, string propertyName, IInvocation invocation)
+        {
+            var propertyInfo = target.GetType().GetProperty(propertyName);
+            if (propertyInfo.GetAttribute<NonReactive>() == null)
+            {
+                DependencyManager.TrackDependency(target, propertyName);
+            }
+            invocation.Proceed();
+        }
+
         public void Intercept(IInvocation invocation)
         {
             var target = invocation.Proxy;
             var targetMethod = invocation.Method;
             var methodName = targetMethod.Name;
 
-            object Deep(object value)
-            {
-                if (value == null) return null;
-                if (value is IReactive r)
-                {
-                    r.SetDeep();
-                    return value;
-                }
-                else
-                {
-                    var reactiveValue = Reactive.TryCreate(value);
-                    if (reactiveValue is IReactive rNew)
-                    {
-                        rNew.SetDeep();
-                        return reactiveValue;
-                    }
-                    return value;
-                }
-            }
-
             if (!targetMethod.IsSpecialName)
             {
                 if (targetMethod.DeclaringType == typeof(IReactive) && targetMethod.Name == nameof(IReactive.SetDeep))
                 {
-                    if (!DependencyManager.SetDeep(target))
-                    {
-                        invocation.ReturnValue = false;
-                        return;
-                    }
-
-                    invocation.ReturnValue = true;
-                    foreach (var property in DependencyManager.GetReactiveProperties(target.GetType()))
-                    {
-                        var value = property.GetValue(target);
-                        var deepValue = Deep(value);
-                        if (!ReferenceEquals(value, deepValue))
-                        {
-                            property.SetValue(target, deepValue);
-                        }
-                    }
+                    invocation.ReturnValue = SetDeep(target);
                 }
                 else if (targetMethod.DeclaringType == typeof(IReactive) && targetMethod.Name == nameof(IReactive.TrackDeep))
                 {
-                    foreach (var property in DependencyManager.GetReactiveProperties(target.GetType()))
-                    {
-                        DependencyManager.TrackDependency(target, property.Name);
-                        var value = property.GetValue(target);
-                        if (value == null) return;
-                        if (value is IReactive r)
-                        {
-                            r.TrackDeep();
-                        }
-                    }
+                    TrackDeep(target);
                 }
                 else
                 {
@@ -88,32 +137,12 @@ namespace EffectSharp
             if (methodName.StartsWith("set_"))
             {
                 var propertyName = methodName.Substring(4);
-                var propertyInfo = target.GetType().GetProperty(propertyName);
-                PropertyChanging?.Invoke(this, new PropertyChangingEventArgs(propertyName));
-                if (DependencyManager.IsDeep(target))
-                {
-                    var value = invocation.Arguments[0];
-                    var deepValue = Deep(value);
-                    if (!ReferenceEquals(value, deepValue))
-                    {
-                        invocation.SetArgumentValue(0, deepValue);
-                    }
-                }
-                invocation.Proceed();
-                if (PropertyChanged != null)
-                {
-                    TaskManager.EnqueueNotify(this, propertyName, (e) =>
-                    {
-                        PropertyChanged?.Invoke(this, e);
-                    });
-                }
-                DependencyManager.TriggerDependency(target, propertyName);
+                SetProperty(target, propertyName, invocation);
             }
             else if (methodName.StartsWith("get_"))
             {
                 var propertyName = methodName.Substring(4);
-                DependencyManager.TrackDependency(target, propertyName);
-                invocation.Proceed();
+                GetProperty(target, propertyName, invocation);
             }
             else if (targetMethod.Name == "add_PropertyChanging")
             {
