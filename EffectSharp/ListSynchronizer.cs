@@ -251,11 +251,11 @@ namespace EffectSharp
         #endregion
 
         /// <summary>
-        /// 直接将源集合调整为目标集合（一键操作）
+        /// Synchronizes the elements of the source ObservableCollection with the target IList using the Heckel diff algorithm.
         /// </summary>
-        /// <param name="source">待调整的源集合</param>
-        /// <param name="target">目标集合</param>
-        /// <param name="comparer">元素相等比较器</param>
+        /// <param name="source">The source ObservableCollection to be synchronized. </param>
+        /// <param name="target">The target IList to synchronize with. </param>
+        /// <param name="comparer">The equality comparer to compare elements. If null, the default equality comparer is used. </param>
         public static void SyncUnkeyed<T>(
             ObservableCollection<T> source,
             IList<T> target,
@@ -268,9 +268,9 @@ namespace EffectSharp
         // Enum for Heckel operation types
         public enum HeckelOperationType
         {
-            Delete,  // 删除操作
-            Move,    // 移动操作
-            Insert   // 插入操作
+            Delete,
+            Move,
+            Insert
         }
 
         // Represents a single Heckel operation
@@ -406,7 +406,7 @@ namespace EffectSharp
 
             // Collect move and insert operations
             int tracePtr = 0;
-            // 移动指针到第一个未处理的源元素
+            // Move the trace pointer to the first unprocessed element
             while (tracePtr < sourceCount && isTraced[tracePtr])
             {
                 tracePtr++;
