@@ -30,7 +30,7 @@ namespace Example.Wpf
             Reactive.Watch(vm.NewTodoTitle, (title, _) =>
             {
                 AddButton.IsEnabled = !string.IsNullOrWhiteSpace(title);
-            }, new WatchOptions { Immediate = true });
+            }, new WatchOptions<string> { Immediate = true });
         }
     }
 }
