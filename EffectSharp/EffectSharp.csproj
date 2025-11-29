@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <Title>EffectSharp</Title>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Authors>a-littlebit</Authors>
     <Description>Lightweight reactive state management for .NET with a Vue 3 inspired API.</Description>
     <PackageProjectUrl>https://github.com/a-littlebit/EffectSharp</PackageProjectUrl>
