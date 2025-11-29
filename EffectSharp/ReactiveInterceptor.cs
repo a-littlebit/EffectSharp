@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -23,16 +24,59 @@ namespace EffectSharp
             var targetMethod = invocation.Method;
             var methodName = targetMethod.Name;
 
+            object Deep(object value)
+            {
+                if (value == null) return null;
+                if (value is IReactive r)
+                {
+                    r.SetDeep();
+                    return value;
+                }
+                else
+                {
+                    var reactiveValue = Reactive.TryCreate(value);
+                    if (reactiveValue is IReactive rNew)
+                    {
+                        rNew.SetDeep();
+                        return reactiveValue;
+                    }
+                    return value;
+                }
+            }
+
             if (!targetMethod.IsSpecialName)
             {
-                if (targetMethod.DeclaringType == typeof(IReactive) && targetMethod.Name == nameof(IReactive.GetDependency))
+                if (targetMethod.DeclaringType == typeof(IReactive) && targetMethod.Name == nameof(IReactive.SetDeep))
                 {
-                    string propertyName = invocation.GetArgumentValue(0) as string;
-                    if (propertyName == null)
+                    if (!DependencyManager.SetDeep(target))
                     {
-                        throw new ArgumentNullException("Property name cannot be null.");
+                        invocation.ReturnValue = false;
+                        return;
                     }
-                    invocation.ReturnValue = DependencyManager.GetDependency(target, propertyName);
+
+                    invocation.ReturnValue = true;
+                    foreach (var property in DependencyManager.GetReactiveProperties(target.GetType()))
+                    {
+                        var value = property.GetValue(target);
+                        var deepValue = Deep(value);
+                        if (!ReferenceEquals(value, deepValue))
+                        {
+                            property.SetValue(target, deepValue);
+                        }
+                    }
+                }
+                else if (targetMethod.DeclaringType == typeof(IReactive) && targetMethod.Name == nameof(IReactive.TrackDeep))
+                {
+                    foreach (var property in DependencyManager.GetReactiveProperties(target.GetType()))
+                    {
+                        DependencyManager.TrackDependency(target, property.Name);
+                        var value = property.GetValue(target);
+                        if (value == null) return;
+                        if (value is IReactive r)
+                        {
+                            r.TrackDeep();
+                        }
+                    }
                 }
                 else
                 {
@@ -46,6 +90,15 @@ namespace EffectSharp
                 var propertyName = methodName.Substring(4);
                 var propertyInfo = target.GetType().GetProperty(propertyName);
                 PropertyChanging?.Invoke(this, new PropertyChangingEventArgs(propertyName));
+                if (DependencyManager.IsDeep(target))
+                {
+                    var value = invocation.Arguments[0];
+                    var deepValue = Deep(value);
+                    if (!ReferenceEquals(value, deepValue))
+                    {
+                        invocation.SetArgumentValue(0, deepValue);
+                    }
+                }
                 invocation.Proceed();
                 if (PropertyChanged != null)
                 {
@@ -86,6 +139,41 @@ namespace EffectSharp
             {
                 invocation.Proceed();
             }
+        }
+
+        public static bool CanProxyType(Type type)
+        {
+            return type.IsClass &&
+                   !type.IsSealed &&
+                   !typeof(System.Collections.IEnumerable).IsAssignableFrom(type) &&
+                   type.GetCustomAttribute(typeof(NonReactive)) == null;
+        }
+
+        public static bool CanProxyProperty(PropertyInfo property)
+        {
+            return property.GetCustomAttribute(typeof(NonReactive)) == null &&
+                   property.CanRead && property.CanWrite &&
+                   property.GetMethod.IsVirtual && !property.GetMethod.IsFinal &&
+                   property.SetMethod.IsVirtual && !property.SetMethod.IsFinal;
+        }
+
+        internal static PropertyInfo[] GetReactivePropertiesInternal(Type type)
+        {
+            if (!CanProxyType(type))
+            {
+                return Array.Empty<PropertyInfo>();
+            }
+
+            var dependencyProperties = new List<PropertyInfo>();
+            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            foreach (var property in properties)
+            {
+                if (CanProxyProperty(property))
+                {
+                    dependencyProperties.Add(property);
+                }
+            }
+            return dependencyProperties.ToArray();
         }
     }
 }

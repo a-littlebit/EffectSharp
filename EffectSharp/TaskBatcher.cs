@@ -300,11 +300,6 @@ namespace EffectSharp
             {
                 await processTask.ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
-            {
-                // Re-throw cancellation (expected flow)
-                throw;
-            }
             catch (Exception e)
             {
                 ex = e;

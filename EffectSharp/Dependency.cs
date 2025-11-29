@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,16 +12,17 @@ namespace EffectSharp
     /// </summary>
     public class Dependency
     {
-        private readonly ConcurrentSet<Effect> _subscribers = new ConcurrentSet<Effect>();
+        private readonly ConcurrentDictionary<Effect, bool> _subscribers
+            = new ConcurrentDictionary<Effect, bool>();
 
         public bool AddSubscriber(Effect effect)
         {
-            return _subscribers.Add(effect);
+            return _subscribers.TryAdd(effect, true);
         }
 
         public bool RemoveSubscriber(Effect effect)
         {
-            return _subscribers.Remove(effect);
+            return _subscribers.TryRemove(effect, out _);
         }
 
         public Effect Track()
@@ -38,7 +40,7 @@ namespace EffectSharp
 
         public void Trigger()
         {
-            foreach (var subscriber in _subscribers.ToList())
+            foreach (var subscriber in _subscribers.Keys)
             {
                 subscriber.ScheduleExecution();
             }

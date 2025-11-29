@@ -21,26 +21,56 @@ namespace EffectSharp
         // dependency to track changes to the entire set of keys
         private readonly Dependency _keySetDependency = new Dependency();
 
+        private bool _isDeep = false;
+
         public const string KeySetPropertyName = "KeySet[]";
 
-        public Dependency GetDependency(string propertyName)
+        private TValue Deep(TValue value)
         {
-            if (typeof(TKey) == typeof(string))
+            if (!_isDeep) return value;
+            if (value is IReactive r)
             {
-                if (_innerDictionary.TryGetValue((TKey)(object)propertyName, out var data))
+                r.SetDeep();
+                return value;
+            }
+            var reactiveValue = Reactive.TryCreate(value);
+            if (reactiveValue is IReactive rNew)
+            {
+                rNew.SetDeep();
+                return (TValue)rNew;
+            }
+            return value;
+        }
+
+        public bool SetDeep()
+        {
+            if (_isDeep)
+                return false;
+
+            _isDeep = true;
+            foreach (var pair in _innerDictionary)
+            {
+                var deepValue = Deep(pair.Value.Item1);
+                if (!ReferenceEquals(deepValue, pair.Value.Item1))
                 {
-                    return data.Item2;
-                }
-                else
-                {
-                    return _keySetDependency;
+                    _innerDictionary[pair.Key] = pair.Value;
                 }
             }
-            else if (propertyName == KeySetPropertyName)
+            return true;
+        }
+
+        public void TrackDeep()
+        {
+            _keySetDependency.Track();
+            foreach (var pair in _innerDictionary)
             {
-                return _keySetDependency;
+                var data = pair.Value;
+                if (data.Item1 is IReactive r)
+                {
+                    r.TrackDeep();
+                }
+                data.Item2.Track();
             }
-            return null;
         }
 
         // readonly wrapper to intercept access
@@ -78,14 +108,14 @@ namespace EffectSharp
                 {
                     // if it exists, update the value and trigger its dependency
                     var data = _innerDictionary[key];
-                    data.Item1 = value;
+                    data.Item1 = Deep(value);
                     _innerDictionary[key] = data;
                     data.Item2.Trigger();
                 }
                 else
                 {
                     // otherwise, add a new entry with a new Dependency
-                    _innerDictionary[key] = (value, new Dependency());
+                    _innerDictionary[key] = (Deep(value), new Dependency());
                     _keySetDependency.Trigger();
                 }
             }
@@ -97,7 +127,7 @@ namespace EffectSharp
                 throw new ArgumentNullException(nameof(key));
 
             // add the key-value pair with its dependency to the inner dictionary
-            _innerDictionary.Add(key, (value, new Dependency()));
+            _innerDictionary.Add(key, (Deep(value), new Dependency()));
 
             // trigger the KeySet dependency to indicate a new key has been added
             _keySetDependency.Trigger();

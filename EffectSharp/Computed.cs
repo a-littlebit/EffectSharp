@@ -20,6 +20,8 @@ namespace EffectSharp
         private readonly Dependency _dependency = new Dependency();
         private readonly Effect _effect;
 
+        private bool _isDeep = false;
+
         public event PropertyChangingEventHandler PropertyChanging;
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -30,7 +32,22 @@ namespace EffectSharp
             _effect = new Effect(() =>
             {
                 if (!_isDirty) return;
-                _value = _getter();
+                var value = _getter();
+
+                if (_isDeep)
+                {
+                    var reactiveValue = Reactive.TryCreate(value);
+                    if (value is IReactive r)
+                    {
+                        r.SetDeep();
+                    }
+                    _value = reactiveValue;
+                }
+                else
+                {
+                    _value = value;
+                }
+
                 _isDirty = false;
             }, (_) => Invalidate(), true);
         }
@@ -75,11 +92,35 @@ namespace EffectSharp
             _effect.Dispose();
         }
 
-        public Dependency GetDependency(string propertyName)
+        public bool SetDeep()
         {
-            if (propertyName == nameof(Value))
-                return _dependency;
-            return null;
+            if (_isDeep) return false;
+            _isDeep = true;
+            if (_value == null) return true;
+            if (_value is IReactive reactiveValue)
+            {
+                reactiveValue.SetDeep();
+            }
+            else
+            {
+                var deepValue = Reactive.TryCreate(_value);
+                if (deepValue is IReactive deepReactiveValue)
+                {
+                    deepReactiveValue.SetDeep();
+                    _value = deepValue;
+                }
+            }
+            return true;
+        }
+
+        public void TrackDeep()
+        {
+            _dependency.Track();
+            if (_value == null) return;
+            if (_value is IReactive reactiveValue)
+            {
+                reactiveValue.TrackDeep();
+            }
         }
     }
 }

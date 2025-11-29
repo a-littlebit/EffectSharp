@@ -9,7 +9,7 @@ namespace EffectSharp.Tests
     public class ReactiveDictionaryTests
     {
         [Fact]
-        public void ReactiveDictionary_WhenValueChanged_TriggerSpecificKeyChange()
+        public async Task ReactiveDictionary_WhenValueChanged_TriggerSpecificKeyChange()
         {
             var reactiveDict = Reactive.Dictionary<string, int>();
             reactiveDict["a"] = 1;
@@ -18,25 +18,26 @@ namespace EffectSharp.Tests
 
             bool valueChanged = false;
             bool countChanged = false;
-            reactiveDict.GetDependency("a")!.AddSubscriber(new Effect(() => valueChanged = true));
-            Reactive.Watch(() => reactiveDict.Count, () => countChanged = true);
+            Reactive.Watch(() => reactiveDict["a"], (_, _) => valueChanged = true);
+            Reactive.Watch(() => reactiveDict.Count, (_, _) => countChanged = true);
 
             reactiveDict["a"] = 3;
+            await Reactive.NextTick();
             Assert.True(valueChanged);
             Assert.False(countChanged);
             Assert.Equal(6, computedValue.Value);
         }
 
         [Fact]
-        public void ReactiveDictionary_WhenUnexistentKeyAccessed_TrackKeySetDependency()
+        public async Task ReactiveDictionary_WhenUnexistentKeyAccessed_TrackKeySetDependency()
         {
             var reactiveDict = Reactive.Dictionary<string, int>();
             var hasBKey = Reactive.Computed(() => reactiveDict.ContainsKey("b"));
             Assert.False(hasBKey.Value);
             bool keySetChanged = false;
-            reactiveDict.GetDependency(ReactiveDictionary<string, int>.KeySetPropertyName)!
-                .AddSubscriber(new Effect(() => keySetChanged = true));
+            Reactive.Watch(() => reactiveDict.ContainsKey("b"), (_, _) => keySetChanged = true);
             reactiveDict["b"] = 2;
+            await Reactive.NextTick();
             Assert.True(keySetChanged);
             Assert.True(hasBKey.Value);
         }

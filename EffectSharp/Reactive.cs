@@ -16,18 +16,25 @@ namespace EffectSharp
     {
         private static readonly ProxyGenerator _proxyGenerator = new ProxyGenerator();
 
-        public static bool CanCreate(Type type)
-        {
-            return type.IsClass && !type.IsSealed;
-        }
-
         public static T Create<T>(T target) where T : class
         {
             if (target == null) throw new ArgumentNullException(nameof(target));
             if (target is IReactive) return target;
-            if (!CanCreate(target.GetType()))
+            if (!ReactiveInterceptor.CanProxyType(target.GetType()))
                 throw new InvalidOperationException($"Cannot create reactive proxy for type '{target.GetType().FullName}'. It must be a non-sealed class.");
 
+            return (T)CreateInternal(target);
+        }
+
+        public static T TryCreate<T>(T target)
+        {
+            if (target == null || target is IReactive || !ReactiveInterceptor.CanProxyType(target.GetType()))
+                return target;
+            return (T)CreateInternal(target);
+        }
+
+        private static object CreateInternal(object target)
+        {
             Type[] types = { typeof(INotifyPropertyChanging), typeof(INotifyPropertyChanged), typeof(IReactive) };
             var interceptor = new ReactiveInterceptor();
             var proxy = _proxyGenerator.CreateClassProxyWithTarget(
@@ -35,29 +42,17 @@ namespace EffectSharp
                 types,
                 target,
                 interceptor);
-            return (T)proxy;
+            return proxy;
         }
 
         public static T CreateDeep<T>(T target) where T : class
         {
             var root = Create(target);
-            WrapNestedProperties(target);
-            return root;
-
-            void WrapNestedProperties(object obj)
+            if (root is IReactive reactive)
             {
-                var objType = obj.GetType();
-                foreach (var propertyInfo in objType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-                {
-                    if (!propertyInfo.CanRead || !propertyInfo.CanWrite) continue;
-
-                    var value = propertyInfo.GetValue(obj);
-                    if (value == null || value is IReactive || !CanCreate(value.GetType())) continue;
-
-                    var reactiveValue = Create(value);
-                    propertyInfo.SetValue(obj, reactiveValue);
-                }
+                reactive.SetDeep();
             }
+            return root;
         }
 
         public static ReactiveCollection<T> Collection<T>()
@@ -85,10 +80,15 @@ namespace EffectSharp
             if (initialValue == null)
                 throw new ArgumentNullException(nameof(initialValue));
 
-            return new Ref<T>(deep ? (T)CreateDeep((object)initialValue) : initialValue);
+            var refObj = new Ref<T>(initialValue);
+            if (deep)
+            {
+                refObj.SetDeep();
+            }
+            return refObj;
         }
 
-        public static Effect Effect(Action action, Action<Effect> scheduler, bool lazy = false)
+        public static Effect Effect(Action action, Action<Effect> scheduler = null, bool lazy = false)
         {
             return new Effect(action, scheduler, lazy);
         }
@@ -98,119 +98,60 @@ namespace EffectSharp
             return new Computed<T>(getter, setter);
         }
 
-        public static IDisposable Watch(IReactive reactive, string propertyName, Action callback, WatchOptions options = null)
+        public static Effect Watch<T>(Func<T> getter, Action<T, T> callback, WatchOptions<T> options = null)
         {
-            if (options == null) options = WatchOptions.Default;
+            if (options == null) options = WatchOptions<T>.Default;
 
-            var effect = new Effect(() => { }, (_) => callback(), true);
+            T oldValue = getter();
+            bool firstRun = true;
 
-            var allDeps = new List<Dependency>();
-            if (options.Deep)
+            return Effect(() =>
             {
-                GetNestedDependencies(reactive, propertyName, allDeps);
-                if (allDeps.Count == 0)
-                    throw new ArgumentException($"Property '{propertyName}' is not reactive.", nameof(propertyName));
-                foreach (var nestedDep in allDeps)
+                T newValue = firstRun && options.Immediate ? oldValue : getter();
+
+                if (options.Deep)
                 {
-                    nestedDep.AddSubscriber(effect);
+                    if (newValue is IReactive reactive)
+                    {
+                        reactive.TrackDeep();
+                    }
+                    else if (newValue is System.Collections.IEnumerable enumerable)
+                    {
+                        foreach (var item in enumerable)
+                        {
+                            if (item is IReactive itemReactive)
+                            {
+                                itemReactive.TrackDeep();
+                            }
+                        }
+                    }
                 }
-            }
-            else
-            {
-                var dep = reactive.GetDependency(propertyName);
-                if (dep == null)
-                    throw new ArgumentException($"Property '{propertyName}' is not reactive.", nameof(propertyName));
-                allDeps.Add(dep);
-                dep.AddSubscriber(effect);
-            }
 
-            if (options.Immediate)
-            {
-                callback();
-            }
-            return new Unsubcriber(() =>
-            {
-                foreach (var dep in allDeps)
+                else if (options.EqualityComparer.Equals(oldValue, newValue) && !(firstRun && options.Immediate))
                 {
-                    dep.RemoveSubscriber(effect);
+                    firstRun = false;
+                    return;
                 }
-                effect.Dispose();
-            });
 
-            void GetNestedDependencies(IReactive root, string rootProp, List<Dependency> deps)
-            {
-                var dep = root.GetDependency(rootProp);
-                if (dep == null) return;
-                deps.Add(dep);
-                var prop = root.GetType().GetProperty(rootProp);
-                if (prop == null || !prop.CanRead) return;
-
-                var value = prop.GetValue(root);
-                if (value == null || !(value is IReactive)) return;
-
-                var valueProps = value?.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
-                if (valueProps == null) return;
-                foreach (var valueProp in valueProps)
+                if (firstRun)
                 {
-                    GetNestedDependencies((IReactive)value, valueProp.Name, deps);
+                    firstRun = false;
+                    if (!options.Immediate) 
+                        return;
                 }
-            }
-        }
 
-        public static IDisposable Watch<T>(IReactive reactive, string propertyName, WatchCallback<T> callback, WatchOptions options = null)
-        {
-            var prop = reactive.GetType().GetProperty(propertyName);
-            if (prop == null || !prop.CanRead)
-                throw new ArgumentException($"Property '{propertyName}' is not readable.", nameof(propertyName));
-
-
-            bool immediate = options?.Immediate ?? false;
-            var oldValue = prop.GetValue(reactive);
-            if (oldValue != null && !(oldValue is T))
-                throw new ArgumentException($"Property '{propertyName}' is not of type {typeof(T).Name}.", nameof(propertyName));
-
-            return Watch(reactive, propertyName, () =>
-            {
-                var newValue = immediate ? oldValue : prop.GetValue(reactive);
-                if (immediate || !Equals(oldValue, newValue))
+                EffectSharp.Effect.Untracked(() =>
                 {
-                    callback((T)newValue, (T)oldValue);
+                    callback(newValue, oldValue);
                     oldValue = newValue;
-                    immediate = false;
-                }
-            }, options);
-        }
-
-        public static IDisposable Watch<T>(IRef<T> reactiveRef, Action callback, WatchOptions options = null)
-        {
-            return Watch(reactiveRef, nameof(reactiveRef.Value), callback, options);
-        }
-
-        public static IDisposable Watch<T>(IRef<T> reactiveRef, WatchCallback<T> callback, WatchOptions options = null)
-        {
-            return Watch(reactiveRef, nameof(reactiveRef.Value), callback, options);
-        }
-
-        public static IDisposable Watch<T>(Func<T> getter, Action callback, WatchOptions options = null)
-        {
-            var computed = Computed(getter);
-            var sub = Watch(computed, nameof(computed.Value), callback, options);
-            return new Unsubcriber(() =>
-            {
-                computed.Dispose();
-                sub.Dispose();
+                });
             });
         }
 
-        public static IDisposable Watch<T>(Func<T> getter, WatchCallback<T> callback, WatchOptions options = null)
+        public static Effect Watch<T>(IRef<T> source, Action<T, T> callback, WatchOptions<T> options = null)
         {
-            var computed = Computed(getter);
-            var sub = Watch(computed, nameof(computed.Value), callback, options);
-            return new Unsubcriber(() =>
-            {
-                computed.Dispose();
-                sub.Dispose();
-            });
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            return Watch(() => source.Value, callback, options);
         }
 
         /// <summary>
@@ -254,7 +195,7 @@ namespace EffectSharp
             return Watch(source, (newList, _) =>
             {
                 ListSynchronizer.SyncKeyed(observableCollection, newList, keySelector, equalityComparer);
-            }, new WatchOptions { Immediate = true });
+            }, new WatchOptions<TList> { Immediate = true });
         }
 
         /// <summary>
@@ -291,7 +232,7 @@ namespace EffectSharp
             return Watch(source, (newList, _) =>
             {
                 ListSynchronizer.SyncUnkeyed(observableCollection, newList, equalityComparer);
-            }, new WatchOptions { Immediate = true });
+            }, new WatchOptions<TList> { Immediate = true });
         }
 
         /// <summary>
@@ -305,12 +246,14 @@ namespace EffectSharp
 
     public delegate void WatchCallback<T>(T newValue, T oldValue);
 
-    public class WatchOptions
+    public class WatchOptions<T>
     {
         public bool Immediate { get; set; } = false;
         public bool Deep { get; set; } = false;
 
-        public static readonly WatchOptions Default = new WatchOptions();
+        public IEqualityComparer<T> EqualityComparer { get; set; } = EqualityComparer<T>.Default;
+
+        public static readonly WatchOptions<T> Default = new WatchOptions<T>();
     }
 
     internal class Unsubcriber : IDisposable

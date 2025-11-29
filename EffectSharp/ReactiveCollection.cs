@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Linq;
 
 
 namespace EffectSharp
@@ -14,39 +15,41 @@ namespace EffectSharp
     /// <typeparam name="T">Type of the element. </typeparam>
     public class ReactiveCollection<T> : ObservableCollection<T>, IReactive, ICollection<T>, IEnumerable<T>, IEnumerable, IList<T>, IReadOnlyCollection<T>, IReadOnlyList<T>, ICollection, IList
     {
-        const string ItemsPropertyName = "Item[]";
-
         public ReactiveCollection() : base() { }
         public ReactiveCollection(IEnumerable<T> collection) : base(collection) { }
         public ReactiveCollection(List<T> list) : base(list) { }
 
-        private Dependency _countDependency = new Dependency();
-        private Dependency _itemsDependency = new Dependency();
+        private readonly List<Dependency> _indexDependencies = new List<Dependency>();
+        private readonly Dependency _listDependency = new Dependency();
+        private bool _isDeep = false;
 
-        public Dependency GetDependency(string propertyName)
+        private void EnsureDependencyIndex(int index)
         {
-            if (propertyName == nameof(Count))
+            int extend = index - _indexDependencies.Count + 1;
+            if (extend > 0)
             {
-                return _countDependency;
+                _indexDependencies.AddRange(Enumerable.Repeat<Dependency>(null, extend));
             }
-            if (propertyName == ItemsPropertyName)
-            {
-                return _itemsDependency;
-            }
-            return null;
         }
 
-        protected override void OnPropertyChanged(PropertyChangedEventArgs e)
+        private void TrackIndexDependency(int index)
         {
-            base.OnPropertyChanged(e);
-
-            if (e.PropertyName == nameof(Count))
+            EnsureDependencyIndex(index);
+            var dep = _indexDependencies[index];
+            if (dep == null)
             {
-                _countDependency.Trigger();
+                dep = new Dependency();
+                _indexDependencies[index] = dep;
             }
-            else if (e.PropertyName == ItemsPropertyName)
+            dep.Track();
+        }
+
+        private void TriggerIndexDependency(int index)
+        {
+            if (index < _indexDependencies.Count)
             {
-                _itemsDependency.Trigger();
+                var dep = _indexDependencies[index];
+                dep?.Trigger();
             }
         }
 
@@ -54,13 +57,14 @@ namespace EffectSharp
         {
             get
             {
-                _itemsDependency.Track();
+                TrackIndexDependency(index);
                 return base[index];
             }
             set
             {
                 base[index] = value;
-                _itemsDependency.Trigger();
+                TriggerIndexDependency(index);
+                _listDependency.Trigger();
             }
         }
 
@@ -68,44 +72,149 @@ namespace EffectSharp
         {
             get
             {
-                _countDependency.Track();
+                _listDependency.Track();
                 return base.Count;
             }
         }
 
-        protected new IList<T> Items
+        protected override void ClearItems()
         {
-            get
+            base.ClearItems();
+            foreach (var dep in _indexDependencies)
             {
-                _itemsDependency.Track();
-                return base.Items;
+                dep?.Trigger();
             }
+            _indexDependencies.Clear();
+            _listDependency.Trigger();
+        }
+
+        protected override void InsertItem(int index, T item)
+        {
+            base.InsertItem(index, item);
+            EnsureDependencyIndex(index);
+            _indexDependencies.Insert(index, new Dependency());
+            for (int i = index + 1; i < _indexDependencies.Count; i++)
+            {
+                _indexDependencies[i]?.Trigger();
+            }
+            _listDependency.Trigger();
+        }
+
+        protected override void MoveItem(int oldIndex, int newIndex)
+        {
+            base.MoveItem(oldIndex, newIndex);
+            if (oldIndex == newIndex) return;
+            var min = Math.Min(oldIndex, newIndex);
+            var max = Math.Max(oldIndex, newIndex);
+            for (int i = min; i <= Math.Min(max, _indexDependencies.Count - 1); i++)
+            {
+                _indexDependencies[i]?.Trigger();
+            }
+        }
+
+        protected override void RemoveItem(int index)
+        {
+            base.RemoveItem(index);
+            for (int i = index; i < _indexDependencies.Count; i++)
+            {
+                _indexDependencies[i]?.Trigger();
+            }
+            if (index < _indexDependencies.Count)
+            {
+                _indexDependencies.RemoveAt(index);
+            }
+            _listDependency.Trigger();
+        }
+
+        protected override void SetItem(int index, T item)
+        {
+            base.SetItem(index, item);
+            TriggerIndexDependency(index);
+            _listDependency.Trigger();
         }
 
         public new bool Contains(T item)
         {
-            _itemsDependency.Track();
-            return base.Contains(item);
+            int index = base.IndexOf(item);
+            if (index >= 0)
+            {
+                TriggerIndexDependency(index);
+                return true;
+            }
+            else
+            {
+                _listDependency.Track();
+                return false;
+            }
         }
 
         public new void CopyTo(T[] array, int index)
         {
-            _itemsDependency.Track();
-            _countDependency.Track();
+            _listDependency.Track();
             base.CopyTo(array, index);
         }
 
         public new IEnumerator<T> GetEnumerator()
         {
-            _itemsDependency.Track();
-            _countDependency.Track();
+            _listDependency.Track();
             return base.GetEnumerator();
 
         }
         public new int IndexOf(T item)
         {
-            _itemsDependency.Track();
-            return base.IndexOf(item);
+            int index = base.IndexOf(item);
+            if (index >= 0)
+            {
+                for (int i = 0; i <= Math.Min(index, _indexDependencies.Count - 1); i++)
+                {
+                    _indexDependencies[i]?.Track();
+                }
+            }
+            else
+            {
+                _listDependency.Track();
+            }
+            return index;
+        }
+
+        private T Deep(T value)
+        {
+            if (!_isDeep) return value;
+            if (value is IReactive r)
+            {
+                r.SetDeep();
+                return value;
+            }
+            var reactiveValue = Reactive.TryCreate(value);
+            if (reactiveValue is IReactive rNew)
+            {
+                rNew.SetDeep();
+                return reactiveValue;
+            }
+            return value;
+        }
+
+        public bool SetDeep()
+        {
+            if (_isDeep)
+                return false;
+
+            _isDeep = true;
+            for (int i = 0; i < base.Count; i++)
+            {
+                var item = this[i];
+                var deepItem = Deep(item);
+                if (!ReferenceEquals(item, deepItem))
+                {
+                    base.SetItem(i, deepItem);
+                }
+            }
+            return true;
+        }
+
+        public void TrackDeep()
+        {
+            _listDependency.Track();
         }
     }
 }

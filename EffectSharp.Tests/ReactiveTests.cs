@@ -47,20 +47,21 @@ namespace EffectSharp.Tests
         }
 
         [Fact]
-        public void Reactive_WhenSetProperty_NotifySubcribers()
+        public async Task Reactive_WhenSetProperty_NotifySubcribers()
         {
             var product = Reactive.Create(new Product
             {
                 Name = "Laptop",
                 Price = 1000
             });
-            string? changedPropertyName = null;
-            ((IReactive)product)!.GetDependency(nameof(product.Price))?.AddSubscriber(new Effect(() =>
+            bool priceChanged = false;
+            Reactive.Watch(() => product.Price, (_, __) =>
             {
-                changedPropertyName = nameof(product.Price);
-            }));
+                priceChanged = true;
+            });
             product.Price = 1200;
-            Assert.Equal(nameof(product.Price), changedPropertyName);
+            await Reactive.NextTick();
+            Assert.True(priceChanged);
         }
     }
 }

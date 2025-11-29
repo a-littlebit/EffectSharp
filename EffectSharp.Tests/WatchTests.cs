@@ -9,13 +9,13 @@ namespace EffectSharp.Tests
     public class WatchTests
     {
         [Fact]
-        public void Watch_WhenRefValueChanged_TriggersEffect()
+        public async Task Watch_WhenRefValueChanged_TriggersEffect()
         {
             // Arrange
             var countRef = Reactive.Ref(0);
             int effectRunCount = 0;
             // Act
-            IDisposable sub = Reactive.Watch(countRef, () =>
+            IDisposable sub = Reactive.Watch(countRef, (_, _) =>
             {
                 _ = countRef.Value;
                 effectRunCount++;
@@ -23,45 +23,50 @@ namespace EffectSharp.Tests
             // Change the ref value
             countRef.Value = 1;
             // Assert
+            await Reactive.NextTick();
             Assert.Equal(1, effectRunCount);
             // Change the ref value again
             countRef.Value = 2;
             // Assert
+            await Reactive.NextTick();
             Assert.Equal(2, effectRunCount);
             // Cleanup
             sub.Dispose();
             // Change the ref value after unsubscribing
             countRef.Value = 3;
             // Assert that effectRunCount did not increase
+            await Reactive.NextTick();
             Assert.Equal(2, effectRunCount);
         }
 
         [Fact]
-        public void Watch_WhenWatchMultipleVariables_TriggersEffectOnAnyChange()
+        public async Task Watch_WhenWatchMultipleVariables_TriggersEffectOnAnyChange()
         {
             // Arrange
             var refA = Reactive.Ref(1);
             var refB = Reactive.Ref(10);
             int effectRunCount = 0;
             // Act
-            IDisposable sub = Reactive.Watch(() => (refA.Value, refB.Value), () =>
+            IDisposable sub = Reactive.Watch(() => (refA.Value, refB.Value), (_, _) =>
             {
                 effectRunCount++;
             });
             // Change refA
             refA.Value = 2;
             // Assert
+            await Reactive.NextTick();
             Assert.Equal(1, effectRunCount);
             // Change refB
             refB.Value = 20;
             // Assert
+            await Reactive.NextTick();
             Assert.Equal(2, effectRunCount);
             // Cleanup
             sub.Dispose();
         }
 
         [Fact]
-        public void Watch_WhenCallback_ValueCorrect()
+        public async Task Watch_WhenCallback_ValueCorrect()
         {
             // Arrange
             var countRef = Reactive.Ref(10);
@@ -76,11 +81,13 @@ namespace EffectSharp.Tests
             // Change the ref value
             countRef.Value = 20;
             // Assert
+            await Reactive.NextTick();
             Assert.Equal(20, observedNewValue);
             Assert.Equal(10, observedOldValue);
             // Change the ref value again
             countRef.Value = 30;
             // Assert
+            await Reactive.NextTick();
             Assert.Equal(30, observedNewValue);
             Assert.Equal(20, observedOldValue);
             // Cleanup
@@ -101,7 +108,7 @@ namespace EffectSharp.Tests
                 observedNewValue = newValue;
                 observedOldValue = oldValue;
                 callbackCalled = true;
-            }, new WatchOptions { Immediate = true });
+            }, new WatchOptions<int> { Immediate = true });
             // Assert that the callback was called immediately
             Assert.True(callbackCalled);
             // Assert the values passed to the callback
@@ -112,7 +119,7 @@ namespace EffectSharp.Tests
         }
 
         [Fact]
-        public void Watch_WhenDeepOption_TracksNestedChanges()
+        public async Task Watch_WhenDeepOption_TracksNestedChanges()
         {
             // Arrange
             var nestedRef = Reactive.Ref(new Order
@@ -122,14 +129,15 @@ namespace EffectSharp.Tests
             }, true);
             int effectRunCount = 0;
             // Act
-            IDisposable sub = Reactive.Watch(nestedRef, () =>
+            IDisposable sub = Reactive.Watch(nestedRef, (_, _) =>
             {
                 _ = nestedRef.Value.Product.Price;
                 effectRunCount++;
-            }, new WatchOptions { Deep = true });
+            }, new WatchOptions<Order> { Deep = true });
             // Change a nested property
             nestedRef.Value.Product.Price = 150;
             // Assert
+            await Reactive.NextTick();
             Assert.Equal(1, effectRunCount);
             // Cleanup
             sub.Dispose();

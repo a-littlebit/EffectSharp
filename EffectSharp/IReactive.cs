@@ -11,6 +11,7 @@ namespace EffectSharp
     /// </summary>
     public interface IReactive
     {
-        Dependency GetDependency(string propertyName);
+        bool SetDeep();
+        void TrackDeep();
     }
 }
