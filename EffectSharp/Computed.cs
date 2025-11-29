@@ -32,7 +32,7 @@ namespace EffectSharp
                 if (!_isDirty) return;
                 _value = _getter();
                 _isDirty = false;
-            }, (_) => Invalidate());
+            }, (_) => Invalidate(), true);
         }
 
         public T Value
