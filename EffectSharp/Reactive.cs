@@ -259,22 +259,4 @@ namespace EffectSharp
 
         public static readonly WatchOptions<T> Default = new WatchOptions<T>();
     }
-
-    internal class Unsubcriber : IDisposable
-    {
-        private readonly Action _unsubscribeAction;
-        private bool _isDisposed = false;
-        public Unsubcriber(Action unsubscribeAction)
-        {
-            _unsubscribeAction = unsubscribeAction;
-        }
-        public void Dispose()
-        {
-            if (!_isDisposed)
-            {
-                _unsubscribeAction();
-                _isDisposed = true;
-            }
-        }
-    }
 }
