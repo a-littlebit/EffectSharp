@@ -258,8 +258,11 @@ Dispose the `Effect` returned by `Reactive.Effect()` or `Reactive.Watch()`.
 If you want to perform side effects without tracking dependencies, use `Effect.Untracked(() => { ... })`.
 
 **Q: Is EffectSharp thread-safe?**  
-Reactive primitives are thread-safe or not depending on the underlying types used. But deep reactive proxies are not thread-safe.  
-Effects and watchers are scheduled via `TaskManager` configuration and each runs with a lock to prevent concurrent execution,
+Reactive proxies are thread-safe or not depending on the underlying object except for deep ones,
+which are not thread-safe until `SetDeep()` is done.  
+Reactive primitives like `Ref<T>`, `Computed<T>` are not guaranteed to be thread-safe.
+If necessary, you can implement your own thread-safe reactive types for specific underlying data structures using the core dependency tracking system.
+Effects and watchers are scheduled via `TaskManager` and each runs with a lock to prevent concurrent execution,
 which means effects/watchers themselves are thread-safe.  
 Note that the UI notification scheduler in `TaskManager` should be set to the UI thread context when used in UI applications.
 The default is `TaskScheduler.FromCurrentSynchronizationContext()`.
