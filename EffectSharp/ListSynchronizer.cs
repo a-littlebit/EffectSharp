@@ -26,7 +26,7 @@ namespace EffectSharp
         /// <param name="keyComparer">An optional equality comparer used to compare keys. If null, the default equality comparer for the key type
         /// is used.</param>
         /// <exception cref="ArgumentNullException">Thrown if source, target, or keySelector is null.</exception>
-        public static void SyncKeyed<T, K>(
+        public static void SyncUnique<T, K>(
             this ObservableCollection<T> source,
             IList<T> target,
             Func<T, K> keySelector,
@@ -39,190 +39,149 @@ namespace EffectSharp
             if (keyComparer == null)
                 keyComparer = EqualityComparer<K>.Default;
 
-            // Build initial key-to-index mappings
-            var sourceKeyMap = BuildKeyToIndexMap(source, keySelector, keyComparer);
-            var targetKeyMap = BuildKeyToIndexMap(target, keySelector, keyComparer);
-
-            // Remove elements not in target from source in descending index order (to avoid index shifting)
-            var indicesToDelete = sourceKeyMap.Where(pair => !targetKeyMap.ContainsKey(pair.Key))
-                .Select(pair => pair.Value)
-                .OrderByDescending(idx => idx);
-            foreach (var deleteIndex in indicesToDelete)
+            // Calculate lengths of common prefix and suffix
+            var (commonPrefixLength, commonSuffixLength) = CalculateCommonPrefixSuffix(
+                source,
+                target,
+                keySelector,
+                keyComparer);
+            if (commonPrefixLength == source.Count &&
+                commonPrefixLength == target.Count)
             {
-                source.RemoveAt(deleteIndex);
-            }
-            // Rebuild source key map after deletions
-            sourceKeyMap = BuildKeyToIndexMap(source, keySelector, keyComparer);
-
-            // Extract common elements and their source indices
-            var (targetCommonKeys, newSourceIndices) = ExtractCommonElements(target, sourceKeyMap, keySelector, keyComparer);
-            if (targetCommonKeys.Count == 0)
-            {
-                // No common elements, clear and re-add all
-                source.Clear();
-                sourceKeyMap.Clear();
-                foreach (var item in target)
-                {
-                    source.Add(item);
-                    sourceKeyMap.Add(keySelector(item), source.Count - 1);
-                }
+                // Source and target are identical; no action needed
                 return;
             }
 
-            // Calculate LIS on the source indices of the common elements to minimize moves
-            var lisIndices = FindLongestIncreasingSubsequenceIndices(newSourceIndices);
-            var lisIndexSet = new HashSet<int>(lisIndices);
+            // Build initial key-to-index mappings
+            var sourceKeyMap = BuildKeyToIndexMap(source, commonPrefixLength, source.Count - commonSuffixLength,
+                keySelector, keyComparer);
 
-            // Move non-LIS elements to their target positions
-            MoveNonLisElements(source, targetCommonKeys, sourceKeyMap, lisIndexSet);
+            if (commonPrefixLength != source.Count && commonSuffixLength != source.Count)
+            {
+                var targetKeyMap = BuildKeyToIndexMap(target, commonPrefixLength, target.Count - commonSuffixLength,
+                    keySelector, keyComparer);
 
-            // Rebuild source key map after moves
-            // sourceKeyMap = BuildKeyToIndexMap(source, keySelector, keyComparer);
-            // Insertions only needs the key set, no need to rebuild full map
+                // Remove elements not in target from source in descending index order (to avoid index shifting)
+                var indicesToDelete = sourceKeyMap.Where(pair => !targetKeyMap.ContainsKey(pair.Key))
+                    .Select(pair => pair.Value)
+                    .OrderByDescending(idx => idx);
+                foreach (var deleteIndex in indicesToDelete)
+                {
+                    source.RemoveAt(deleteIndex);
+                }
+            }
+
+            if (commonPrefixLength != source.Count && commonSuffixLength != source.Count
+                && commonPrefixLength != target.Count && commonSuffixLength != target.Count)
+            {
+                // Rebuild source key-to-index map after deletions
+                sourceKeyMap = BuildKeyToIndexMap(source, commonPrefixLength, source.Count - commonSuffixLength,
+                    keySelector, keyComparer);
+                // Prepare target keys that exist in source
+                var targetToSource = new List<int>();
+                for (int i = commonPrefixLength; i < target.Count - commonSuffixLength; i++)
+                {
+                    var targetItem = target[i];
+                    var targetKey = keySelector(targetItem);
+                    if (sourceKeyMap.TryGetValue(targetKey, out var sourceIndex))
+                    {
+                        targetToSource.Add(sourceIndex);
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+
+                // Move non-LIS elements to their target positions
+                MoveDisorderedElements(source, targetToSource,
+                    commonPrefixLength, source.Count - commonSuffixLength);
+            }
 
             // Insert new elements from target into source
-            InsertNewElements(source, target, sourceKeyMap, keySelector);
+            if (commonPrefixLength != target.Count && commonSuffixLength != target.Count)
+                InsertNewElements(source, target, commonPrefixLength, target.Count - commonSuffixLength,
+                    source.Count - commonSuffixLength, keySelector, keyComparer);
         }
 
         #region Utilities for SyncKeyed
+
+        private static (int, int) CalculateCommonPrefixSuffix<T, K>(
+            IList<T> source,
+            IList<T> target,
+            Func<T, K> keySelector,
+            IEqualityComparer<K> keyComparer)
+        {
+            int commonPrefixLength = 0;
+            int minLength = Math.Min(source.Count, target.Count);
+            while (commonPrefixLength < minLength &&
+                   keyComparer.Equals(
+                       keySelector(source[commonPrefixLength]),
+                       keySelector(target[commonPrefixLength])))
+            {
+                commonPrefixLength++;
+            }
+            int commonSuffixLength = 0;
+            while (commonSuffixLength < (minLength - commonPrefixLength) &&
+                   keyComparer.Equals(
+                       keySelector(source[source.Count - 1 - commonSuffixLength]),
+                       keySelector(target[target.Count - 1 - commonSuffixLength])))
+            {
+                commonSuffixLength++;
+            }
+            return (commonPrefixLength, commonSuffixLength);
+        }
 
         /// <summary>
         /// Build a mapping from keys to their indices in the collection
         /// </summary>
         private static Dictionary<K, int> BuildKeyToIndexMap<T, K>(
-            IEnumerable<T> collection,
+            IList<T> collection,
+            int startIndex,
+            int endIndex,
             Func<T, K> keySelector,
             IEqualityComparer<K> keyComparer)
         {
             var map = new Dictionary<K, int>(keyComparer);
-            int index = 0;
 
-            foreach (var item in collection)
+            for (int i = startIndex; i < endIndex; i++)
             {
+                var item = collection[i];
                 var key = keySelector(item);
                 if (map.ContainsKey(key))
                 {
                     throw new InvalidOperationException("Duplicate key detected: " + key);
                 }
-                map[key] = index++;
+                map[key] = i;
             }
 
             return map;
         }
 
         /// <summary>
-        /// Extract common elements between target and source, returning their keys and source indices
+        /// Move disordered elements in source to match target
         /// </summary>
-        private static (List<K> targetCommonKeys, List<int> newSourceIndices) ExtractCommonElements<T, K>(
-            IList<T> target,
-            Dictionary<K, int> sourceKeyMap,
-            Func<T, K> keySelector,
-            IEqualityComparer<K> keyComparer)
-        {
-            var targetCommonKeys = new List<K>();
-            var newSourceIndices = new List<int>();
-
-            foreach (var item in target)
-            {
-                var key = keySelector(item);
-                if (sourceKeyMap.TryGetValue(key, out int sourceIndex))
-                {
-                    targetCommonKeys.Add(key);
-                    newSourceIndices.Add(sourceIndex);
-                }
-            }
-
-            return (targetCommonKeys, newSourceIndices);
-        }
-
-        /// <summary>
-        /// Find indices of the Longest Increasing Subsequence (LIS) in the given sequence
-        /// </summary>
-        private static List<int> FindLongestIncreasingSubsequenceIndices(List<int> sequence)
-        {
-            if (sequence == null || sequence.Count == 0)
-                return new List<int>();
-
-            int n = sequence.Count;
-            int[] tails = new int[n]; // tails[i]：Min tail index of LIS with length i+1
-            int[] lengths = new int[n]; // lengths[i]：Length of LIS ending at sequence[i]
-            int lisLength = 0;
-
-            for (int i = 0; i < n; i++)
-            {
-                int current = sequence[i];
-                int left = 0, right = lisLength;
-
-                while (left < right)
-                {
-                    int mid = (left + right) / 2;
-                    if (sequence[tails[mid]] >= current)
-                        right = mid;
-                    else
-                        left = mid + 1;
-                }
-
-                tails[left] = i;
-                lengths[i] = left + 1;
-                if (left == lisLength)
-                    lisLength++;
-            }
-
-            // Reconstruct LIS indices
-            var lisIndices = new List<int>();
-            int currentLength = lisLength;
-            for (int i = n - 1; i >= 0; i--)
-            {
-                if (lengths[i] == currentLength)
-                {
-                    lisIndices.Add(i);
-                    currentLength--;
-                    if (currentLength == 0)
-                        break;
-                }
-            }
-
-            lisIndices.Reverse();
-            return lisIndices;
-        }
-
-        /// <summary>
-        /// Move non-LIS elements to their target positions
-        /// </summary>
-        private static void MoveNonLisElements<T, K>(
+        private static void MoveDisorderedElements<T>(
             ObservableCollection<T> source,
-            List<K> targetCommonKeys,
-            Dictionary<K, int> sourceKeyMap,
-            HashSet<int> lisIndexSet)
+            List<int> targetToSource,
+            int startIndex,
+            int endIndex)
         {
-            var offsets = new List<(int From, int To, int Offset)>();
-            for (int targetPosInCommon = 0; targetPosInCommon < targetCommonKeys.Count; targetPosInCommon++)
+            var movements = new List<(int, int)>();
+            for (int i = startIndex; i < endIndex; i++)
             {
-                if (lisIndexSet.Contains(targetPosInCommon))
-                    continue; // LIS element, skip
-
-                var key = targetCommonKeys[targetPosInCommon];
-                int currentIndex = sourceKeyMap[key];
-
-                foreach (var (From, To, Offset) in offsets)
+                var sourceIndex = targetToSource[i - startIndex];
+                foreach (var (Min, Max) in movements)
                 {
-                    if (currentIndex >= From && currentIndex <= To)
+                    if (sourceIndex >= Min && sourceIndex <= Max)
                     {
-                        currentIndex += Offset;
+                        sourceIndex++;
                     }
                 }
-
-                // Move element to its target position in common elements
-                if (currentIndex == targetPosInCommon)
-                    continue;
-                source.Move(currentIndex, targetPosInCommon);
-                if (currentIndex < targetPosInCommon)
+                if (sourceIndex != i)
                 {
-                    offsets.Add((currentIndex, targetPosInCommon, -1));
-                }
-                else
-                {
-                    offsets.Add((targetPosInCommon, currentIndex, 1));
+                    source.Move(sourceIndex, i);
+                    movements.Add((i, sourceIndex - 1));
                 }
             }
         }
@@ -233,265 +192,146 @@ namespace EffectSharp
         private static void InsertNewElements<T, K>(
             ObservableCollection<T> source,
             IList<T> target,
-            Dictionary<K, int> sourceKeyMap,
-            Func<T, K> keySelector)
+            int startIndex,
+            int targetEndIndex,
+            int sourceEndIndex,
+            Func<T, K> keySelector,
+            IEqualityComparer<K> keyComparer)
         {
-            for (int targetIndex = 0; targetIndex < target.Count; targetIndex++)
+            for (int targetIndex = startIndex; targetIndex < targetEndIndex; targetIndex++)
             {
-                var item = target[targetIndex];
-                var key = keySelector(item);
-                if (!sourceKeyMap.ContainsKey(key))
+                if (targetIndex >= sourceEndIndex)
                 {
-                    source.Insert(targetIndex, item);
+                    for (; targetIndex < targetEndIndex; targetIndex++)
+                    {
+                        if (sourceEndIndex == source.Count)
+                        {
+                            source.Add(target[targetIndex]);
+                            sourceEndIndex++;
+                        }
+                        else
+                        {
+                            source.Insert(sourceEndIndex++, target[targetIndex]);
+                        }
+                    }
+                    break;
+                }
+                var sourceKey = keySelector(source[targetIndex]);
+                var targetKey = keySelector(target[targetIndex]);
+                if (!keyComparer.Equals(sourceKey, targetKey))
+                {
+                    source.Insert(targetIndex, target[targetIndex]);
+                    sourceEndIndex++;
                 }
             }
         }
 
         #endregion
 
-        /// <summary>
-        /// Synchronizes the elements of the source ObservableCollection with the target IList using the Heckel diff algorithm.
-        /// </summary>
-        /// <param name="source">The source ObservableCollection to be synchronized. </param>
-        /// <param name="target">The target IList to synchronize with. </param>
-        /// <param name="comparer">The equality comparer to compare elements. If null, the default equality comparer is used. </param>
-        public static void SyncUnkeyed<T>(
-            ObservableCollection<T> source,
+        public static void Sync<T, K>(
+            this ObservableCollection<T> source,
             IList<T> target,
-            IEqualityComparer<T> comparer = null)
+            Func<T, K> keySelector,
+            IEqualityComparer<K> keyComparer = null)
         {
-            var operations = GenerateHeckelOperations(source, target, comparer);
-            ApplyHeckelOperations(source, operations);
-        }
+            // Validation
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            if (target == null) throw new ArgumentNullException(nameof(target));
+            if (keySelector == null) throw new ArgumentNullException(nameof(keySelector));
+            if (keyComparer == null)
+                keyComparer = EqualityComparer<K>.Default;
 
-        // Enum for Heckel operation types
-        public enum HeckelOperationType
-        {
-            Delete,
-            Move,
-            Insert
-        }
-
-        // Represents a single Heckel operation
-        public class HeckelOperation<T>
-        {
-            /// <summary>
-            /// The type of operation
-            /// </summary>
-            public HeckelOperationType Type { get; }
-
-            /// <summary>
-            /// The item involved in the operation
-            /// </summary>
-            public T Item { get; }
-
-            /// <summary>
-            /// The source index (only valid for Delete/Move operations)
-            /// </summary>
-            public int SourceIndex { get; }
-
-            /// <summary>
-            /// The target index (only valid for Insert/Move operations)
-            /// </summary>
-            public int TargetIndex { get; }
-
-            private HeckelOperation(HeckelOperationType type, T item, int sourceIndex, int targetIndex)
+            // Calculate lengths of common prefix and suffix
+            var (commonPrefixLength, commonSuffixLength) = CalculateCommonPrefixSuffix(
+                source,
+                target,
+                keySelector,
+                keyComparer);
+            if (commonPrefixLength == source.Count &&
+                commonPrefixLength == target.Count)
             {
-                Type = type;
-                Item = item;
-                SourceIndex = sourceIndex;
-                TargetIndex = targetIndex;
+                // Source and target are identical; no action needed
+                return;
             }
 
-            public static HeckelOperation<T> Delete(T item, int sourceIndex)
-                => new HeckelOperation<T>(HeckelOperationType.Delete, item, sourceIndex, -1);
+            // Build initial key-to-index mappings
+            var sourceKeyMap = BuildKeyToIndexQueueMap(source, commonPrefixLength, source.Count - commonSuffixLength,
+                keySelector, keyComparer);
 
-            public static HeckelOperation<T> Move(T item, int sourceIndex, int targetIndex)
-                => new HeckelOperation<T>(HeckelOperationType.Move, item, sourceIndex, targetIndex);
-
-            public static HeckelOperation<T> Insert(T item, int targetIndex)
-                => new HeckelOperation<T>(HeckelOperationType.Insert, item, -1, targetIndex);
-        }
-
-        /// <summary>
-        /// Generates a list of Heckel operations to transform the source collection into the target collection
-        /// </summary>
-        /// <param name="source">Source collection. </param>
-        /// <param name="target">Target collection. </param>
-        /// <param name="comparer">Element equality comparer. </param>
-        /// <returns>A list of Heckel operations.</returns>
-        public static List<HeckelOperation<T>> GenerateHeckelOperations<T>(
-            IList<T> source,
-            IList<T> target,
-            IEqualityComparer<T> comparer = null)
-        {
-            if (comparer == null)
-                comparer = EqualityComparer<T>.Default;
-            var operations = new List<HeckelOperation<T>>();
-
-            int sourceCount = source.Count;
-            int targetCount = target.Count;
-
-            // Build element to source indices mapping (HA)
-            var elementSourceIndices = new Dictionary<T, List<int>>(comparer);
-            for (int i = 0; i < sourceCount; i++)
+            if (commonPrefixLength != source.Count && commonSuffixLength != source.Count)
             {
-                T item = source[i];
-                if (!elementSourceIndices.ContainsKey(item))
+                var targetKeyMap = BuildKeyToIndexQueueMap(target, commonPrefixLength, target.Count - commonSuffixLength,
+                    keySelector, keyComparer);
+
+                // Remove elements not in or more than target from source in descending index order (to avoid index shifting)
+                for (int i = source.Count - commonSuffixLength - 1; i >= commonPrefixLength; i--)
                 {
-                    elementSourceIndices[item] = new List<int>();
-                }
-                elementSourceIndices[item].Add(i);
-            }
-
-            // Build mappings between source and target indices (OA and OB)
-            // OB: The target element's index in the source collection (-1 if not present)
-            int[] targetToSourceIndices = new int[targetCount];
-            // OA: The source element's index in the target collection (-1 if not present)
-            int[] sourceToTargetIndices = new int[sourceCount];
-            for (int i = 0; i < sourceCount; i++)
-            {
-                sourceToTargetIndices[i] = -1;
-            }
-            for (int i = 0; i < targetCount; i++)
-            {
-                targetToSourceIndices[i] = -1;
-            }
-
-            for (int targetIdx = 0; targetIdx < targetCount; targetIdx++)
-            {
-                T targetItem = target[targetIdx];
-                if (elementSourceIndices.TryGetValue(targetItem, out var sourceIndices) && sourceIndices.Any())
-                {
-                    // Pick the first available source index (for duplicate elements, use them in order)
-                    int sourceIdx = sourceIndices[0];
-                    sourceIndices.RemoveAt(0);
-
-                    targetToSourceIndices[targetIdx] = sourceIdx;
-                    sourceToTargetIndices[sourceIdx] = targetIdx;
-                }
-            }
-
-            // Collect source indices to be deleted
-            var deleteSourceIndices = new List<int>();
-            for (int sourceIdx = 0; sourceIdx < sourceCount; sourceIdx++)
-            {
-                if (sourceToTargetIndices[sourceIdx] == -1)
-                {
-                    deleteSourceIndices.Add(sourceIdx);
-                }
-            }
-
-            // Calculate delete offsets and processed flags
-            // Processed flags (deleted/moved elements marked as true)
-            bool[] isTraced = new bool[sourceCount];
-            // Delete offset: records the number of deleted elements before each source index
-            int[] deleteOffset = new int[sourceCount];
-            int deletedCount = 0;
-
-            for (int sourceIdx = 0; sourceIdx < sourceCount; sourceIdx++)
-            {
-                deleteOffset[sourceIdx] = deletedCount;
-                if (sourceToTargetIndices[sourceIdx] == -1)
-                {
-                    deletedCount++;
-                    isTraced[sourceIdx] = true; // Deleted
-                }
-                else
-                {
-                    isTraced[sourceIdx] = false; // Not processed yet (may need to move)
-                }
-            }
-
-            // Collect move and insert operations
-            int tracePtr = 0;
-            // Move the trace pointer to the first unprocessed element
-            while (tracePtr < sourceCount && isTraced[tracePtr])
-            {
-                tracePtr++;
-            }
-
-            for (int targetIdx = 0; targetIdx < targetCount; targetIdx++)
-            {
-                int sourceIdx = targetToSourceIndices[targetIdx];
-                if (sourceIdx == -1)
-                {
-                    // Target element not in source, add insert operation
-                    operations.Add(HeckelOperation<T>.Insert(target[targetIdx], targetIdx));
-                }
-                else
-                {
-                    if (sourceIdx == tracePtr)
+                    var sourceItem = source[i];
+                    var sourceKey = keySelector(sourceItem);
+                    if (!targetKeyMap.TryGetValue(sourceKey, out var targetQueue) || targetQueue.Count == 0)
                     {
-                        // Target element is at the correct position, just mark as processed
-                        isTraced[sourceIdx] = true;
-                        // Move pointer to the next unprocessed element
-                        while (tracePtr < sourceCount && isTraced[tracePtr])
-                        {
-                            tracePtr++;
-                        }
+                        source.RemoveAt(i);
                     }
                     else
                     {
-                        // Calculate adjusted source index after deletions
-                        int adjustedSourceIndex = sourceIdx - deleteOffset[sourceIdx];
-                        // Add move operation
-                        operations.Add(HeckelOperation<T>.Move(source[sourceIdx], adjustedSourceIndex, targetIdx));
-                        // Mark as processed
-                        isTraced[sourceIdx] = true;
-                        // Move pointer to the next unprocessed element
-                        while (tracePtr < sourceCount && isTraced[tracePtr])
-                        {
-                            tracePtr++;
-                        }
+                        targetQueue.Dequeue();
                     }
                 }
             }
 
-            // Add delete operations in reverse order to avoid index shifting issues
-            for (int i = deleteSourceIndices.Count - 1; i >= 0; i--)
+            if (commonPrefixLength != source.Count && commonSuffixLength != source.Count
+                && commonPrefixLength != target.Count && commonSuffixLength != target.Count)
             {
-                int deleteIdx = deleteSourceIndices[i];
-                operations.Insert(0, HeckelOperation<T>.Delete(source[deleteIdx], deleteIdx));
+                // Rebuild source key-to-index map after deletions
+                sourceKeyMap = BuildKeyToIndexQueueMap(source, commonPrefixLength, source.Count - commonSuffixLength,
+                    keySelector, keyComparer);
+                // Prepare target keys that exist in source
+                var targetToSource = new List<int>();
+                for (int i = commonPrefixLength; i < target.Count - commonSuffixLength; i++)
+                {
+                    var targetItem = target[i];
+                    var targetKey = keySelector(targetItem);
+                    if (sourceKeyMap.TryGetValue(targetKey, out var sourceQueue) && sourceQueue.Count != 0)
+                    {
+                        targetToSource.Add(sourceQueue.Dequeue());
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+
+                // Move non-LIS elements to their target positions
+                MoveDisorderedElements(source, targetToSource,
+                    commonPrefixLength, source.Count - commonSuffixLength);
             }
 
-            return operations;
+            // Insert new elements from target into source
+            if (commonPrefixLength != target.Count && commonSuffixLength != target.Count)
+                InsertNewElements(source, target, commonPrefixLength, target.Count - commonSuffixLength,
+                    source.Count - commonSuffixLength, keySelector, keyComparer);
         }
 
-        /// <summary>
-        /// Applies a list of Heckel operations to the source collection to transform it accordingly
-        /// </summary>
-        /// <param name="source">The source collection to be modified. </param>
-        /// <param name="operations">The list of Heckel operations to apply. </param>
-        public static void ApplyHeckelOperations<T>(ObservableCollection<T> source, List<HeckelOperation<T>> operations)
+        private static Dictionary<K, Queue<int>> BuildKeyToIndexQueueMap<T, K>(
+            IList<T> collection,
+            int startIndex,
+            int endIndex,
+            Func<T, K> keySelector,
+            IEqualityComparer<K> keyComparer)
         {
-            // Execute delete operations in reverse order to avoid index shifting issues
-            foreach (var op in operations.Where(op => op.Type == HeckelOperationType.Delete).Reverse())
+            var map = new Dictionary<K, Queue<int>>(keyComparer);
+            for (int i = startIndex; i < endIndex; i++)
             {
-                if (op.SourceIndex >= 0 && op.SourceIndex < source.Count)
+                var item = collection[i];
+                var key = keySelector(item);
+                if (!map.TryGetValue(key, out var indexQueue))
                 {
-                    source.RemoveAt(op.SourceIndex);
+                    indexQueue = new Queue<int>();
+                    map[key] = indexQueue;
                 }
+                indexQueue.Enqueue(i);
             }
-
-            // Execute move operations (based on the collection indices after deletions)
-            foreach (var op in operations.Where(op => op.Type == HeckelOperationType.Move))
-            {
-                if (op.SourceIndex >= 0 && op.SourceIndex < source.Count &&
-                    op.TargetIndex >= 0 && op.TargetIndex <= source.Count)
-                {
-                    source.Move(op.SourceIndex, op.TargetIndex);
-                }
-            }
-
-            // Execute insert operations (based on the final collection indices)
-            foreach (var op in operations.Where(op => op.Type == HeckelOperationType.Insert))
-            {
-                if (op.TargetIndex >= 0 && op.TargetIndex <= source.Count)
-                {
-                    source.Insert(op.TargetIndex, op.Item);
-                }
-            }
+            return map;
         }
     }
 }

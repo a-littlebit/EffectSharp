@@ -202,7 +202,7 @@ namespace EffectSharp
 
             return Watch(source, (newList, _) =>
             {
-                ListSynchronizer.SyncKeyed(observableCollection, newList, keySelector, equalityComparer);
+                ListSynchronizer.SyncUnique(observableCollection, newList, keySelector, equalityComparer);
             }, new WatchOptions<TList> { Immediate = true, Scheduler = scheduler });
         }
 
@@ -243,7 +243,7 @@ namespace EffectSharp
 
             return Watch(source, (newList, _) =>
             {
-                ListSynchronizer.SyncUnkeyed(observableCollection, newList, equalityComparer);
+                ListSynchronizer.Sync(observableCollection, newList, t => t, equalityComparer);
             }, new WatchOptions<TList> { Immediate = true, Scheduler = scheduler });
         }
 
