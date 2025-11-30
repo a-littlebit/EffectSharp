@@ -211,6 +211,8 @@ namespace EffectSharp
         /// </summary>
         private async Task StartBatchProcessingLoopAsync()
         {
+            // Track time cost of last batch processing and subcontract the next delay accordingly
+            var lastTimeCostMs = 0;
             // Outermost loop: ensure continuous processing while there are tasks
             while (Volatile.Read(ref _disposed) == 0 && !_taskQueue.IsEmpty)
             {
@@ -229,7 +231,9 @@ namespace EffectSharp
                         try
                         {
                             // Wait for the specified interval (first task waits unless flushed; 0ms = immediate)
-                            await Task.Delay(Volatile.Read(ref _intervalMs), delayCts.Token).ConfigureAwait(false);
+                            var intervalMs = Volatile.Read(ref _intervalMs);
+                            var delayMs = Math.Max(0, intervalMs - lastTimeCostMs);
+                            await Task.Delay(delayMs, delayCts.Token).ConfigureAwait(false);
                         }
                         catch (OperationCanceledException)
                         {
@@ -245,8 +249,11 @@ namespace EffectSharp
                     // Exit loop if disposed during the delay
                     if (Volatile.Read(ref _disposed) == 1) break;
 
-                    // Process one batch of tasks (uses the latest scheduler)
-                    await ProcessBatchAsync().ConfigureAwait(false);
+                    // Process one batch of tasks and record the time cost in milliseconds
+                    var startTime = Environment.TickCount;
+                    ProcessBatch();
+                    var endTime = Environment.TickCount;
+                    lastTimeCostMs = endTime - startTime;
                 }
                 Interlocked.Exchange(ref _startLoopFlag, 0); // Reset loop flag
             }
@@ -255,7 +262,7 @@ namespace EffectSharp
         /// <summary>
         /// Processes a single batch of tasks from the queue.
         /// </summary>
-        private async Task ProcessBatchAsync()
+        private void ProcessBatch()
         {
             // Optimize: Skip List creation if queue is empty (ConcurrentQueue.IsEmpty is snapshot, but reduces empty List overhead)
             if (_taskQueue.IsEmpty)
@@ -309,38 +316,31 @@ namespace EffectSharp
                 TaskCreationOptions.DenyChildAttach,
                 currentScheduler);
 
-            Exception ex = null;
-            // Wait and handle exceptions: propagate failure to caller
-            try
+            processTask.ContinueWith(t =>
             {
-                await processTask.ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                ex = e;
-            }
-
-            // Update processed counter
-            long observedProcessedSeq;
-            do
-            {
-                observedProcessedSeq = Volatile.Read(ref _processedCounter);
-                if (dequeuedSeq <= observedProcessedSeq)
+                // Update processed counter
+                long observedProcessedSeq;
+                do
                 {
-                    break; // No update needed
-                }
-            } while (Interlocked.CompareExchange(ref _processedCounter, dequeuedSeq, observedProcessedSeq) != observedProcessedSeq);
+                    observedProcessedSeq = Volatile.Read(ref _processedCounter);
+                    if (dequeuedSeq <= observedProcessedSeq)
+                    {
+                        break; // No update needed
+                    }
+                } while (Interlocked.CompareExchange(ref _processedCounter, dequeuedSeq, observedProcessedSeq) != observedProcessedSeq);
 
-            // Notify waiters
-            if (ex == null)
-            {
-                NotifyNextTickWaiters();
-            }
-            else
-            {
-                NotifyNextTickWaitersForException(ex);
-                BatchProcessingFailed?.Invoke(this, new BatchProcessingFailedEventArgs<T>(ex, taskData.ToList()));
-            }
+                // Notify waiters
+                var ex = t.Exception?.InnerException;
+                if (ex == null)
+                {
+                    NotifyNextTickWaiters();
+                }
+                else
+                {
+                    NotifyNextTickWaitersForException(ex);
+                    BatchProcessingFailed?.Invoke(this, new BatchProcessingFailedEventArgs<T>(ex, taskData.ToList()));
+                }
+            });
         }
 
         /// <summary>
