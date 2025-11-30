@@ -287,7 +287,7 @@ namespace EffectSharp
 
                     // Process one batch of tasks and record the time cost in milliseconds
                     var startTime = Environment.TickCount;
-                    await ProcessBatch();
+                    await ProcessBatchAsync();
                     var endTime = Environment.TickCount;
                     lastTimeCostMs = endTime - startTime;
                 }
@@ -298,7 +298,7 @@ namespace EffectSharp
         /// <summary>
         /// Processes a single batch of tasks from the queue.
         /// </summary>
-        private async Task ProcessBatch()
+        private async Task ProcessBatchAsync()
         {
             // Optimize: Skip List creation if queue is empty (ConcurrentQueue.IsEmpty is snapshot, but reduces empty List overhead)
             if (_taskQueue.IsEmpty)
