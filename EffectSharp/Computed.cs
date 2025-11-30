@@ -60,7 +60,13 @@ namespace EffectSharp
 
                 if (_isDirty)
                 {
-                    _effect.Execute();
+                    lock (_effect)
+                    {
+                        if (_isDirty)
+                        {
+                            _effect.Execute();
+                        }
+                    }
                 }
 
                 return _value;

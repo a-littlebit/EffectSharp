@@ -19,8 +19,6 @@ namespace EffectSharp
 
         private Action<Effect> _scheduler;
 
-        private object _lock = new object();
-
         private volatile bool _isDisposed = false;
 
         public Action<Effect> Scheduler => _scheduler;
@@ -40,7 +38,7 @@ namespace EffectSharp
 
         public void Execute()
         {
-            lock (_lock)
+            lock (this)
             {
                 if (_isDisposed) return;
 
@@ -82,7 +80,7 @@ namespace EffectSharp
                 return getter();
             }
 
-            lock (previousEffect._lock)
+            lock (previousEffect)
             {
                 CurrentEffectContext.Value = null;
                 try
@@ -107,7 +105,7 @@ namespace EffectSharp
 
         public void Stop()
         {
-            lock (_lock)
+            lock (this)
             {
                 foreach (var dependency in _dependencies)
                 {
@@ -124,7 +122,7 @@ namespace EffectSharp
 
         public void Dispose()
         {
-            lock (_lock)
+            lock (this)
             {
                 if (_isDisposed) return;
                 Stop();
