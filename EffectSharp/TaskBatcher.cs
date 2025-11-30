@@ -25,6 +25,7 @@ namespace EffectSharp
         private int _startLoopFlag; // Flag to ensure single batch processing loop
         private CancellationTokenSource _currentDelayCts; // Cancellation source for the current interval delay
         private long _enqueueCounter; // Atomic counter for generating unique task sequence numbers
+        private long _dequeuedCounter; // Atomic counter for the highest dequeued sequence number
         private long _processedCounter; // Atomic counter for the highest processed sequence number
         private int _disposed; // Flag to track disposal state
         #endregion
@@ -224,7 +225,7 @@ namespace EffectSharp
                     // Create a new cancellation source for the current interval delay
                     using (var delayCts = new CancellationTokenSource())
                     {
-                        Interlocked.Exchange(ref _currentDelayCts, delayCts);
+                        _currentDelayCts = delayCts;
                         try
                         {
                             // Wait for the specified interval (first task waits unless flushed; 0ms = immediate)
@@ -236,8 +237,8 @@ namespace EffectSharp
                         }
                         finally
                         {
-                            // Clear the reference to the delay cancellation source (thread-safe)
-                            Interlocked.Exchange(ref _currentDelayCts, null);
+                            // Clear the reference to the delay cancellation source
+                            _currentDelayCts = null;
                         }
                     }
 
@@ -262,17 +263,31 @@ namespace EffectSharp
                 return;
             }
 
-            // Dequeue all tasks currently in the queue (atomic operation)
+            // Dequeue all tasks currently in the queue and ensure sequence continuity
             var batch = new List<(T Item, long Sequence)>(_taskQueue.Count);
-            long maxProcessedSeq = 0;
-            while (_taskQueue.TryDequeue(out var taskWithSeq))
+            var dequeuedSeq = _dequeuedCounter;
+            var expectedSeq = new HashSet<long>();
+            while (_taskQueue.TryDequeue(out var taskWithSeq) || expectedSeq.Count != 0)
             {
                 batch.Add(taskWithSeq);
-                if (taskWithSeq.Sequence > maxProcessedSeq)
+                var seq = taskWithSeq.Sequence;
+                if (seq < dequeuedSeq)
                 {
-                    maxProcessedSeq = taskWithSeq.Sequence;
+                    expectedSeq.Remove(seq);
+                }
+                else
+                {
+                    if (seq != dequeuedSeq + 1)
+                    {
+                        for (long missingSeq = dequeuedSeq + 1; missingSeq < seq; missingSeq++)
+                        {
+                            expectedSeq.Add(missingSeq);
+                        }
+                    }
+                    dequeuedSeq = seq;
                 }
             }
+            _dequeuedCounter = dequeuedSeq;
 
             // Exit if no tasks to process (queue emptied between IsEmpty check and Dequeue)
             if (batch.Count == 0)
@@ -310,11 +325,11 @@ namespace EffectSharp
             do
             {
                 observedProcessedSeq = Volatile.Read(ref _processedCounter);
-                if (maxProcessedSeq <= observedProcessedSeq)
+                if (dequeuedSeq <= observedProcessedSeq)
                 {
                     break; // No update needed
                 }
-            } while (Interlocked.CompareExchange(ref _processedCounter, maxProcessedSeq, observedProcessedSeq) != observedProcessedSeq);
+            } while (Interlocked.CompareExchange(ref _processedCounter, dequeuedSeq, observedProcessedSeq) != observedProcessedSeq);
 
             // Notify waiters
             if (ex == null)
