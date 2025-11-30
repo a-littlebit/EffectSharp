@@ -9,7 +9,7 @@
     <PackageProjectUrl>https://github.com/a-littlebit/EffectSharp</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/a-littlebit/EffectSharp</RepositoryUrl>
-    <PackageTags>C#;Reactive;StateManagement;DotNet;WPF;MAUI;DataBinding;MVVM;UI</PackageTags>
+    <PackageTags>Vue;ref;computed;watch;Reactive;StateManagement;WPF;MAUI;DataBinding;MVVM;UI</PackageTags>
     <Copyright>© 2025 a-littebit</Copyright>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <IncludeSymbols>True</IncludeSymbols>
