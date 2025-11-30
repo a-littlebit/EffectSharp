@@ -19,8 +19,9 @@ namespace EffectSharp
         private int _intervalMs; // Execution interval in milliseconds (0 = merge tasks rapidly)
         private TaskScheduler _scheduler; // Task scheduler (supports dynamic switching with eventual consistency)
         private readonly ConcurrentQueue<(T Item, long Sequence)> _taskQueue = new ConcurrentQueue<(T Item, long Sequence)>(); // Task queue with sequence numbers for NextTick tracking
-        private readonly ConcurrentDictionary<TaskCompletionSource<bool>, long> _waiters
-            = new ConcurrentDictionary<TaskCompletionSource<bool>, long>(); // Waiters for FlushAsync and NextTick
+        private TaskCompletionSource<bool> _nextTickTcs
+            = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously); // TCS for NextTick tracking
+        private readonly ReaderWriterLockSlim _nextTickLock = new ReaderWriterLockSlim(); // Lock for NextTick TCS access
 
         private int _startLoopFlag; // Flag to ensure single batch processing loop
         private CancellationTokenSource _currentDelayCts; // Cancellation source for the current interval delay
@@ -170,39 +171,74 @@ namespace EffectSharp
         /// </summary>
         /// <param name="targetSequence">Maximum sequence number to wait for</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        private Task NextTickInternal(long targetSequence, CancellationToken cancellationToken)
+        private async Task NextTickInternal(long targetSequence, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             long processedSequence = Volatile.Read(ref _processedCounter);
 
             // All target tasks are already processed—return completed task
             if (targetSequence <= processedSequence)
             {
-                return Task.CompletedTask;
+                return;
             }
 
-            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            _waiters.TryAdd(tcs, targetSequence);
-
-            // Register cancellation callback: ALWAYS remove TCS from dictionary to prevent memory leaks
-            if (cancellationToken.CanBeCanceled)
+            Task nextTickTask;
+            while (true)
             {
-                cancellationToken.Register(() =>
+                cancellationToken.ThrowIfCancellationRequested();
+                _nextTickLock.EnterReadLock();
+                try
                 {
-                    // TrySetCanceled will fail if TCS is already completed (SetResult), but we still need to clean up the dictionary
-                    tcs.TrySetCanceled(cancellationToken);
-                    _waiters.TryRemove(tcs, out _);
-                }, useSynchronizationContext: false);
+                    processedSequence = _processedCounter;
+                    nextTickTask = _nextTickTcs.Task;
+                }
+                finally
+                {
+                    _nextTickLock.ExitReadLock();
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                if (targetSequence <= processedSequence)
+                {
+                    return;
+                }
+                await WithCancellationAsync(nextTickTask, cancellationToken).ConfigureAwait(false);
             }
+        }
 
-            // Double-check: tasks may have completed while registering the waiter
-            processedSequence = Volatile.Read(ref _processedCounter);
-            if (targetSequence <= processedSequence)
+        /// <summary>
+        /// Wrapper to add cancellation support to a Task that does not natively support it.
+        /// </summary>
+        /// <param name="task">Task to wrap. </param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Completed task or throws if cancelled. </returns>
+        /// <exception cref="OperationCanceledException">Thrown if the operation is canceled</exception>
+        private static async Task WithCancellationAsync(Task task, CancellationToken cancellationToken)
+        {
+            if (task.IsCompleted || !cancellationToken.CanBeCanceled)
             {
-                tcs.TrySetResult(true);
-                _waiters.TryRemove(tcs, out _);
+                await task.ConfigureAwait(false);
+                return;
             }
+            cancellationToken.ThrowIfCancellationRequested();
 
-            return tcs.Task;
+            // Create a "cancellation signal task" that completes when cancellation is requested
+            var cancellationCompletionSource = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // Register cancellation callback to complete the cancellation signal task
+            using (cancellationToken.Register(() => cancellationCompletionSource.TrySetResult(true)))
+            {
+                // Wait for either the original task or the cancellation signal task to complete
+                var completedTask = await Task.WhenAny(task, cancellationCompletionSource.Task).ConfigureAwait(false);
+
+                // If the cancellation signal task completed first, throw OperationCanceledException
+                if (completedTask == cancellationCompletionSource.Task)
+                {
+                    throw new OperationCanceledException(cancellationToken);
+                }
+
+                // Wait for the original task to complete to propagate exceptions if any
+                await task.ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -251,7 +287,7 @@ namespace EffectSharp
 
                     // Process one batch of tasks and record the time cost in milliseconds
                     var startTime = Environment.TickCount;
-                    ProcessBatch();
+                    await ProcessBatch();
                     var endTime = Environment.TickCount;
                     lastTimeCostMs = endTime - startTime;
                 }
@@ -262,7 +298,7 @@ namespace EffectSharp
         /// <summary>
         /// Processes a single batch of tasks from the queue.
         /// </summary>
-        private void ProcessBatch()
+        private async Task ProcessBatch()
         {
             // Optimize: Skip List creation if queue is empty (ConcurrentQueue.IsEmpty is snapshot, but reduces empty List overhead)
             if (_taskQueue.IsEmpty)
@@ -276,6 +312,11 @@ namespace EffectSharp
             var expectedSeq = new HashSet<long>();
             while (_taskQueue.TryDequeue(out var taskWithSeq) || expectedSeq.Count != 0)
             {
+                if (expectedSeq.Count != 0)
+                {
+                    await Task.Yield(); // Yield to allow other threads to enqueue tasks
+                    continue;
+                }
                 batch.Add(taskWithSeq);
                 var seq = taskWithSeq.Sequence;
                 if (seq < dequeuedSeq)
@@ -294,6 +335,7 @@ namespace EffectSharp
                     dequeuedSeq = seq;
                 }
             }
+            var lastDequeuedSeq = _dequeuedCounter;
             _dequeuedCounter = dequeuedSeq;
 
             // Exit if no tasks to process (queue emptied between IsEmpty check and Dequeue)
@@ -316,82 +358,43 @@ namespace EffectSharp
                 TaskCreationOptions.DenyChildAttach,
                 currentScheduler);
 
-            processTask.ContinueWith(t =>
+            _ = processTask.ContinueWith(async t =>
             {
-                // Update processed counter
-                long observedProcessedSeq;
-                do
-                {
-                    observedProcessedSeq = Volatile.Read(ref _processedCounter);
-                    if (dequeuedSeq <= observedProcessedSeq)
-                    {
-                        break; // No update needed
-                    }
-                } while (Interlocked.CompareExchange(ref _processedCounter, dequeuedSeq, observedProcessedSeq) != observedProcessedSeq);
-
-                // Notify waiters
+                // Update the processed counter and notify waiters
                 var ex = t.Exception?.InnerException;
-                if (ex == null)
-                {
-                    NotifyNextTickWaiters();
-                }
-                else
-                {
-                    NotifyNextTickWaitersForException(ex);
-                    BatchProcessingFailed?.Invoke(this, new BatchProcessingFailedEventArgs<T>(ex, taskData.ToList()));
-                }
+                await AfterBatchProcess(lastDequeuedSeq, dequeuedSeq,
+                    ex == null ? null : taskData.ToList(), ex);
             });
         }
 
-        /// <summary>
-        /// Notifies NextTick waiters that their target sequence number has been processed.
-        /// </summary>
-        private void NotifyNextTickWaiters()
+        private async Task AfterBatchProcess(long beforeProcessSeq, long processedSeq, List<T> batch = null, Exception ex = null)
         {
-            if (_waiters.IsEmpty)
+            while (beforeProcessSeq != Volatile.Read(ref _processedCounter))
             {
-                return;
+                await NextTickInternal(beforeProcessSeq, CancellationToken.None).ConfigureAwait(false);
             }
-
-            long processedSeq = Volatile.Read(ref _processedCounter);
-
-            // Process waiters in queue order (guaranteed to be in sequence order)
-            foreach (var pair in _waiters.ToList())
+            _nextTickLock.EnterWriteLock();
+            TaskCompletionSource<bool> oldNextTickTcs;
+            var newNextTickTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            try
             {
-                var tcs = pair.Key;
-                var targetSeq = pair.Value;
-                if (targetSeq <= processedSeq)
-                {
-                    // Target sequence has been processed—complete the waiter
-                    tcs.TrySetResult(true);
-                    _waiters.TryRemove(tcs, out _);
-                }
+                if (processedSeq <= _processedCounter) return;
+                _processedCounter = processedSeq;
+                oldNextTickTcs = _nextTickTcs;
+                _nextTickTcs = newNextTickTcs;
             }
-        }
-
-        /// <summary>
-        /// Notifies all pending waiters for the next tick that an exception has occurred, causing their associated
-        /// tasks to complete with the specified exception.
-        /// </summary>
-        /// <param name="ex">The exception to propagate to all waiters whose target sequence has been processed. Cannot be null.</param>
-        private void NotifyNextTickWaitersForException(Exception ex)
-        {
-            if (_waiters.IsEmpty)
+            finally
             {
-                return;
+                _nextTickLock.ExitWriteLock();
             }
-
-            long processedSeq = Volatile.Read(ref _processedCounter);
-
-            foreach (var pair in _waiters.ToList())
+            if (ex != null)
             {
-                var tcs = pair.Key;
-                var targetSeq = pair.Value;
-                if (targetSeq <= processedSeq)
-                {
-                    tcs.TrySetException(ex);
-                    _waiters.TryRemove(tcs, out _);
-                }
+                oldNextTickTcs.TrySetException(ex);
+                BatchProcessingFailed?.Invoke(this, new BatchProcessingFailedEventArgs<T>(ex, batch));
+            }
+            else
+            {
+                oldNextTickTcs.TrySetResult(true);
             }
         }
 
@@ -439,14 +442,6 @@ namespace EffectSharp
                 {
                     delayCts.Cancel();
                     delayCts.Dispose();
-                }
-
-                // Cancel all NextTick waiters and clean up dictionary (prevent memory leaks)
-                foreach (var pair in _waiters)
-                {
-                    var tcs = pair.Key;
-                    tcs.TrySetCanceled();
-                    _waiters.TryRemove(tcs, out _);
                 }
             }
         }
