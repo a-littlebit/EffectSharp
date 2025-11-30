@@ -149,7 +149,7 @@ namespace EffectSharp
                     callback(newValue, oldValue);
                     oldValue = newValue;
                 });
-            });
+            }, options.Scheduler);
         }
 
         public static Effect Watch<T>(IRef<T> source, Action<T, T> callback, WatchOptions<T> options = null)
@@ -178,6 +178,9 @@ namespace EffectSharp
         /// <param name="equalityComparer">
         /// An optional equality comparer for keys. If null, the default equality comparer for <typeparamref name="TKey"/> is used.
         /// </param>
+        /// <param name="scheduler">
+        /// An optional scheduler action to control when the synchronization effect is executed.
+        /// </param>
         /// <returns>
         /// An <see cref="IDisposable"/> that, when disposed, stops synchronizing changes from the source list to the observable collection.
         /// </returns>
@@ -188,7 +191,8 @@ namespace EffectSharp
             this IRef<TList> source,
             ObservableCollection<T> observableCollection,
             Func<T, TKey> keySelector,
-            IEqualityComparer<TKey> equalityComparer = null)
+            IEqualityComparer<TKey> equalityComparer = null,
+            Action<Effect> scheduler = null)
             where TList : IList<T>
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
@@ -199,7 +203,7 @@ namespace EffectSharp
             return Watch(source, (newList, _) =>
             {
                 ListSynchronizer.SyncKeyed(observableCollection, newList, keySelector, equalityComparer);
-            }, new WatchOptions<TList> { Immediate = true });
+            }, new WatchOptions<TList> { Immediate = true, Scheduler = scheduler });
         }
 
         /// <summary>
@@ -219,6 +223,9 @@ namespace EffectSharp
         /// An optional equality comparer used to determine whether items are equal. If null, the default equality
         /// comparer for type <typeparamref name="T"/> is used.
         /// </param>
+        /// <param name="scheduler">
+        /// An optional scheduler action to control when the synchronization effect is executed.
+        /// </param>
         /// <returns>
         /// An <see cref="IDisposable"/> that, when disposed, stops synchronizing changes from the source list to the observable collection.
         /// </returns>
@@ -226,7 +233,8 @@ namespace EffectSharp
         public static IDisposable DiffAndBindTo<T, TList>(
             this IRef<TList> source,
             ObservableCollection<T> observableCollection,
-            IEqualityComparer<T> equalityComparer = null)
+            IEqualityComparer<T> equalityComparer = null,
+            Action<Effect> scheduler = null)
             where TList : IList<T>
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
@@ -236,7 +244,7 @@ namespace EffectSharp
             return Watch(source, (newList, _) =>
             {
                 ListSynchronizer.SyncUnkeyed(observableCollection, newList, equalityComparer);
-            }, new WatchOptions<TList> { Immediate = true });
+            }, new WatchOptions<TList> { Immediate = true, Scheduler = scheduler });
         }
 
         /// <summary>
@@ -254,8 +262,8 @@ namespace EffectSharp
     {
         public bool Immediate { get; set; } = false;
         public bool Deep { get; set; } = false;
-
         public IEqualityComparer<T> EqualityComparer { get; set; } = EqualityComparer<T>.Default;
+        public Action<Effect> Scheduler { get; set; } = null;
 
         public static readonly WatchOptions<T> Default = new WatchOptions<T>();
     }
