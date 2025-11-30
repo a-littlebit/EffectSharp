@@ -373,9 +373,9 @@ namespace EffectSharp
             {
                 await NextTickInternal(beforeProcessSeq, CancellationToken.None).ConfigureAwait(false);
             }
-            _nextTickLock.EnterWriteLock();
             TaskCompletionSource<bool> oldNextTickTcs;
             var newNextTickTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _nextTickLock.EnterWriteLock();
             try
             {
                 if (processedSeq <= _processedCounter) return;
