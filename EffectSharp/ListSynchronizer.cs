@@ -103,7 +103,7 @@ namespace EffectSharp
                     source.Count - commonSuffixLength, keySelector, keyComparer);
         }
 
-        #region Utilities for SyncKeyed
+        #region Utilities for SyncUnique
 
         private static (int, int) CalculateCommonPrefixSuffix<T, K>(
             IList<T> source,
