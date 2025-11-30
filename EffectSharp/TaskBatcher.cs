@@ -371,7 +371,14 @@ namespace EffectSharp
         {
             while (beforeProcessSeq != Volatile.Read(ref _processedCounter))
             {
-                await NextTickInternal(beforeProcessSeq, CancellationToken.None).ConfigureAwait(false);
+                try
+                {
+                    await NextTickInternal(beforeProcessSeq, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Ignore exceptions here; they may be handled in other NextTick calls
+                }
             }
             TaskCompletionSource<bool> oldNextTickTcs;
             var newNextTickTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
