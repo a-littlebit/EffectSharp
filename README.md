@@ -268,9 +268,7 @@ Note that the UI notification scheduler in `TaskManager` should be set to the UI
 The default is `TaskScheduler.FromCurrentSynchronizationContext()`.
 
 **Q: What is the difference between keyed and unkeyed diff-binding?**  
-Keyed diff-binding uses a key selector function to identify items uniquely, performing an inferno-optimized keyed diff algorithm,
-which is usually more efficient for large lists with frequent reordering.  
-Unkeyed diff-binding used the specified equality comparer, performing the Heckel diff algorithm.
+Keyed binding is preferred when items have a unique identifier property, it is usually more efficient.
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
