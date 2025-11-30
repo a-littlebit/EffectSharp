@@ -228,6 +228,25 @@ namespace EffectSharp
 
         #endregion
 
+        /// <summary>
+        /// Synchronizes the contents of the source collection with the target list by updating, inserting, removing,
+        /// and reordering items so that the source matches the target, using keys selected by the specified function
+        /// and allowing for duplicate keys.
+        /// </summary>
+        /// <remarks>This method efficiently updates the source collection to match the target list,
+        /// minimizing changes by preserving common prefixes and suffixes and only modifying differing elements. The
+        /// synchronization is based on keys, allowing for custom matching logic. The method is useful for keeping
+        /// UI-bound collections in sync with data models or other sources. Thread safety is not guaranteed; callers
+        /// should ensure appropriate synchronization if accessing collections from multiple threads.</remarks>
+        /// <typeparam name="T">The type of elements contained in the source and target collections.</typeparam>
+        /// <typeparam name="K">The type of key used to identify and match elements between the collections.</typeparam>
+        /// <param name="source">The observable collection to be updated so that its contents match those of the target list. Cannot be null.</param>
+        /// <param name="target">The list whose contents and order will be reflected in the source collection. Cannot be null.</param>
+        /// <param name="keySelector">A function that extracts a key from each element, used to identify and match items between the source and
+        /// target collections. Cannot be null.</param>
+        /// <param name="keyComparer">An optional equality comparer used to compare keys. If null, the default equality comparer for the key type
+        /// is used.</param>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="source"/>, <paramref name="target"/>, or <paramref name="keySelector"/> is null.</exception>
         public static void Sync<T, K>(
             this ObservableCollection<T> source,
             IList<T> target,
