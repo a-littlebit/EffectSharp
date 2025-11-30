@@ -8,23 +8,22 @@ namespace EffectSharp
     public static class ListSynchronizer
     {
         /// <summary>
-        /// Synchronizes the elements of the source collection with the target list based on matching keys, updating,
-        /// removing, and inserting items as needed to reflect the target's contents and order.
+        /// Synchronizes the contents of the source collection with the target list, ensuring that the source contains
+        /// exactly the unique elements from the target, matched by key. Elements are added, removed, or reordered in
+        /// the source as needed to reflect the target's unique items and order.
         /// </summary>
-        /// <remarks>This method efficiently updates the source collection to match the target list by
-        /// comparing keys, minimizing the number of moves and changes. Items in the source that do not exist in the
-        /// target are removed, new items are inserted, and existing items are reordered to match the target. The method
-        /// is optimized to reduce unnecessary collection changes, which is useful for UI scenarios where
-        /// ObservableCollection change notifications are expensive.</remarks>
+        /// <remarks>This method modifies the source collection in place to match the target list, using
+        /// the provided key selector and comparer to determine uniqueness. Only elements with distinct keys are
+        /// considered; duplicates in the target are ignored. The operation preserves the order of unique elements as
+        /// they appear in the target. This method is useful for efficiently updating UI-bound collections to reflect
+        /// changes in a backing data source.</remarks>
         /// <typeparam name="T">The type of elements contained in the source and target collections.</typeparam>
-        /// <typeparam name="K">The type of key used to identify and match elements between the collections.</typeparam>
-        /// <param name="source">The observable collection to be updated so that its contents and order match those of the target list.
+        /// <typeparam name="K">The type of key used to identify unique elements within the collections.</typeparam>
+        /// <param name="source">The ObservableCollection to be updated so that its unique elements and order match those of the target list.
         /// Cannot be null.</param>
-        /// <param name="target">The list whose elements and order will be reflected in the source collection. Cannot be null.</param>
-        /// <param name="keySelector">A function that extracts the key from each element, used to match items between the source and target
-        /// collections. Cannot be null.</param>
-        /// <param name="keyComparer">An optional equality comparer used to compare keys. If null, the default equality comparer for the key type
-        /// is used.</param>
+        /// <param name="target">The list whose unique elements and order will be reflected in the source collection. Cannot be null.</param>
+        /// <param name="keySelector">A function that extracts the key from each element, used to determine uniqueness. Cannot be null.</param>
+        /// <param name="keyComparer">An optional equality comparer for keys. If null, the default equality comparer for the key type is used.</param>
         /// <exception cref="ArgumentNullException">Thrown if source, target, or keySelector is null.</exception>
         public static void SyncUnique<T, K>(
             this ObservableCollection<T> source,
@@ -93,7 +92,7 @@ namespace EffectSharp
                     }
                 }
 
-                // Move non-LIS elements to their target positions
+                // Move disordered elements to their target positions
                 MoveDisorderedElements(source, targetToSource,
                     commonPrefixLength, source.Count - commonSuffixLength);
             }
@@ -320,7 +319,7 @@ namespace EffectSharp
                     }
                 }
 
-                // Move non-LIS elements to their target positions
+                // Move disordered elements to their target positions
                 MoveDisorderedElements(source, targetToSource,
                     commonPrefixLength, source.Count - commonSuffixLength);
             }
@@ -331,6 +330,9 @@ namespace EffectSharp
                     source.Count - commonSuffixLength, keySelector, keyComparer);
         }
 
+        /// <summary>
+        /// Build a mapping from keys to queues of their indices in the collection
+        /// </summary>
         private static Dictionary<K, Queue<int>> BuildKeyToIndexQueueMap<T, K>(
             IList<T> collection,
             int startIndex,
