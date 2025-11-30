@@ -77,7 +77,8 @@ namespace EffectSharp
             MoveNonLisElements(source, targetCommonKeys, sourceKeyMap, lisIndexSet);
 
             // Rebuild source key map after moves
-            sourceKeyMap = BuildKeyToIndexMap(source, keySelector, keyComparer);
+            // sourceKeyMap = BuildKeyToIndexMap(source, keySelector, keyComparer);
+            // Insertions only needs the key set, no need to rebuild full map
 
             // Insert new elements from target into source
             InsertNewElements(source, target, sourceKeyMap, keySelector);
@@ -235,15 +236,13 @@ namespace EffectSharp
             Dictionary<K, int> sourceKeyMap,
             Func<T, K> keySelector)
         {
-            int additionOffset = 0;
             for (int targetIndex = 0; targetIndex < target.Count; targetIndex++)
             {
                 var item = target[targetIndex];
                 var key = keySelector(item);
                 if (!sourceKeyMap.ContainsKey(key))
                 {
-                    source.Insert(targetIndex + additionOffset, item);
-                    additionOffset++;
+                    source.Insert(targetIndex, item);
                 }
             }
         }
