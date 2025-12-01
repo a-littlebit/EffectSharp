@@ -44,8 +44,9 @@ namespace EffectSharp
                 target,
                 keySelector,
                 keyComparer);
-            if (commonPrefixLength == source.Count &&
-                commonPrefixLength == target.Count)
+            int commonLengthSum = commonPrefixLength + commonSuffixLength;
+            if (commonLengthSum == source.Count &&
+                commonLengthSum == target.Count)
             {
                 // Source and target are identical; no action needed
                 return;
@@ -55,7 +56,7 @@ namespace EffectSharp
             var sourceKeyMap = BuildKeyToIndexMap(source, commonPrefixLength, source.Count - commonSuffixLength,
                 keySelector, keyComparer);
 
-            if (commonPrefixLength != source.Count && commonSuffixLength != source.Count)
+            if (commonLengthSum != source.Count)
             {
                 var targetKeyMap = BuildKeyToIndexMap(target, commonPrefixLength, target.Count - commonSuffixLength,
                     keySelector, keyComparer);
@@ -70,8 +71,7 @@ namespace EffectSharp
                 }
             }
 
-            if (commonPrefixLength != source.Count && commonSuffixLength != source.Count
-                && commonPrefixLength != target.Count && commonSuffixLength != target.Count)
+            if (commonLengthSum != source.Count && commonLengthSum != target.Count)
             {
                 // Rebuild source key-to-index map after deletions
                 sourceKeyMap = BuildKeyToIndexMap(source, commonPrefixLength, source.Count - commonSuffixLength,
@@ -98,13 +98,15 @@ namespace EffectSharp
             }
 
             // Insert new elements from target into source
-            if (commonPrefixLength != target.Count && commonSuffixLength != target.Count)
+            if (commonLengthSum != target.Count)
                 InsertNewElements(source, target, commonPrefixLength, target.Count - commonSuffixLength,
                     source.Count - commonSuffixLength, keySelector, keyComparer);
         }
 
         #region Utilities for SyncUnique
-
+        /// <summary>
+        /// Calculate lengths of common prefix and suffix between source and target (not considering duplicates)
+        /// </summary>
         private static (int, int) CalculateCommonPrefixSuffix<T, K>(
             IList<T> source,
             IList<T> target,
