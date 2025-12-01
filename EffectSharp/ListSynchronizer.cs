@@ -164,21 +164,26 @@ namespace EffectSharp
             int startIndex,
             int endIndex)
         {
-            var movements = new List<(int, int)>();
+            var sourceToTarget = new int[source.Count];
+            for (int  i = 0; i < targetToSource.Count; i++)
+            {
+                sourceToTarget[targetToSource[i] - startIndex] = i;
+            }
             for (int i = startIndex; i < endIndex; i++)
             {
                 var sourceIndex = targetToSource[i - startIndex];
-                foreach (var (Min, Max) in movements)
-                {
-                    if (sourceIndex >= Min && sourceIndex <= Max)
-                    {
-                        sourceIndex++;
-                    }
-                }
                 if (sourceIndex != i)
                 {
                     source.Move(sourceIndex, i);
-                    movements.Add((i, sourceIndex - 1));
+                    // Update targetToSource and sourceToTarget accordingly
+                    var movedTargetIndex = sourceToTarget[sourceIndex - startIndex];
+                    for (int j = sourceIndex - 1; j >= i; j--)
+                    {
+                        var shiftedTargetIndex = sourceToTarget[j - startIndex];
+                        targetToSource[shiftedTargetIndex]++;
+                        sourceToTarget[j - startIndex + 1] = shiftedTargetIndex;
+                    }
+                    sourceToTarget[i - startIndex] = movedTargetIndex;
                 }
             }
         }
