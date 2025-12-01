@@ -51,29 +51,26 @@ namespace EffectSharp
                 return;
             }
 
-            // Build initial key-to-index mappings
-            var sourceKeyMap = BuildKeyToIndexMap(source, commonPrefixLength, source.Count - commonSuffixLength,
-                keySelector, keyComparer);
-
             if (commonLengthSum != source.Count)
             {
                 var targetKeyMap = BuildKeyToIndexMap(target, commonPrefixLength, target.Count - commonSuffixLength,
                     keySelector, keyComparer);
 
                 // Remove elements not in target from source in descending index order (to avoid index shifting)
-                var indicesToDelete = sourceKeyMap.Where(pair => !targetKeyMap.ContainsKey(pair.Key))
-                    .Select(pair => pair.Value)
-                    .OrderByDescending(idx => idx);
-                foreach (var deleteIndex in indicesToDelete)
+                for (int i = source.Count - commonSuffixLength - 1; i >= commonPrefixLength; i--)
                 {
-                    source.RemoveAt(deleteIndex);
+                    var sourceItem = source[i];
+                    var sourceKey = keySelector(sourceItem);
+                    if (!targetKeyMap.ContainsKey(sourceKey))
+                    {
+                        source.RemoveAt(i);
+                    }
                 }
             }
 
             if (commonLengthSum != source.Count && commonLengthSum != target.Count)
             {
-                // Rebuild source key-to-index map after deletions
-                sourceKeyMap = BuildKeyToIndexMap(source, commonPrefixLength, source.Count - commonSuffixLength,
+                var sourceKeyMap = BuildKeyToIndexMap(source, commonPrefixLength, source.Count - commonSuffixLength,
                     keySelector, keyComparer);
                 // Prepare target keys that exist in source
                 var targetToSource = new List<int>();
@@ -264,10 +261,6 @@ namespace EffectSharp
                 return;
             }
 
-            // Build initial key-to-index mappings
-            var sourceKeyMap = BuildKeyToIndexQueueMap(source, commonPrefixLength, source.Count - commonSuffixLength,
-                keySelector, keyComparer);
-
             if (commonLengthSum != source.Count)
             {
                 var targetKeyMap = BuildKeyToIndexQueueMap(target, commonPrefixLength, target.Count - commonSuffixLength,
@@ -291,8 +284,7 @@ namespace EffectSharp
 
             if (commonLengthSum != source.Count && commonLengthSum != target.Count)
             {
-                // Rebuild source key-to-index map after deletions
-                sourceKeyMap = BuildKeyToIndexQueueMap(source, commonPrefixLength, source.Count - commonSuffixLength,
+                var sourceKeyMap = BuildKeyToIndexQueueMap(source, commonPrefixLength, source.Count - commonSuffixLength,
                     keySelector, keyComparer);
                 // Prepare target keys that exist in source
                 var targetToSource = new List<int>();
