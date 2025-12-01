@@ -228,6 +228,17 @@ var effect = Reactive.Effect(() => DoWork(), eff => {
 ### Deep Watching
 `WatchOptions.Deep = true` tracks nested reactive properties (including refs/collections/dictionaries). Use the `NonReactive` attribute to opt out for specific properties/classes.
 
+### List Diff & Binding
+Bind a source list to an `ObservableCollection<T>` with diffing:
+```csharp
+var source = Reactive.Collection<Item>();
+var target = Reactive.Collection<Item>();
+Reactive.Computed(() => {
+    source.Where(item => item.IsActive)
+        .ToList()
+}).DiffAndBindTo(target, keySelector: item => item.Id);
+```
+
 ## Comparison with Vue 3
 | Vue 3 Concept | EffectSharp Equivalent |
 |---------------|------------------------|
