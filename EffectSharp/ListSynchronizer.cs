@@ -45,8 +45,7 @@ namespace EffectSharp
                 keySelector,
                 keyComparer);
             int commonLengthSum = commonPrefixLength + commonSuffixLength;
-            if (commonLengthSum == source.Count &&
-                commonLengthSum == target.Count)
+            if (commonLengthSum == source.Count && commonLengthSum == target.Count)
             {
                 // Source and target are identical; no action needed
                 return;
@@ -149,11 +148,8 @@ namespace EffectSharp
             {
                 var item = collection[i];
                 var key = keySelector(item);
-                if (map.ContainsKey(key))
-                {
-                    throw new InvalidOperationException("Duplicate key detected: " + key);
-                }
-                map[key] = i;
+                // Use Add to ensure no duplicate key
+                map.Add(key, i);
             }
 
             return map;
@@ -199,24 +195,9 @@ namespace EffectSharp
             Func<T, K> keySelector,
             IEqualityComparer<K> keyComparer)
         {
-            for (int targetIndex = startIndex; targetIndex < targetEndIndex; targetIndex++)
+            int targetIndex = startIndex;
+            for (; targetIndex < sourceEndIndex; targetIndex++)
             {
-                if (targetIndex >= sourceEndIndex)
-                {
-                    for (; targetIndex < targetEndIndex; targetIndex++)
-                    {
-                        if (sourceEndIndex == source.Count)
-                        {
-                            source.Add(target[targetIndex]);
-                            sourceEndIndex++;
-                        }
-                        else
-                        {
-                            source.Insert(sourceEndIndex++, target[targetIndex]);
-                        }
-                    }
-                    break;
-                }
                 var sourceKey = keySelector(source[targetIndex]);
                 var targetKey = keySelector(target[targetIndex]);
                 if (!keyComparer.Equals(sourceKey, targetKey))
@@ -224,6 +205,10 @@ namespace EffectSharp
                     source.Insert(targetIndex, target[targetIndex]);
                     sourceEndIndex++;
                 }
+            }
+            for (; targetIndex < targetEndIndex; targetIndex++)
+            {
+                source.Insert(sourceEndIndex++, target[targetIndex]);
             }
         }
 
@@ -267,8 +252,8 @@ namespace EffectSharp
                 target,
                 keySelector,
                 keyComparer);
-            if (commonPrefixLength == source.Count &&
-                commonPrefixLength == target.Count)
+            int commonLengthSum = commonPrefixLength + commonSuffixLength;
+            if (commonLengthSum == source.Count && commonLengthSum == target.Count)
             {
                 // Source and target are identical; no action needed
                 return;
@@ -278,7 +263,7 @@ namespace EffectSharp
             var sourceKeyMap = BuildKeyToIndexQueueMap(source, commonPrefixLength, source.Count - commonSuffixLength,
                 keySelector, keyComparer);
 
-            if (commonPrefixLength != source.Count && commonSuffixLength != source.Count)
+            if (commonLengthSum != source.Count)
             {
                 var targetKeyMap = BuildKeyToIndexQueueMap(target, commonPrefixLength, target.Count - commonSuffixLength,
                     keySelector, keyComparer);
@@ -299,8 +284,7 @@ namespace EffectSharp
                 }
             }
 
-            if (commonPrefixLength != source.Count && commonSuffixLength != source.Count
-                && commonPrefixLength != target.Count && commonSuffixLength != target.Count)
+            if (commonLengthSum != source.Count && commonLengthSum != target.Count)
             {
                 // Rebuild source key-to-index map after deletions
                 sourceKeyMap = BuildKeyToIndexQueueMap(source, commonPrefixLength, source.Count - commonSuffixLength,
@@ -327,7 +311,7 @@ namespace EffectSharp
             }
 
             // Insert new elements from target into source
-            if (commonPrefixLength != target.Count && commonSuffixLength != target.Count)
+            if (commonLengthSum != target.Count)
                 InsertNewElements(source, target, commonPrefixLength, target.Count - commonSuffixLength,
                     source.Count - commonSuffixLength, keySelector, keyComparer);
         }
