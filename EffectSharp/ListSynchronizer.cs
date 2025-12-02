@@ -38,8 +38,8 @@ namespace EffectSharp
             if (keyComparer == null)
                 keyComparer = EqualityComparer<K>.Default;
 
-            // Calculate lengths of common prefix and suffix
-            var (commonPrefixLength, commonSuffixLength) = CalculateCommonPrefixSuffix(
+            // Calculate lengths of common prefix and suffix and make them longer by moving side elements
+            var (commonPrefixLength, commonSuffixLength) = MakeCommonPrefixSuffix(
                 source,
                 target,
                 keySelector,
@@ -66,6 +66,14 @@ namespace EffectSharp
                         source.RemoveAt(i);
                     }
                 }
+                // Recalculate common prefix and suffix lengths after removals
+                (commonPrefixLength, commonSuffixLength) = MakeCommonPrefixSuffix(
+                    source,
+                    target,
+                    keySelector,
+                    keyComparer,
+                    commonPrefixLength,
+                    commonSuffixLength);
             }
 
             if (commonLengthSum != source.Count && commonLengthSum != target.Count)
@@ -101,30 +109,55 @@ namespace EffectSharp
 
         #region Utilities for SyncUnique
         /// <summary>
-        /// Calculate lengths of common prefix and suffix between source and target (not considering duplicates)
+        /// Calculate lengths of common prefix and suffix and make them longer by moving side elements
         /// </summary>
-        private static (int, int) CalculateCommonPrefixSuffix<T, K>(
-            IList<T> source,
+        private static (int, int) MakeCommonPrefixSuffix<T, K>(
+            ObservableCollection<T> source,
             IList<T> target,
             Func<T, K> keySelector,
-            IEqualityComparer<K> keyComparer)
+            IEqualityComparer<K> keyComparer,
+            int baseCommonPrefix = 0,
+            int baseCommonSuffix = 0)
         {
-            int commonPrefixLength = 0;
+            int commonPrefixLength = baseCommonPrefix;
+            int commonSuffixLength = baseCommonSuffix;
             int minLength = Math.Min(source.Count, target.Count);
-            while (commonPrefixLength < minLength &&
-                   keyComparer.Equals(
+            while (commonPrefixLength + commonSuffixLength < minLength)
+            {
+                while (commonPrefixLength + commonSuffixLength < minLength &&
+                       keyComparer.Equals(
+                           keySelector(source[commonPrefixLength]),
+                           keySelector(target[commonPrefixLength])))
+                {
+                    commonPrefixLength++;
+                }
+                while (commonPrefixLength + commonSuffixLength < minLength &&
+                       keyComparer.Equals(
+                           keySelector(source[source.Count - 1 - commonSuffixLength]),
+                           keySelector(target[target.Count - 1 - commonSuffixLength])))
+                {
+                    commonSuffixLength++;
+                }
+                if (commonPrefixLength + commonSuffixLength == minLength)
+                    break;
+                if (keyComparer.Equals(
                        keySelector(source[commonPrefixLength]),
+                       keySelector(target[target.Count - commonSuffixLength - 1])))
+                {
+                    source.Move(commonPrefixLength, source.Count - commonSuffixLength - 1);
+                    commonSuffixLength++;
+                }
+                else if (keyComparer.Equals(
+                       keySelector(source[source.Count - commonSuffixLength - 1]),
                        keySelector(target[commonPrefixLength])))
-            {
-                commonPrefixLength++;
-            }
-            int commonSuffixLength = 0;
-            while (commonSuffixLength < (minLength - commonPrefixLength) &&
-                   keyComparer.Equals(
-                       keySelector(source[source.Count - 1 - commonSuffixLength]),
-                       keySelector(target[target.Count - 1 - commonSuffixLength])))
-            {
-                commonSuffixLength++;
+                {
+                    source.Move(source.Count - commonSuffixLength - 1, commonPrefixLength);
+                    commonPrefixLength++;
+                }
+                else
+                {
+                    break;
+                }
             }
             return (commonPrefixLength, commonSuffixLength);
         }
@@ -249,7 +282,7 @@ namespace EffectSharp
                 keyComparer = EqualityComparer<K>.Default;
 
             // Calculate lengths of common prefix and suffix
-            var (commonPrefixLength, commonSuffixLength) = CalculateCommonPrefixSuffix(
+            var (commonPrefixLength, commonSuffixLength) = MakeCommonPrefixSuffix(
                 source,
                 target,
                 keySelector,
@@ -280,6 +313,15 @@ namespace EffectSharp
                         targetQueue.Dequeue();
                     }
                 }
+
+                // Recalculate common prefix and suffix lengths after removals
+                (commonPrefixLength, commonSuffixLength) = MakeCommonPrefixSuffix(
+                    source,
+                    target,
+                    keySelector,
+                    keyComparer,
+                    commonPrefixLength,
+                    commonSuffixLength);
             }
 
             if (commonLengthSum != source.Count && commonLengthSum != target.Count)
