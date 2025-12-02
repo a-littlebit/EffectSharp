@@ -195,7 +195,7 @@ namespace EffectSharp
             int startIndex,
             int endIndex)
         {
-            var sourceToTarget = new int[source.Count];
+            var sourceToTarget = new int[targetToSource.Count];
             for (int  i = 0; i < targetToSource.Count; i++)
             {
                 sourceToTarget[targetToSource[i] - startIndex] = i;
