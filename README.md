@@ -217,9 +217,9 @@ Use `await Reactive.NextTick()` to await both effect and notify ticks.
 ### Custom Effect Schedulers
 Provide a scheduler to delay or merge effect executions:
 ```csharp
+Timer? timer = null;
 var effect = Reactive.Effect(() => DoWork(), eff => {
     // simple debounce
-    Timer? timer = null;
     timer?.Dispose();
     timer = new Timer(_ => eff.Execute(), null, 50, Timeout.Infinite);
 });
@@ -235,6 +235,7 @@ var source = Reactive.Collection<Item>();
 var target = Reactive.Collection<Item>();
 Reactive.Computed(() => {
     source.Where(item => item.IsActive)
+        .OrderBy(item => item.Name)
         .ToList()
 }).DiffAndBindTo(target, keySelector: item => item.Id);
 ```
