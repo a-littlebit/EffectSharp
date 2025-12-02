@@ -196,28 +196,91 @@ namespace EffectSharp
             int startIndex,
             int endIndex)
         {
+            if (targetToSource.Length <= 1)
+                return;
+
             var sourceToTarget = new int[targetToSource.Length];
             for (int  i = 0; i < targetToSource.Length; i++)
             {
                 sourceToTarget[targetToSource[i] - startIndex] = i;
             }
-            for (int i = startIndex; i < endIndex; i++)
+            int lPtr = startIndex, rPtr = endIndex - 1;
+            var lSource = targetToSource[lPtr - startIndex];
+            var rSource = targetToSource[rPtr - startIndex];
+            while (rPtr - lPtr > 0)
             {
-                var sourceIndex = targetToSource[i - startIndex];
-                if (sourceIndex != i)
+                if (lSource == lPtr)
                 {
-                    source.Move(sourceIndex, i);
-                    // Update targetToSource and sourceToTarget accordingly
-                    var movedTargetIndex = sourceToTarget[sourceIndex - startIndex];
-                    for (int j = sourceIndex - 1; j >= i; j--)
-                    {
-                        var shiftedTargetIndex = sourceToTarget[j - startIndex];
-                        targetToSource[shiftedTargetIndex]++;
-                        sourceToTarget[j - startIndex + 1] = shiftedTargetIndex;
-                    }
-                    sourceToTarget[i - startIndex] = movedTargetIndex;
+                    lPtr++;
+                    lSource = targetToSource[lPtr - startIndex];
+                    continue;
+                }
+                if (rSource == rPtr)
+                {
+                    rPtr--;
+                    rSource = targetToSource[rPtr - startIndex];
+                    continue;
+                }
+                if (rSource == lPtr)
+                {
+                    source.Move(lPtr, rPtr);
+                    UpdateIndexMap(
+                        targetToSource,
+                        sourceToTarget,
+                        lPtr,
+                        rPtr,
+                        startIndex,
+                        endIndex);
+                    rPtr--;
+                }
+                else
+                {
+                    source.Move(lSource, lPtr);
+                    UpdateIndexMap(
+                        targetToSource,
+                        sourceToTarget,
+                        lSource,
+                        lPtr,
+                        startIndex,
+                        endIndex);
+                    lPtr++;
+                }
+                lSource = targetToSource[lPtr - startIndex];
+                rSource = targetToSource[rPtr - startIndex];
+            }
+        }
+
+        /// <summary>
+        /// Update index map after moving an element
+        /// </summary>
+        private static void UpdateIndexMap(
+            int[] targetToSource,
+            int[] sourceToTarget,
+            int fromSourceIndex,
+            int toSourceIndex,
+            int startIndex,
+            int endIndex)
+        {
+            var movedTargetIndex = sourceToTarget[fromSourceIndex - startIndex];
+            if (fromSourceIndex < toSourceIndex)
+            {
+                for (int j = fromSourceIndex + 1; j <= toSourceIndex; j++)
+                {
+                    var shiftedTargetIndex = sourceToTarget[j - startIndex];
+                    targetToSource[shiftedTargetIndex]--;
+                    sourceToTarget[j - startIndex - 1] = shiftedTargetIndex;
                 }
             }
+            else
+            {
+                for (int j = fromSourceIndex - 1; j >= toSourceIndex; j--)
+                {
+                    var shiftedTargetIndex = sourceToTarget[j - startIndex];
+                    targetToSource[shiftedTargetIndex]++;
+                    sourceToTarget[j - startIndex + 1] = shiftedTargetIndex;
+                }
+            }
+            sourceToTarget[toSourceIndex - startIndex] = movedTargetIndex;
         }
 
         /// <summary>
