@@ -74,6 +74,7 @@ namespace EffectSharp
                     keyComparer,
                     commonPrefixLength,
                     commonSuffixLength);
+                commonLengthSum = commonPrefixLength + commonSuffixLength;
             }
 
             if (commonLengthSum != source.Count && commonLengthSum != target.Count)
@@ -322,6 +323,7 @@ namespace EffectSharp
                     keyComparer,
                     commonPrefixLength,
                     commonSuffixLength);
+                commonLengthSum = commonPrefixLength + commonSuffixLength;
             }
 
             if (commonLengthSum != source.Count && commonLengthSum != target.Count)
