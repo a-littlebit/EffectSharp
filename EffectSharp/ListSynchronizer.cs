@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 
 namespace EffectSharp
 {
@@ -221,13 +222,17 @@ namespace EffectSharp
                     rSource = targetToSource[rPtr - startIndex];
                     continue;
                 }
-                if (rSource == lPtr)
+                var lDistance = lSource - lPtr;
+                var rDistance = rPtr - rSource;
+                // Heuristic optimization: move the element with a longer distance
+                // to reduce the total number of moves
+                if (rDistance > lDistance)
                 {
-                    source.Move(lPtr, rPtr);
+                    source.Move(rSource, rPtr);
                     UpdateIndexMap(
                         targetToSource,
                         sourceToTarget,
-                        lPtr,
+                        rSource,
                         rPtr,
                         startIndex,
                         endIndex);
