@@ -36,17 +36,17 @@ namespace EffectSharp.Tests
         public async Task DiffAndBindToCollection_WhenKeyed_WorksCorrectly()
         {
             var reactiveList = Reactive.Collection<(int, string)>();
-            var sourceList = Reactive.Ref(GenerateRandomList(100, 200, 0, 1000).Select(i => (i, i.ToString())).ToList());
+            var sourceList = Reactive.Ref(GenerateRandomList(100, 200, 0, 200).Select(i => (i, i.ToString())).ToList());
             // Initial binding
             Reactive.DiffAndBindTo(sourceList, reactiveList, item => item.Item1);
             await Reactive.NextTick();
             Assert.Equal(sourceList.Value, reactiveList);
             // Update source list
-            sourceList.Value = GenerateRandomList(100, 200, 0, 1000).Select(i => (i, i.ToString())).ToList();
+            sourceList.Value = GenerateRandomList(100, 200, 0, 200).Select(i => (i, i.ToString())).ToList();
             await Reactive.NextTick();
             Assert.Equal(sourceList.Value, reactiveList);
             // Update source list again
-            sourceList.Value = GenerateRandomList(50, 100, 0, 1000).Select(i => (i, i.ToString())).ToList();
+            sourceList.Value = GenerateRandomList(50, 100, 0, 100).Select(i => (i, i.ToString())).ToList();
             await Reactive.NextTick();
             Assert.Equal(sourceList.Value, reactiveList);
         }
@@ -65,7 +65,7 @@ namespace EffectSharp.Tests
             await Reactive.NextTick();
             Assert.Equal(sourceList.Value, reactiveList);
             // Update source list again
-            sourceList.Value = GenerateRandomList(50, 100, 0, 100, false);
+            sourceList.Value = GenerateRandomList(50, 100, 0, 50, false);
             await Reactive.NextTick();
             Assert.Equal(sourceList.Value, reactiveList);
         }
