@@ -82,14 +82,15 @@ namespace EffectSharp
                 var sourceKeyMap = BuildKeyToIndexMap(source, commonPrefixLength, source.Count - commonSuffixLength,
                     keySelector, keyComparer);
                 // Prepare target keys that exist in source
-                var targetToSource = new List<int>();
+                var targetToSource = new int[source.Count - commonLengthSum];
+                var filledCount = 0;
                 for (int i = commonPrefixLength; i < target.Count - commonSuffixLength; i++)
                 {
                     var targetItem = target[i];
                     var targetKey = keySelector(targetItem);
                     if (sourceKeyMap.TryGetValue(targetKey, out var sourceIndex))
                     {
-                        targetToSource.Add(sourceIndex);
+                        targetToSource[filledCount++] = sourceIndex;
                     }
                     else
                     {
@@ -191,12 +192,12 @@ namespace EffectSharp
         /// </summary>
         private static void MoveDisorderedElements<T>(
             ObservableCollection<T> source,
-            List<int> targetToSource,
+            int[] targetToSource,
             int startIndex,
             int endIndex)
         {
-            var sourceToTarget = new int[targetToSource.Count];
-            for (int  i = 0; i < targetToSource.Count; i++)
+            var sourceToTarget = new int[targetToSource.Length];
+            for (int  i = 0; i < targetToSource.Length; i++)
             {
                 sourceToTarget[targetToSource[i] - startIndex] = i;
             }
@@ -331,14 +332,15 @@ namespace EffectSharp
                 var sourceKeyMap = BuildKeyToIndexQueueMap(source, commonPrefixLength, source.Count - commonSuffixLength,
                     keySelector, keyComparer);
                 // Prepare target keys that exist in source
-                var targetToSource = new List<int>();
+                var targetToSource = new int[source.Count - commonLengthSum];
+                var filledCount = 0;
                 for (int i = commonPrefixLength; i < target.Count - commonSuffixLength; i++)
                 {
                     var targetItem = target[i];
                     var targetKey = keySelector(targetItem);
                     if (sourceKeyMap.TryGetValue(targetKey, out var sourceQueue) && sourceQueue.Count != 0)
                     {
-                        targetToSource.Add(sourceQueue.Dequeue());
+                        targetToSource[filledCount++] = sourceQueue.Dequeue();
                     }
                     else
                     {
