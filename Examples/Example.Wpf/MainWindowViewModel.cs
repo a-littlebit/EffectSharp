@@ -35,9 +35,11 @@ namespace Example.Wpf
         {
             Reactive.Computed(() =>
             {
-                return ShowAllItems.Value
+                var toShow = ShowAllItems.Value
                     ? TodoItems.ToList()
-                    : TodoItems.Where(item => item.IsCompleted == ShowCompletedItems.Value).ToList();
+                    : TodoItems.Where(item => item.IsCompleted == ShowCompletedItems.Value);
+
+                return toShow.OrderBy(item => item.IsCompleted).ThenBy(item => item.Title).ToList();
             }).DiffAndBindTo(FilteredTodoItems, item => item.Id);
         }
 
