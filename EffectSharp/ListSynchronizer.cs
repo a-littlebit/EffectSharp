@@ -168,6 +168,10 @@ namespace EffectSharp
         /// <summary>
         /// Move disordered elements in source to match target
         /// </summary>
+        /// <remarks>
+        /// It works by sorting the sourceToTarget array using the minimum number of moves,
+        /// which is total elements minus length of longest increasing subsequence (LIS).
+        /// </remarks>
         private static void MoveDisorderedElements<T>(
             ObservableCollection<T> source,
             int[] sourceToTarget,
@@ -176,22 +180,149 @@ namespace EffectSharp
             if (sourceToTarget.Length <= 1)
                 return;
 
-            for (int i = 1; i < sourceToTarget.Length; i++)
+            // LIS indices
+            var lisIndices = ComputeLisIndices(sourceToTarget);
+            // LIS target indices
+            var lis = lisIndices.Select(i => sourceToTarget[i]).ToArray();
+            // LIS gap pointers
+            var lisGapPtrs = new int[lis.Length + 1];
+
+            // Loop variables
+            int currentGap = 0;
+            int currentGapOffset = 0;
+
+            while (true)
             {
-                var sourceIndex = sourceOffset + i;
-                var actualTargetIndex = sourceToTarget[i];
-                var targetIndex = (~Array.BinarySearch(sourceToTarget, 0, i, actualTargetIndex, null)) + sourceOffset;
-                if (sourceIndex != targetIndex)
+                while (true)
                 {
-                    source.Move(sourceIndex, targetIndex);
-                    var temp = sourceToTarget[i];
-                    for (int j = i; j > targetIndex - sourceOffset; j--)
+                    // Pointer to current element in sourceToTarget to be placed in correct position
+                    int currentPtr = lisGapPtrs[currentGap] + currentGapOffset;
+                    // Reach the end
+                    if (currentGap == lis.Length && currentPtr == sourceToTarget.Length)
+                        return;
+                    // Reach the end of current gap
+                    if (currentGap != lis.Length && currentPtr == lisIndices[currentGap])
+                        break;
+
+                    int targetIndex = sourceToTarget[currentPtr];
+                    // Find target gap for the element
+                    int targetGap = ~Array.BinarySearch(lis, targetIndex);
+                    // Calculate target gap offset and pointer
+                    int targetGapOffset = targetGap == 0 ? 0 : lisIndices[targetGap - 1] + 1;
+                    int targetGapPtr = lisGapPtrs[targetGap];
+                    // Find target pointer in sourceToTarget
+                    int targetPtr = ~Array.BinarySearch(sourceToTarget, targetGapOffset, targetGapPtr, targetIndex);
+
+                    if (targetGap > currentGap)
                     {
-                        sourceToTarget[j] = sourceToTarget[j - 1];
+                        // Adjust targetPtr to account for shift after moving currentPtr
+                        targetPtr--;
                     }
-                    sourceToTarget[targetIndex - sourceOffset] = temp;
+
+                    source.Move(sourceOffset + currentPtr, sourceOffset + targetPtr);
+                    // Update sourceToTarget array
+                    MoveArrayItem(sourceToTarget, currentPtr, targetPtr);
+                    // Update LIS gap pointers
+                    lisGapPtrs[targetGap]++;
+
+                    // Adjust LIS indices after move
+                    if (targetGap < currentGap)
+                    {
+                        for (int i = targetGap; i < currentGap; i++)
+                        {
+                            lisIndices[i]++;
+                        }
+                        currentGapOffset++;
+                    }
+                    else
+                    {
+                        for (int i = currentGap; i < targetGap; i++)
+                        {
+                            lisIndices[i]--;
+                        }
+                    }
+                }
+
+                currentGap++;
+                if (currentGap == lisGapPtrs.Length)
+                    break;
+                currentGapOffset = lisIndices[currentGap - 1] + 1; // skip LIS element
+            }
+        }
+
+        /// <summary>
+        /// Compute indices of one LIS (longest increasing subsequence) in the input array.
+        /// Returns the list of indices (relative to input) that form the LIS, in increasing order.
+        /// O(n log n).
+        /// </summary>
+        private static List<int> ComputeLisIndices(IList<int> arr)
+        {
+            int n = arr.Count;
+            var parent = new int[n];
+            var piles = new List<int>();      // stores index of arr which is the pile top
+            var pileIndex = new int[n];       // pileIndex[i] = which pile arr[i] is placed on
+
+            for (int i = 0; i < n; i++)
+            {
+                int x = arr[i];
+                // binary search on piles by arr[piles[mid]] < x
+                int lo = 0, hi = piles.Count;
+                while (lo < hi)
+                {
+                    int mid = (lo + hi) / 2;
+                    if (arr[piles[mid]] < x) lo = mid + 1;
+                    else hi = mid;
+                }
+
+                if (lo == piles.Count)
+                {
+                    piles.Add(i);
+                }
+                else
+                {
+                    piles[lo] = i;
+                }
+
+                pileIndex[i] = lo;
+                parent[i] = lo > 0 ? piles[lo - 1] : -1;
+            }
+
+            // Reconstruct LIS indices
+            var lis = new List<int>();
+            if (piles.Count == 0) return lis;
+            int cur = piles[piles.Count - 1];
+            while (cur != -1)
+            {
+                lis.Add(cur);
+                cur = parent[cur];
+            }
+            lis.Reverse();
+            return lis;
+        }
+
+        /// <summary>
+        /// Move an array item from one index to another
+        /// </summary>
+        private static void MoveArrayItem<T>(T[] array, int fromIndex, int toIndex)
+        {
+            if (fromIndex == toIndex)
+                return;
+            var temp = array[fromIndex];
+            if (fromIndex < toIndex)
+            {
+                for (int i = fromIndex; i < toIndex; i++)
+                {
+                    array[i] = array[i + 1];
                 }
             }
+            else
+            {
+                for (int i = fromIndex; i > toIndex; i--)
+                {
+                    array[i] = array[i - 1];
+                }
+            }
+            array[toIndex] = temp;
         }
 
         /// <summary>
