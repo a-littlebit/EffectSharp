@@ -25,7 +25,7 @@ namespace EffectSharp
         /// <param name="keySelector">A function that extracts the key from each element, used to determine uniqueness. Cannot be null.</param>
         /// <param name="keyComparer">An optional equality comparer for keys. If null, the default equality comparer for the key type is used.</param>
         /// <exception cref="ArgumentNullException">Thrown if source, target, or keySelector is null.</exception>
-        public static void SyncUnique<T, K>(
+        public static void SyncWithUnique<T, K>(
             this ObservableCollection<T> source,
             IList<T> target,
             Func<T, K> keySelector,
@@ -375,7 +375,7 @@ namespace EffectSharp
         /// <param name="keyComparer">An optional equality comparer used to compare keys. If null, the default equality comparer for the key type
         /// is used.</param>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="source"/>, <paramref name="target"/>, or <paramref name="keySelector"/> is null.</exception>
-        public static void Sync<T, K>(
+        public static void SyncWith<T, K>(
             this ObservableCollection<T> source,
             IList<T> target,
             Func<T, K> keySelector,
