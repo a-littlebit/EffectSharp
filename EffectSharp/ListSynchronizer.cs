@@ -310,17 +310,11 @@ namespace EffectSharp
             var temp = array[fromIndex];
             if (fromIndex < toIndex)
             {
-                for (int i = fromIndex; i < toIndex; i++)
-                {
-                    array[i] = array[i + 1];
-                }
+                Array.Copy(array, fromIndex + 1, array, fromIndex, toIndex - fromIndex);
             }
             else
             {
-                for (int i = fromIndex; i > toIndex; i--)
-                {
-                    array[i] = array[i - 1];
-                }
+                Array.Copy(array, toIndex, array, toIndex + 1, fromIndex - toIndex);
             }
             array[toIndex] = temp;
         }
