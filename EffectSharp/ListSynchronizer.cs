@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Threading;
 
 namespace EffectSharp
 {
@@ -26,7 +25,7 @@ namespace EffectSharp
         /// <param name="keySelector">A function that extracts the key from each element, used to determine uniqueness. Cannot be null.</param>
         /// <param name="keyComparer">An optional equality comparer for keys. If null, the default equality comparer for the key type is used.</param>
         /// <exception cref="ArgumentNullException">Thrown if source, target, or keySelector is null.</exception>
-        public static void SyncUnique<T, K>(
+        public static void SyncWithUnique<T, K>(
             this ObservableCollection<T> source,
             IList<T> target,
             Func<T, K> keySelector,
@@ -52,11 +51,10 @@ namespace EffectSharp
                 return;
             }
 
+            var targetKeyMap = BuildKeyToIndexMap(target, commonPrefixLength, target.Count - commonSuffixLength,
+                keySelector, keyComparer);
             if (commonLengthSum != source.Count)
             {
-                var targetKeyMap = BuildKeyToIndexMap(target, commonPrefixLength, target.Count - commonSuffixLength,
-                    keySelector, keyComparer);
-
                 // Remove elements not in target from source in descending index order (to avoid index shifting)
                 for (int i = source.Count - commonSuffixLength - 1; i >= commonPrefixLength; i--)
                 {
@@ -67,57 +65,26 @@ namespace EffectSharp
                         source.RemoveAt(i);
                     }
                 }
-                // Recalculate common prefix and suffix lengths after removals
-                (commonPrefixLength, commonSuffixLength) = MakeCommonPrefixSuffix(
-                    source,
-                    target,
-                    keySelector,
-                    keyComparer,
-                    commonPrefixLength,
-                    commonSuffixLength);
-                commonLengthSum = commonPrefixLength + commonSuffixLength;
             }
-
-            IEnumerable<int> insertIndices;
 
             if (commonLengthSum != source.Count && commonLengthSum != target.Count)
             {
-                var sourceKeyMap = BuildKeyToIndexMap(source, commonPrefixLength, source.Count - commonSuffixLength,
-                    keySelector, keyComparer);
-                // Prepare target keys that exist in source
-                var targetToSource = new int[source.Count - commonLengthSum];
-                int[] insertIndicesArr = null;
-                if (target.Count > source.Count)
-                    insertIndices = insertIndicesArr = new int[target.Count - source.Count];
-                else
-                    insertIndices = Enumerable.Empty<int>();
-                int filledCount = 0, insertCount = 0;
-                for (int i = commonPrefixLength; i < target.Count - commonSuffixLength; i++)
+                var sourceToTarget = new int[source.Count - commonLengthSum];
+                for (int i = commonPrefixLength; i < source.Count - commonSuffixLength; i++)
                 {
-                    var targetItem = target[i];
-                    var targetKey = keySelector(targetItem);
-                    if (sourceKeyMap.TryGetValue(targetKey, out var sourceIndex))
-                    {
-                        targetToSource[filledCount++] = sourceIndex;
-                    }
-                    else
-                    {
-                        insertIndicesArr[insertCount++] = i;
-                    }
+                    var sourceItem = source[i];
+                    var sourceKey = keySelector(sourceItem);
+                    sourceToTarget[i - commonPrefixLength] = targetKeyMap[sourceKey];
                 }
 
                 // Move disordered elements to their target positions
-                MoveDisorderedElements(source, targetToSource,
-                    commonPrefixLength, source.Count - commonSuffixLength);
-            }
-            else
-            {
-                insertIndices = Enumerable.Range(commonPrefixLength, target.Count - commonLengthSum);
+                MoveDisorderedElements(source, sourceToTarget, commonPrefixLength);
             }
 
             // Insert new elements from target into source
             if (commonLengthSum != target.Count)
-                InsertNewElements(source, target, insertIndices);
+                InsertNewElements(source, target, commonPrefixLength, target.Count - commonSuffixLength,
+                    source.Count - commonSuffixLength, keySelector, keyComparer);
         }
 
         #region Utilities for SyncUnique
@@ -201,114 +168,183 @@ namespace EffectSharp
         /// <summary>
         /// Move disordered elements in source to match target
         /// </summary>
+        /// <remarks>
+        /// It works by sorting the sourceToTarget array using the minimum number of moves,
+        /// which is total elements minus length of longest increasing subsequence (LIS).
+        /// </remarks>
         private static void MoveDisorderedElements<T>(
             ObservableCollection<T> source,
-            int[] targetToSource,
-            int startIndex,
-            int endIndex)
+            int[] sourceToTarget,
+            int sourceOffset)
         {
-            if (targetToSource.Length <= 1)
+            if (sourceToTarget.Length <= 1)
                 return;
 
-            var sourceToTarget = new int[targetToSource.Length];
-            for (int  i = 0; i < targetToSource.Length; i++)
+            // LIS indices
+            var lisIndices = ComputeLisIndices(sourceToTarget);
+            // LIS target indices
+            var lis = lisIndices.Select(i => sourceToTarget[i]).ToArray();
+            // LIS gap pointers
+            var lisGapPtrs = new int[lis.Length + 1];
+
+            // Loop variables
+            int currentGap = 0;
+            int currentGapOffset = 0;
+
+            while (true)
             {
-                sourceToTarget[targetToSource[i] - startIndex] = i;
-            }
-            int lPtr = startIndex, rPtr = endIndex - 1;
-            var lSource = targetToSource[lPtr - startIndex];
-            var rSource = targetToSource[rPtr - startIndex];
-            while (rPtr - lPtr > 0)
-            {
-                if (lSource == lPtr)
+                while (true)
                 {
-                    lPtr++;
-                    lSource = targetToSource[lPtr - startIndex];
-                    continue;
+                    // Pointer to current element in sourceToTarget to be placed in correct position
+                    int currentPtr = lisGapPtrs[currentGap] + currentGapOffset;
+                    // Reach the end
+                    if (currentGap == lis.Length && currentPtr == sourceToTarget.Length)
+                        return;
+                    // Reach the end of current gap
+                    if (currentGap != lis.Length && currentPtr == lisIndices[currentGap])
+                        break;
+
+                    int targetIndex = sourceToTarget[currentPtr];
+                    // Find target gap for the element
+                    int targetGap = ~Array.BinarySearch(lis, targetIndex);
+                    // Calculate target gap offset and pointer
+                    int targetGapOffset = targetGap == 0 ? 0 : lisIndices[targetGap - 1] + 1;
+                    int targetGapPtr = lisGapPtrs[targetGap];
+                    // Find target pointer in sourceToTarget
+                    int targetPtr = ~Array.BinarySearch(sourceToTarget, targetGapOffset, targetGapPtr, targetIndex);
+
+                    if (targetGap > currentGap)
+                    {
+                        // Adjust targetPtr to account for shift after moving currentPtr
+                        targetPtr--;
+                    }
+
+                    source.Move(sourceOffset + currentPtr, sourceOffset + targetPtr);
+                    // Update sourceToTarget array
+                    MoveArrayItem(sourceToTarget, currentPtr, targetPtr);
+                    // Update LIS gap pointers
+                    lisGapPtrs[targetGap]++;
+
+                    // Adjust LIS indices after move
+                    if (targetGap < currentGap)
+                    {
+                        for (int i = targetGap; i < currentGap; i++)
+                        {
+                            lisIndices[i]++;
+                        }
+                        currentGapOffset++;
+                    }
+                    else
+                    {
+                        for (int i = currentGap; i < targetGap; i++)
+                        {
+                            lisIndices[i]--;
+                        }
+                    }
                 }
-                if (rSource == rPtr)
-                {
-                    rPtr--;
-                    rSource = targetToSource[rPtr - startIndex];
-                    continue;
-                }
-                var lDistance = lSource - lPtr;
-                var rDistance = rPtr - rSource;
-                // Heuristic optimization: move the element with a longer distance
-                // to reduce the total number of moves
-                if (rDistance > lDistance)
-                {
-                    source.Move(rSource, rPtr);
-                    UpdateIndexMap(
-                        targetToSource,
-                        sourceToTarget,
-                        rSource,
-                        rPtr,
-                        startIndex,
-                        endIndex);
-                    rPtr--;
-                }
-                else
-                {
-                    source.Move(lSource, lPtr);
-                    UpdateIndexMap(
-                        targetToSource,
-                        sourceToTarget,
-                        lSource,
-                        lPtr,
-                        startIndex,
-                        endIndex);
-                    lPtr++;
-                }
-                lSource = targetToSource[lPtr - startIndex];
-                rSource = targetToSource[rPtr - startIndex];
+
+                currentGap++;
+                if (currentGap == lisGapPtrs.Length)
+                    break;
+                currentGapOffset = lisIndices[currentGap - 1] + 1; // skip LIS element
             }
         }
 
         /// <summary>
-        /// Update index map after moving an element
+        /// Compute indices of one LIS (longest increasing subsequence) in the input array.
+        /// Returns the list of indices (relative to input) that form the LIS, in increasing order.
+        /// O(n log n).
         /// </summary>
-        private static void UpdateIndexMap(
-            int[] targetToSource,
-            int[] sourceToTarget,
-            int fromSourceIndex,
-            int toSourceIndex,
-            int startIndex,
-            int endIndex)
+        private static List<int> ComputeLisIndices(IList<int> arr)
         {
-            var movedTargetIndex = sourceToTarget[fromSourceIndex - startIndex];
-            if (fromSourceIndex < toSourceIndex)
+            int n = arr.Count;
+            var parent = new int[n];
+            var piles = new List<int>();      // stores index of arr which is the pile top
+            var pileIndex = new int[n];       // pileIndex[i] = which pile arr[i] is placed on
+
+            for (int i = 0; i < n; i++)
             {
-                for (int j = fromSourceIndex + 1; j <= toSourceIndex; j++)
+                int x = arr[i];
+                // binary search on piles by arr[piles[mid]] < x
+                int lo = 0, hi = piles.Count;
+                while (lo < hi)
                 {
-                    var shiftedTargetIndex = sourceToTarget[j - startIndex];
-                    targetToSource[shiftedTargetIndex]--;
-                    sourceToTarget[j - startIndex - 1] = shiftedTargetIndex;
+                    int mid = (lo + hi) / 2;
+                    if (arr[piles[mid]] < x) lo = mid + 1;
+                    else hi = mid;
                 }
+
+                if (lo == piles.Count)
+                {
+                    piles.Add(i);
+                }
+                else
+                {
+                    piles[lo] = i;
+                }
+
+                pileIndex[i] = lo;
+                parent[i] = lo > 0 ? piles[lo - 1] : -1;
+            }
+
+            // Reconstruct LIS indices
+            var lis = new List<int>();
+            if (piles.Count == 0) return lis;
+            int cur = piles[piles.Count - 1];
+            while (cur != -1)
+            {
+                lis.Add(cur);
+                cur = parent[cur];
+            }
+            lis.Reverse();
+            return lis;
+        }
+
+        /// <summary>
+        /// Move an array item from one index to another
+        /// </summary>
+        private static void MoveArrayItem<T>(T[] array, int fromIndex, int toIndex)
+        {
+            if (fromIndex == toIndex)
+                return;
+            var temp = array[fromIndex];
+            if (fromIndex < toIndex)
+            {
+                Array.Copy(array, fromIndex + 1, array, fromIndex, toIndex - fromIndex);
             }
             else
             {
-                for (int j = fromSourceIndex - 1; j >= toSourceIndex; j--)
-                {
-                    var shiftedTargetIndex = sourceToTarget[j - startIndex];
-                    targetToSource[shiftedTargetIndex]++;
-                    sourceToTarget[j - startIndex + 1] = shiftedTargetIndex;
-                }
+                Array.Copy(array, toIndex, array, toIndex + 1, fromIndex - toIndex);
             }
-            sourceToTarget[toSourceIndex - startIndex] = movedTargetIndex;
+            array[toIndex] = temp;
         }
 
         /// <summary>
         /// Insert new elements from target into source
         /// </summary>
-        private static void InsertNewElements<T>(
+        private static void InsertNewElements<T, K>(
             ObservableCollection<T> source,
             IList<T> target,
-            IEnumerable<int> insertIndices)
+            int startIndex,
+            int targetEndIndex,
+            int sourceEndIndex,
+            Func<T, K> keySelector,
+            IEqualityComparer<K> keyComparer)
         {
-            foreach (var insertIndex in insertIndices)
+            int targetIndex = startIndex;
+            for (; targetIndex < sourceEndIndex; targetIndex++)
             {
-                source.Insert(insertIndex, target[insertIndex]);
+                var sourceKey = keySelector(source[targetIndex]);
+                var targetKey = keySelector(target[targetIndex]);
+                if (!keyComparer.Equals(sourceKey, targetKey))
+                {
+                    source.Insert(targetIndex, target[targetIndex]);
+                    sourceEndIndex++;
+                }
+            }
+            for (; targetIndex < targetEndIndex; targetIndex++)
+            {
+                source.Insert(sourceEndIndex++, target[targetIndex]);
             }
         }
 
@@ -333,7 +369,7 @@ namespace EffectSharp
         /// <param name="keyComparer">An optional equality comparer used to compare keys. If null, the default equality comparer for the key type
         /// is used.</param>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="source"/>, <paramref name="target"/>, or <paramref name="keySelector"/> is null.</exception>
-        public static void Sync<T, K>(
+        public static void SyncWith<T, K>(
             this ObservableCollection<T> source,
             IList<T> target,
             Func<T, K> keySelector,
@@ -359,11 +395,10 @@ namespace EffectSharp
                 return;
             }
 
+            var targetKeyMap = BuildKeyToIndexQueueMap(target, commonPrefixLength, target.Count - commonSuffixLength,
+                keySelector, keyComparer);
             if (commonLengthSum != source.Count)
             {
-                var targetKeyMap = BuildKeyToIndexQueueMap(target, commonPrefixLength, target.Count - commonSuffixLength,
-                    keySelector, keyComparer);
-
                 // Remove elements not in or more than target from source in descending index order (to avoid index shifting)
                 for (int i = source.Count - commonSuffixLength - 1; i >= commonPrefixLength; i--)
                 {
@@ -378,78 +413,81 @@ namespace EffectSharp
                         targetQueue.Dequeue();
                     }
                 }
-
-                // Recalculate common prefix and suffix lengths after removals
-                (commonPrefixLength, commonSuffixLength) = MakeCommonPrefixSuffix(
-                    source,
-                    target,
-                    keySelector,
-                    keyComparer,
-                    commonPrefixLength,
-                    commonSuffixLength);
-                commonLengthSum = commonPrefixLength + commonSuffixLength;
             }
-
-            IEnumerable<int> insertIndices;
 
             if (commonLengthSum != source.Count && commonLengthSum != target.Count)
             {
-                var sourceKeyMap = BuildKeyToIndexQueueMap(source, commonPrefixLength, source.Count - commonSuffixLength,
-                    keySelector, keyComparer);
-                // Prepare target keys that exist in source
-                var targetToSource = new int[source.Count - commonLengthSum];
-                int[] insertIndicesArr = null;
-                if (target.Count > source.Count)
-                    insertIndices = insertIndicesArr = new int[target.Count - source.Count];
-                else
-                    insertIndices = Enumerable.Empty<int>();
-                int filledCount = 0, insertCount = 0;
-                for (int i = commonPrefixLength; i < target.Count - commonSuffixLength; i++)
+                // Restore modified queues
+                foreach (var queue in targetKeyMap.Values)
                 {
-                    var targetItem = target[i];
-                    var targetKey = keySelector(targetItem);
-                    if (sourceKeyMap.TryGetValue(targetKey, out var sourceQueue) && sourceQueue.Count != 0)
-                    {
-                        targetToSource[filledCount++] = sourceQueue.Dequeue();
-                    }
-                    else
-                    {
-                        insertIndicesArr[insertCount++] = i;
-                    }
+                    queue.Restore();
+                }
+
+                var sourceToTarget = new int[source.Count - commonLengthSum];
+                for (int i = commonPrefixLength; i < source.Count - commonSuffixLength; i++)
+                {
+                    var sourceItem = source[i];
+                    var sourceKey = keySelector(sourceItem);
+                    sourceToTarget[i - commonPrefixLength] = targetKeyMap[sourceKey].Dequeue();
                 }
 
                 // Move disordered elements to their target positions
-                MoveDisorderedElements(source, targetToSource,
-                    commonPrefixLength, source.Count - commonSuffixLength);
-            }
-            else
-            {
-                insertIndices = Enumerable.Range(commonPrefixLength, target.Count - commonLengthSum);
+                MoveDisorderedElements(source, sourceToTarget, commonPrefixLength);
             }
 
             // Insert new elements from target into source
             if (commonLengthSum != target.Count)
-                InsertNewElements(source, target, insertIndices);
+                InsertNewElements(source, target, commonPrefixLength, target.Count - commonSuffixLength,
+                    source.Count - commonSuffixLength, keySelector, keyComparer);
+        }
+
+        private class RestorableQueue<T>
+        {
+            private readonly List<T> _items;
+            private int _ptr;
+            public RestorableQueue()
+            {
+                _items = new List<T>();
+                _ptr = 0;
+            }
+
+            public void Enqueue(T item)
+            {
+                _items.Add(item);
+            }
+
+            public T Dequeue()
+            {
+                if (_ptr >= _items.Count)
+                    throw new InvalidOperationException("Queue is empty.");
+                return _items[_ptr++];
+            }
+            public void Restore()
+            {
+                _ptr = 0;
+            }
+
+            public int Count => _items.Count - _ptr;
         }
 
         /// <summary>
         /// Build a mapping from keys to queues of their indices in the collection
         /// </summary>
-        private static Dictionary<K, Queue<int>> BuildKeyToIndexQueueMap<T, K>(
+        private static Dictionary<K, RestorableQueue<int>> BuildKeyToIndexQueueMap<T, K>(
             IList<T> collection,
             int startIndex,
             int endIndex,
             Func<T, K> keySelector,
             IEqualityComparer<K> keyComparer)
         {
-            var map = new Dictionary<K, Queue<int>>(keyComparer);
+            var map = new Dictionary<K, RestorableQueue<int>>(keyComparer);
             for (int i = startIndex; i < endIndex; i++)
             {
                 var item = collection[i];
                 var key = keySelector(item);
                 if (!map.TryGetValue(key, out var indexQueue))
                 {
-                    indexQueue = new Queue<int>();
+                    indexQueue = new RestorableQueue<int>();
                     map[key] = indexQueue;
                 }
                 indexQueue.Enqueue(i);
