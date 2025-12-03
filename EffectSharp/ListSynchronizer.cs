@@ -78,13 +78,20 @@ namespace EffectSharp
                 commonLengthSum = commonPrefixLength + commonSuffixLength;
             }
 
+            IEnumerable<int> insertIndices;
+
             if (commonLengthSum != source.Count && commonLengthSum != target.Count)
             {
                 var sourceKeyMap = BuildKeyToIndexMap(source, commonPrefixLength, source.Count - commonSuffixLength,
                     keySelector, keyComparer);
                 // Prepare target keys that exist in source
                 var targetToSource = new int[source.Count - commonLengthSum];
-                var filledCount = 0;
+                int[] insertIndicesArr = null;
+                if (target.Count > source.Count)
+                    insertIndices = insertIndicesArr = new int[target.Count - source.Count];
+                else
+                    insertIndices = Enumerable.Empty<int>();
+                int filledCount = 0, insertCount = 0;
                 for (int i = commonPrefixLength; i < target.Count - commonSuffixLength; i++)
                 {
                     var targetItem = target[i];
@@ -95,7 +102,7 @@ namespace EffectSharp
                     }
                     else
                     {
-                        continue;
+                        insertIndicesArr[insertCount++] = i;
                     }
                 }
 
@@ -103,11 +110,14 @@ namespace EffectSharp
                 MoveDisorderedElements(source, targetToSource,
                     commonPrefixLength, source.Count - commonSuffixLength);
             }
+            else
+            {
+                insertIndices = Enumerable.Range(commonPrefixLength, target.Count - commonLengthSum);
+            }
 
             // Insert new elements from target into source
             if (commonLengthSum != target.Count)
-                InsertNewElements(source, target, commonPrefixLength, target.Count - commonSuffixLength,
-                    source.Count - commonSuffixLength, keySelector, keyComparer);
+                InsertNewElements(source, target, insertIndices);
         }
 
         #region Utilities for SyncUnique
@@ -291,29 +301,14 @@ namespace EffectSharp
         /// <summary>
         /// Insert new elements from target into source
         /// </summary>
-        private static void InsertNewElements<T, K>(
+        private static void InsertNewElements<T>(
             ObservableCollection<T> source,
             IList<T> target,
-            int startIndex,
-            int targetEndIndex,
-            int sourceEndIndex,
-            Func<T, K> keySelector,
-            IEqualityComparer<K> keyComparer)
+            IEnumerable<int> insertIndices)
         {
-            int targetIndex = startIndex;
-            for (; targetIndex < sourceEndIndex; targetIndex++)
+            foreach (var insertIndex in insertIndices)
             {
-                var sourceKey = keySelector(source[targetIndex]);
-                var targetKey = keySelector(target[targetIndex]);
-                if (!keyComparer.Equals(sourceKey, targetKey))
-                {
-                    source.Insert(targetIndex, target[targetIndex]);
-                    sourceEndIndex++;
-                }
-            }
-            for (; targetIndex < targetEndIndex; targetIndex++)
-            {
-                source.Insert(sourceEndIndex++, target[targetIndex]);
+                source.Insert(insertIndex, target[insertIndex]);
             }
         }
 
@@ -395,13 +390,20 @@ namespace EffectSharp
                 commonLengthSum = commonPrefixLength + commonSuffixLength;
             }
 
+            IEnumerable<int> insertIndices;
+
             if (commonLengthSum != source.Count && commonLengthSum != target.Count)
             {
                 var sourceKeyMap = BuildKeyToIndexQueueMap(source, commonPrefixLength, source.Count - commonSuffixLength,
                     keySelector, keyComparer);
                 // Prepare target keys that exist in source
                 var targetToSource = new int[source.Count - commonLengthSum];
-                var filledCount = 0;
+                int[] insertIndicesArr = null;
+                if (target.Count > source.Count)
+                    insertIndices = insertIndicesArr = new int[target.Count - source.Count];
+                else
+                    insertIndices = Enumerable.Empty<int>();
+                int filledCount = 0, insertCount = 0;
                 for (int i = commonPrefixLength; i < target.Count - commonSuffixLength; i++)
                 {
                     var targetItem = target[i];
@@ -412,7 +414,7 @@ namespace EffectSharp
                     }
                     else
                     {
-                        continue;
+                        insertIndicesArr[insertCount++] = i;
                     }
                 }
 
@@ -420,11 +422,14 @@ namespace EffectSharp
                 MoveDisorderedElements(source, targetToSource,
                     commonPrefixLength, source.Count - commonSuffixLength);
             }
+            else
+            {
+                insertIndices = Enumerable.Range(commonPrefixLength, target.Count - commonLengthSum);
+            }
 
             // Insert new elements from target into source
             if (commonLengthSum != target.Count)
-                InsertNewElements(source, target, commonPrefixLength, target.Count - commonSuffixLength,
-                    source.Count - commonSuffixLength, keySelector, keyComparer);
+                InsertNewElements(source, target, insertIndices);
         }
 
         /// <summary>
