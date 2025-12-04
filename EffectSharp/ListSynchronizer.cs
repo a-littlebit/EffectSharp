@@ -189,14 +189,12 @@ namespace EffectSharp
 
             // Loop variables
             int currentGap = 0;
-            int currentGapOffset = 0;
+            int currentPtr = 0;
 
             while (true)
             {
                 while (true)
                 {
-                    // Pointer to current element in sourceToTarget to be placed in correct position
-                    int currentPtr = lisGapPtrs[currentGap] + currentGapOffset;
                     // Reach the end
                     if (currentGap == lis.Length && currentPtr == sourceToTarget.Length)
                         return;
@@ -232,7 +230,7 @@ namespace EffectSharp
                         {
                             lisIndices[i]++;
                         }
-                        currentGapOffset++;
+                        currentPtr++;
                     }
                     else
                     {
@@ -244,9 +242,7 @@ namespace EffectSharp
                 }
 
                 currentGap++;
-                if (currentGap == lisGapPtrs.Length)
-                    break;
-                currentGapOffset = lisIndices[currentGap - 1] + 1; // skip LIS element
+                currentPtr = lisIndices[currentGap - 1] + 1 + lisGapPtrs[currentGap]; // skip LIS element
             }
         }
 
@@ -255,9 +251,9 @@ namespace EffectSharp
         /// Returns the list of indices (relative to input) that form the LIS, in increasing order.
         /// O(n log n).
         /// </summary>
-        private static List<int> ComputeLisIndices(IList<int> arr)
+        private static int[] ComputeLisIndices(int[] arr)
         {
-            int n = arr.Count;
+            int n = arr.Length;
             var parent = new int[n];
             var piles = new List<int>();      // stores index of arr which is the pile top
             var pileIndex = new int[n];       // pileIndex[i] = which pile arr[i] is placed on
@@ -287,17 +283,19 @@ namespace EffectSharp
                 parent[i] = lo > 0 ? piles[lo - 1] : -1;
             }
 
+            if (piles.Count == 0) return Array.Empty<int>();
+
             // Reconstruct LIS indices
-            var lis = new List<int>();
-            if (piles.Count == 0) return lis;
+            var lisIndices = new int[piles.Count];
+            int fillIndex = piles.Count;
             int cur = piles[piles.Count - 1];
             while (cur != -1)
             {
-                lis.Add(cur);
+                lisIndices[--fillIndex] = cur;
                 cur = parent[cur];
             }
-            lis.Reverse();
-            return lis;
+            lisIndices.Reverse();
+            return lisIndices;
         }
 
         /// <summary>
