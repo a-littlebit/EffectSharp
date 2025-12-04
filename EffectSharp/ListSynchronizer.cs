@@ -403,10 +403,10 @@ namespace EffectSharp
                 return;
             }
 
-            var targetKeyMap = BuildKeyToIndexQueueMap(target, commonPrefixLength, target.Count - commonSuffixLength,
-                keySelector, keyComparer);
             if (commonLengthSum != source.Count)
             {
+                var targetKeyMap = BuildKeyToIndexQueueMap(target, commonPrefixLength, target.Count - commonSuffixLength,
+                    keySelector, keyComparer);
                 // Remove elements not in or more than target from source in descending index order (to avoid index shifting)
                 for (int i = source.Count - commonSuffixLength - 1; i >= commonPrefixLength; i--)
                 {
@@ -435,11 +435,8 @@ namespace EffectSharp
 
             if (commonLengthSum != source.Count && commonLengthSum != target.Count)
             {
-                // Reset target key-index queues to the beginning
-                foreach (var queue in targetKeyMap.Values)
-                {
-                    queue.BackTo(commonPrefixLength);
-                }
+                var targetKeyMap = BuildKeyToIndexQueueMap(target, commonPrefixLength, target.Count - commonSuffixLength,
+                    keySelector, keyComparer);
 
                 var sourceToTarget = new int[source.Count - commonLengthSum];
                 for (int i = commonPrefixLength; i < source.Count - commonSuffixLength; i++)
@@ -459,55 +456,24 @@ namespace EffectSharp
                     source.Count - commonSuffixLength, keySelector, keyComparer);
         }
 
-        private class BackableQueue<T>
-        {
-            private readonly List<T> _items;
-            private int _ptr;
-            public BackableQueue()
-            {
-                _items = new List<T>();
-                _ptr = 0;
-            }
-
-            public void Enqueue(T item)
-            {
-                _items.Add(item);
-            }
-
-            public T Dequeue()
-            {
-                if (_ptr >= _items.Count)
-                    throw new InvalidOperationException("Queue is empty.");
-                return _items[_ptr++];
-            }
-            public void BackTo(T item, IComparer<T> comparer = null)
-            {
-                _ptr = _items.BinarySearch(0, _ptr, item, comparer);
-                if (_ptr < 0)
-                    _ptr = ~_ptr;
-            }
-
-            public int Count => _items.Count - _ptr;
-        }
-
         /// <summary>
         /// Build a mapping from keys to queues of their indices in the collection
         /// </summary>
-        private static Dictionary<K, BackableQueue<int>> BuildKeyToIndexQueueMap<T, K>(
+        private static Dictionary<K, Queue<int>> BuildKeyToIndexQueueMap<T, K>(
             IList<T> collection,
             int startIndex,
             int endIndex,
             Func<T, K> keySelector,
             IEqualityComparer<K> keyComparer)
         {
-            var map = new Dictionary<K, BackableQueue<int>>(keyComparer);
+            var map = new Dictionary<K, Queue<int>>(keyComparer);
             for (int i = startIndex; i < endIndex; i++)
             {
                 var item = collection[i];
                 var key = keySelector(item);
                 if (!map.TryGetValue(key, out var indexQueue))
                 {
-                    indexQueue = new BackableQueue<int>();
+                    indexQueue = new Queue<int>();
                     map[key] = indexQueue;
                 }
                 indexQueue.Enqueue(i);
