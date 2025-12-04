@@ -39,7 +39,7 @@ namespace EffectSharp
                 keyComparer = EqualityComparer<K>.Default;
 
             // Calculate lengths of common prefix and suffix and make them longer by moving side elements
-            var (commonPrefixLength, commonSuffixLength) = MakeCommonPrefixSuffix(
+            var (commonPrefixLength, commonSuffixLength) = ExtendCommonPrefixAndSuffix(
                 source,
                 target,
                 keySelector,
@@ -65,6 +65,16 @@ namespace EffectSharp
                         source.RemoveAt(i);
                     }
                 }
+
+                // Recalculate common prefix & suffix length after removals
+                (commonPrefixLength, commonSuffixLength) = ExtendCommonPrefixAndSuffix(
+                    source,
+                    target,
+                    keySelector,
+                    keyComparer,
+                    commonPrefixLength,
+                    commonSuffixLength);
+                commonLengthSum = commonPrefixLength + commonSuffixLength;
             }
 
             if (commonLengthSum != source.Count && commonLengthSum != target.Count)
@@ -89,9 +99,9 @@ namespace EffectSharp
 
         #region Utilities for SyncUnique
         /// <summary>
-        /// Calculate lengths of common prefix and suffix and make them longer by moving side elements
+        /// Calculate lengths of common prefix and suffix and extend them by moving side elements
         /// </summary>
-        private static (int, int) MakeCommonPrefixSuffix<T, K>(
+        private static (int, int) ExtendCommonPrefixAndSuffix<T, K>(
             ObservableCollection<T> source,
             IList<T> target,
             Func<T, K> keySelector,
@@ -381,7 +391,7 @@ namespace EffectSharp
                 keyComparer = EqualityComparer<K>.Default;
 
             // Calculate lengths of common prefix and suffix
-            var (commonPrefixLength, commonSuffixLength) = MakeCommonPrefixSuffix(
+            var (commonPrefixLength, commonSuffixLength) = ExtendCommonPrefixAndSuffix(
                 source,
                 target,
                 keySelector,
@@ -411,6 +421,16 @@ namespace EffectSharp
                         targetQueue.Dequeue();
                     }
                 }
+
+                // Recalculate common prefix & suffix length after removals
+                (commonPrefixLength, commonSuffixLength) = ExtendCommonPrefixAndSuffix(
+                    source,
+                    target,
+                    keySelector,
+                    keyComparer,
+                    commonPrefixLength,
+                    commonSuffixLength);
+                commonLengthSum = commonPrefixLength + commonSuffixLength;
             }
 
             if (commonLengthSum != source.Count && commonLengthSum != target.Count)
