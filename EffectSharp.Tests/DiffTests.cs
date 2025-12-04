@@ -8,7 +8,7 @@ namespace EffectSharp.Tests
 {
     public class DiffTests
     {
-        List<int> GenerateRandomList(int minLength, int maxLength, int minValue, int maxValue, bool unique = true)
+        private List<int> GenerateRandomList(int minLength, int maxLength, int minValue, int maxValue, bool unique = true)
         {
             var rand = new Random();
             int length = rand.Next(minLength, maxLength + 1);
@@ -32,6 +32,18 @@ namespace EffectSharp.Tests
             return result;
         }
 
+        private void AssignPrefixAndSuffix<T>(IList<T> source, IList<T> target, int prefixLength, int suffixLength)
+        {
+            for (int i = 0; i < prefixLength; i++)
+            {
+                target[i] = source[i];
+            }
+            for (int i = 0; i < suffixLength; i++)
+            {
+                target[target.Count - suffixLength + i] = source[source.Count - suffixLength + i];
+            }
+        }
+
         [Fact]
         public async Task DiffAndBindToCollection_WhenKeyed_WorksCorrectly()
         {
@@ -46,7 +58,9 @@ namespace EffectSharp.Tests
             await Reactive.NextTick();
             Assert.Equal(sourceList.Value, reactiveList);
             // Update source list again
-            sourceList.Value = GenerateRandomList(50, 100, 0, 100).Select(i => (i, i.ToString())).ToList();
+            var newSourceList = GenerateRandomList(50, 100, 0, 100).Select(i => (i, i.ToString())).ToList();
+            AssignPrefixAndSuffix(reactiveList, newSourceList, 10, 10);
+            sourceList.Value = newSourceList;
             await Reactive.NextTick();
             Assert.Equal(sourceList.Value, reactiveList);
         }
@@ -65,7 +79,9 @@ namespace EffectSharp.Tests
             await Reactive.NextTick();
             Assert.Equal(sourceList.Value, reactiveList);
             // Update source list again
-            sourceList.Value = GenerateRandomList(50, 100, 0, 50, false);
+            var newSourceList = GenerateRandomList(50, 100, 0, 50, false);
+            AssignPrefixAndSuffix(reactiveList, newSourceList, 10, 10);
+            sourceList.Value = newSourceList;
             await Reactive.NextTick();
             Assert.Equal(sourceList.Value, reactiveList);
         }
