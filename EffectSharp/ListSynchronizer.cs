@@ -435,10 +435,10 @@ namespace EffectSharp
 
             if (commonLengthSum != source.Count && commonLengthSum != target.Count)
             {
-                // Restore modified queues
+                // Reset target key-index queues to the beginning
                 foreach (var queue in targetKeyMap.Values)
                 {
-                    queue.Restore();
+                    queue.BackTo(commonPrefixLength);
                 }
 
                 var sourceToTarget = new int[source.Count - commonLengthSum];
@@ -459,11 +459,11 @@ namespace EffectSharp
                     source.Count - commonSuffixLength, keySelector, keyComparer);
         }
 
-        private class RestorableQueue<T>
+        private class BackableQueue<T>
         {
             private readonly List<T> _items;
             private int _ptr;
-            public RestorableQueue()
+            public BackableQueue()
             {
                 _items = new List<T>();
                 _ptr = 0;
@@ -480,9 +480,11 @@ namespace EffectSharp
                     throw new InvalidOperationException("Queue is empty.");
                 return _items[_ptr++];
             }
-            public void Restore()
+            public void BackTo(T item, IComparer<T> comparer = null)
             {
-                _ptr = 0;
+                _ptr = _items.BinarySearch(0, _ptr, item, comparer);
+                if (_ptr < 0)
+                    _ptr = ~_ptr;
             }
 
             public int Count => _items.Count - _ptr;
@@ -491,21 +493,21 @@ namespace EffectSharp
         /// <summary>
         /// Build a mapping from keys to queues of their indices in the collection
         /// </summary>
-        private static Dictionary<K, RestorableQueue<int>> BuildKeyToIndexQueueMap<T, K>(
+        private static Dictionary<K, BackableQueue<int>> BuildKeyToIndexQueueMap<T, K>(
             IList<T> collection,
             int startIndex,
             int endIndex,
             Func<T, K> keySelector,
             IEqualityComparer<K> keyComparer)
         {
-            var map = new Dictionary<K, RestorableQueue<int>>(keyComparer);
+            var map = new Dictionary<K, BackableQueue<int>>(keyComparer);
             for (int i = startIndex; i < endIndex; i++)
             {
                 var item = collection[i];
                 var key = keySelector(item);
                 if (!map.TryGetValue(key, out var indexQueue))
                 {
-                    indexQueue = new RestorableQueue<int>();
+                    indexQueue = new BackableQueue<int>();
                     map[key] = indexQueue;
                 }
                 indexQueue.Enqueue(i);
