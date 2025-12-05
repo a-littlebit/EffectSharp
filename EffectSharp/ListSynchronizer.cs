@@ -304,7 +304,6 @@ namespace EffectSharp
                 lisIndices[--fillIndex] = cur;
                 cur = parent[cur];
             }
-            lisIndices.Reverse();
             return lisIndices;
         }
 
