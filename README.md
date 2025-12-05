@@ -49,7 +49,7 @@ It focuses on:
 - Flexible watchers: `Ref<T>`, computed getter functions, tuples and complex shapes, deep tracking.
 - Reactive `ObservableCollection<T>` enhancement with per-index and list-level dependencies.
 - Reactive dictionaries with per-key tracking and key-set dependency.
-- Diff-based list binding: `DiffAndBindTo` (keyed or unkeyed) to `ObservableCollection<T>`.
+- LIS-based diff & binding: bind source lists to `ObservableCollection<T>` with minimal updates.
 - Unified batching via `TaskManager`; `Reactive.NextTick()` awaits both effect and notify cycles.
 
 ## Quick Start
@@ -239,6 +239,7 @@ Reactive.Computed(() => {
         .ToList()
 }).DiffAndBindTo(target, keySelector: item => item.Id);
 ```
+This minimizes updates to `target` based on the longest increasing subsequence (LIS) algorithm.
 
 ## Comparison with Vue 3
 | Vue 3 Concept | EffectSharp Equivalent |
