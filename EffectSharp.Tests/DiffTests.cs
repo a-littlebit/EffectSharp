@@ -8,15 +8,16 @@ namespace EffectSharp.Tests
 {
     public class DiffTests
     {
+        private static readonly Random _random = new Random(42);
+
         private List<int> GenerateRandomList(int minLength, int maxLength, int minValue, int maxValue, bool unique = true)
         {
-            var rand = new Random();
-            int length = rand.Next(minLength, maxLength + 1);
+            int length = _random.Next(minLength, maxLength + 1);
             var result = new List<int>();
             var existing = unique ? new HashSet<int>() : null;
             while (result.Count < length)
             {
-                int value = rand.Next(minValue, maxValue + 1);
+                int value = _random.Next(minValue, maxValue + 1);
                 if (unique)
                 {
                     if (existing!.Add(value))
@@ -32,7 +33,7 @@ namespace EffectSharp.Tests
             return result;
         }
 
-        private void AssignPrefixAndSuffix<T>(IList<T> source, IList<T> target, int prefixLength, int suffixLength)
+        private static void AssignPrefixAndSuffix<T>(IList<T> source, IList<T> target, int prefixLength, int suffixLength)
         {
             for (int i = 0; i < prefixLength; i++)
             {
