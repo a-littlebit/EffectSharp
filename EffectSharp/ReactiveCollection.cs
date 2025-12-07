@@ -215,6 +215,13 @@ namespace EffectSharp
         public void TrackDeep()
         {
             _listDependency.Track();
+            foreach (var item in this)
+            {
+                if (item != null && item is IReactive r)
+                {
+                    r.TrackDeep();
+                }
+            }
         }
     }
 }
