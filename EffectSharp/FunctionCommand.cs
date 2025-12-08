@@ -42,7 +42,7 @@ namespace EffectSharp
         {
             if (CanExecuteChanged != null)
             {
-                TaskManager.EnqueueNotify(this, nameof(CanExecuteChanged), (args) =>
+                TaskManager.EnqueueNotification(this, nameof(CanExecuteChanged), (args) =>
                 {
                     CanExecuteChanged?.Invoke(this, EventArgs.Empty);
                 });
@@ -141,10 +141,9 @@ namespace EffectSharp
             {
                 Execute((TParam)parameter);
             }
-            catch (FunctionCommandNotExecutableException)
+            catch (Exception ex)
             {
-                // Since the canExecuteChanged event may be raised asynchronously,
-                // it's possible that the command is not executable at this point.
+                OnExecutionFailed(new FunctionCommandExecutionFailed<TParam>(ex, (TParam)parameter));
             }
         }
 
@@ -156,9 +155,9 @@ namespace EffectSharp
             {
                 result = _execute(parameter, dependencyValue);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                EndExecution(parameter, ex);
+                EndExecution(parameter);
                 throw;
             }
             EndExecution(parameter);
@@ -195,10 +194,9 @@ namespace EffectSharp
             {
                 await Execute((TParam)parameter);
             }
-            catch (FunctionCommandNotExecutableException)
+            catch (Exception ex)
             {
-                // Since the canExecuteChanged event may be raised asynchronously,
-                // it's possible that the command is not executable at this point.
+                OnExecutionFailed(new FunctionCommandExecutionFailed<TParam>(ex, (TParam)parameter));
             }
         }
 
@@ -221,9 +219,9 @@ namespace EffectSharp
                     result = await _executeAsync(parameter, dependencyValue, cancellationToken);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                EndExecution(parameter, ex);
+                EndExecution(parameter);
                 throw;
             }
             return result;
