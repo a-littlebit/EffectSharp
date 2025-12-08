@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace EffectSharp
@@ -14,7 +15,13 @@ namespace EffectSharp
     /// </summary>
     public static class Reactive
     {
-        private static readonly ProxyGenerator _proxyGenerator = new ProxyGenerator();
+        private static readonly AsyncLocal<ProxyGenerator> _proxyGenerator = new AsyncLocal<ProxyGenerator>();
+
+        public static ProxyGenerator CurrentProxyGenerator
+        {
+            get { return _proxyGenerator.Value; }
+            set { _proxyGenerator.Value = value; }
+        }
 
         public static T Create<T>(T target) where T : class
         {
@@ -37,7 +44,15 @@ namespace EffectSharp
         {
             Type[] types = { typeof(INotifyPropertyChanging), typeof(INotifyPropertyChanged), typeof(IReactive) };
             var interceptor = new ReactiveInterceptor();
-            var proxy = _proxyGenerator.CreateClassProxyWithTarget(
+
+            var proxyGenerator = _proxyGenerator.Value;
+            if (proxyGenerator == null)
+            {
+                proxyGenerator = new ProxyGenerator();
+                _proxyGenerator.Value = proxyGenerator;
+            }
+
+            var proxy = proxyGenerator.CreateClassProxyWithTarget(
                 target.GetType(),
                 types,
                 target,
