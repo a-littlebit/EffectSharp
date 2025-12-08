@@ -310,12 +310,16 @@ namespace EffectSharp
             var batch = new List<(T Item, long Sequence)>(_taskQueue.Count);
             var dequeuedSeq = _dequeuedCounter;
             var expectedSeq = new HashSet<long>();
-            while (_taskQueue.TryDequeue(out var taskWithSeq) || expectedSeq.Count != 0)
+            bool dequeuedAny;
+            while ((dequeuedAny = _taskQueue.TryDequeue(out var taskWithSeq)) || expectedSeq.Count != 0)
             {
-                if (expectedSeq.Count != 0)
+                if (!dequeuedAny)
                 {
-                    await Task.Yield(); // Yield to allow other threads to enqueue tasks
-                    continue;
+                    while (!_taskQueue.TryDequeue(out taskWithSeq))
+                    {
+                        // Wait for missing tasks to arrive
+                        await Task.Yield();
+                    }
                 }
                 batch.Add(taskWithSeq);
                 var seq = taskWithSeq.Sequence;
