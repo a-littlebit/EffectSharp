@@ -294,7 +294,39 @@ namespace EffectSharp
             return new FunctionCommand<TParam, bool, TResult>(
                 (param, can) => execute(param),
                 (param, can) => can,
-                () => canExecute(),
+                canExecute,
+                allowConcurrentExecution);
+        }
+
+        /// <summary>
+        /// Creates a new instance of a function-based command with the specified execution and optional validation
+        /// logic.
+        /// </summary>
+        /// <remarks>
+        /// <paramref name="canExecute"/> in this function will track dependencies and make the command reactive.
+        /// </remarks>
+        /// <typeparam name="TParam">The type of the command parameter.</typeparam>
+        /// <param name="execute">The action to execute when the command is invoked.</param>
+        /// <param name="canExecute">An optional function to determine whether the command can execute. If not provided, the command is always executable.</param>
+        /// <param name="allowConcurrentExecution">Indicates whether concurrent executions of the command are allowed.</param>
+        /// <returns>A new instance of <see cref="FunctionCommand{TParam, TDependency, TResult}"/>.</returns>
+        public static FunctionCommand<TParam, bool, bool> Create<TParam>(
+            Action<TParam> execute,
+            Func<bool> canExecute = null,
+            bool allowConcurrentExecution = true)
+        {
+            if (canExecute == null)
+            {
+                canExecute = () => true;
+            }
+            return new FunctionCommand<TParam, bool, bool>(
+                (param, can) =>
+                {
+                    execute(param);
+                    return true;
+                },
+                (param, can) => can,
+                canExecute,
                 allowConcurrentExecution);
         }
 
@@ -318,6 +350,35 @@ namespace EffectSharp
         {
             return new FunctionCommand<TParam, bool, TResult>(
                 (param, can) => execute(param),
+                (param, can) => canExecute(param),
+                () => true,
+                allowConcurrentExecution);
+        }
+
+        /// <summary>
+        /// Creates a new instance of a function-based command with the specified execution and validation
+        /// logic.
+        /// </summary>
+        /// <remarks>
+        /// This overload does not track dependencies. To make the command reactive, use the overload that accepts
+        /// a dependency selector.
+        /// </remarks>
+        /// <typeparam name="TParam">The type of the command parameter.</typeparam>
+        /// <param name="execute">The action to execute when the command is invoked.</param>
+        /// <param name="canExecute">A function to determine whether the command can execute.</param>
+        /// <param name="allowConcurrentExecution">Indicates whether concurrent executions of the command are allowed.</param>
+        /// <returns>A new instance of <see cref="FunctionCommand{TParam, TDependency, TResult}"/>.</returns>
+        public static FunctionCommand<TParam, bool, bool> Create<TParam>(
+            Action<TParam> execute,
+            Func<TParam, bool> canExecute,
+            bool allowConcurrentExecution = true)
+        {
+            return new FunctionCommand<TParam, bool, bool>(
+                (param, can) =>
+                {
+                    execute(param);
+                    return true;
+                },
                 (param, can) => canExecute(param),
                 () => true,
                 allowConcurrentExecution);
@@ -382,7 +443,42 @@ namespace EffectSharp
             return new AsyncFunctionCommand<TParam, bool, TResult>(
                 (param, can, token) => executeAsync(param, token),
                 (param, can) => can,
-                () => canExecute(),
+                canExecute,
+                allowConcurrentExecution,
+                executionScheduler);
+        }
+
+        /// <summary>
+        /// Creates a new instance of an asynchronous function-based command with the specified execution and optional
+        /// validation logic.
+        /// </summary>
+        /// <remarks>
+        /// <paramref name="canExecute"/> in this function will track dependencies and make the command reactive.
+        /// </remarks>
+        /// <typeparam name="TParam">The type of the command parameter.</typeparam>
+        /// <param name="executeAsync">The asynchronous function to execute when the command is invoked.</param>
+        /// <param name="canExecute">An optional function to determine whether the command can execute. If not provided, the command is always executable.</param>
+        /// <param name="allowConcurrentExecution">Indicates whether concurrent executions of the command are allowed.</param>
+        /// <param name="executionScheduler">An optional task scheduler to control the context in which the command executes.</param>
+        /// <returns>A new instance of <see cref="AsyncFunctionCommand{TParam, TDependency, TResult}"/>.</returns>
+        public static AsyncFunctionCommand<TParam, bool, bool> CreateFromTask<TParam>(
+            Func<TParam, CancellationToken, Task> executeAsync,
+            Func<bool> canExecute = null,
+            bool allowConcurrentExecution = true,
+            TaskScheduler executionScheduler = null)
+        {
+            if (canExecute == null)
+            {
+                canExecute = () => true;
+            }
+            return new AsyncFunctionCommand<TParam, bool, bool>(
+                async (param, can, token) =>
+                {
+                    await executeAsync(param, token);
+                    return true;
+                },
+                (param, can) => can,
+                canExecute,
                 allowConcurrentExecution,
                 executionScheduler);
         }
@@ -410,6 +506,38 @@ namespace EffectSharp
         {
             return new AsyncFunctionCommand<TParam, bool, TResult>(
                 (param, can, token) => executeAsync(param, token),
+                (param, can) => canExecute(param),
+                () => true,
+                allowConcurrentExecution,
+                executionScheduler);
+        }
+
+        /// <summary>
+        /// Creates a new instance of an asynchronous function-based command with the specified execution and validation
+        /// logic.
+        /// </summary>
+        /// <remarks>
+        /// This overload does not track dependencies. To make the command reactive, use the overload that accepts
+        /// a dependency selector.
+        /// </remarks>
+        /// <typeparam name="TParam">The type of the command parameter.</typeparam>
+        /// <param name="executeAsync">The asynchronous function to execute when the command is invoked.</param>
+        /// <param name="canExecute">A function to determine whether the command can execute.</param>
+        /// <param name="allowConcurrentExecution">Indicates whether concurrent executions of the command are allowed.</param>
+        /// <param name="executionScheduler">An optional task scheduler to control the context in which the command executes.</param>
+        /// <returns>A new instance of <see cref="AsyncFunctionCommand{TParam, TDependency, TResult}"/>.</returns>
+        public static AsyncFunctionCommand<TParam, bool, bool> CreateFromTask<TParam>(
+            Func<TParam, CancellationToken, Task> executeAsync,
+            Func<TParam, bool> canExecute,
+            bool allowConcurrentExecution = true,
+            TaskScheduler executionScheduler = null)
+        {
+            return new AsyncFunctionCommand<TParam, bool, bool>(
+                async (param, can, token) =>
+                {
+                    await executeAsync(param, token);
+                    return true;
+                },
                 (param, can) => canExecute(param),
                 () => true,
                 allowConcurrentExecution,
