@@ -21,7 +21,7 @@ namespace EffectSharp.Tests
             };
             product.Price = 1200;
             // Wait for the next tick to ensure the PropertyChanged event is raised
-            await TaskManager.FlushNotifyQueue();
+            await TaskManager.FlushNotificationQueue();
             Assert.Same(product, notifier);
             Assert.Equal(nameof(product.Price), changedPropertyName);
         }
@@ -47,7 +47,7 @@ namespace EffectSharp.Tests
             };
             order.Product.Price = 600;
             // Flush the notify queue to ensure the PropertyChanged event is raised
-            await TaskManager.FlushNotifyQueue();
+            await TaskManager.FlushNotificationQueue();
             Assert.Same(order.Product, notifier);
             Assert.Equal(nameof(order.Product.Price), changedPropertyName);
         }

@@ -86,7 +86,7 @@ namespace EffectSharp
             _dependency.Trigger();
             if (PropertyChanged != null)
             {
-                TaskManager.EnqueueNotify(this, nameof(Value), (e) =>
+                TaskManager.EnqueueNotification(this, nameof(Value), (e) =>
                 {
                     PropertyChanged?.Invoke(this, e);
                 });

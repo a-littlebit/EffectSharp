@@ -267,7 +267,7 @@ namespace EffectSharp
         /// </summary>
         public static async Task NextTick()
         {
-            await Task.WhenAll(TaskManager.NextEffectTick(), TaskManager.NextNotifyTick());
+            await Task.WhenAll(TaskManager.NextEffectTick(), TaskManager.NextNotificationTick());
         }
     }
 
