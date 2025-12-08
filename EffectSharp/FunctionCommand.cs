@@ -91,7 +91,7 @@ namespace EffectSharp
             return dependencyValue;
         }
 
-        protected void EndExecution(TParam parameter, Exception ex = null)
+        protected void EndExecution(TParam parameter)
         {
             if (_allowConcurrentExecution)
             {
@@ -101,10 +101,6 @@ namespace EffectSharp
             {
                 _executingCount.Value = 0;
                 RaiseCanExecuteChanged();
-            }
-            if (ex != null)
-            {
-                OnExecutionFailed(new FunctionCommandExecutionFailed<TParam>(ex, parameter));
             }
         }
 
@@ -224,6 +220,7 @@ namespace EffectSharp
                 EndExecution(parameter);
                 throw;
             }
+            EndExecution(parameter);
             return result;
         }
     }
