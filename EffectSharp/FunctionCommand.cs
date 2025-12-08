@@ -1,5 +1,4 @@
 ﻿using System;
-using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -16,7 +15,7 @@ namespace EffectSharp
         private AtomicIntRef _executingCount = new AtomicIntRef(0);
 
         public event EventHandler CanExecuteChanged;
-        public event EventHandler<FunctionCommandExecutionFailed<TParam>> ExecutionFailed;
+        public event EventHandler<FunctionCommandExecutionFailedEventArgs<TParam>> ExecutionFailed;
 
         public IReadOnlyRef<int> ExecutingCount => _executingCount;
 
@@ -49,7 +48,7 @@ namespace EffectSharp
             }
         }
 
-        protected virtual void OnExecutionFailed(FunctionCommandExecutionFailed<TParam> args)
+        protected virtual void OnExecutionFailed(FunctionCommandExecutionFailedEventArgs<TParam> args)
         {
             ExecutionFailed?.Invoke(this, args);
         }
@@ -139,7 +138,7 @@ namespace EffectSharp
             }
             catch (Exception ex)
             {
-                OnExecutionFailed(new FunctionCommandExecutionFailed<TParam>(ex, (TParam)parameter));
+                OnExecutionFailed(new FunctionCommandExecutionFailedEventArgs<TParam>(ex, (TParam)parameter));
             }
         }
 
@@ -192,7 +191,7 @@ namespace EffectSharp
             }
             catch (Exception ex)
             {
-                OnExecutionFailed(new FunctionCommandExecutionFailed<TParam>(ex, (TParam)parameter));
+                OnExecutionFailed(new FunctionCommandExecutionFailedEventArgs<TParam>(ex, (TParam)parameter));
             }
         }
 
@@ -225,11 +224,11 @@ namespace EffectSharp
         }
     }
 
-    public class FunctionCommandExecutionFailed<TParam> : EventArgs
+    public class FunctionCommandExecutionFailedEventArgs<TParam> : EventArgs
     {
         public Exception Exception { get; }
         public TParam Parameter { get; }
-        public FunctionCommandExecutionFailed(Exception exception, TParam parameter)
+        public FunctionCommandExecutionFailedEventArgs(Exception exception, TParam parameter)
         {
             Exception = exception;
             Parameter = parameter;
