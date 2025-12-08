@@ -273,8 +273,7 @@ If you want to perform side effects without tracking dependencies, use `Effect.U
 **Q: Is EffectSharp thread-safe?**  
 Reactive proxies are thread-safe or not depending on the underlying object except for deep ones,
 which are not thread-safe until `SetDeep()` is done.  
-Reactive primitives like `Ref<T>`, `Computed<T>` are not guaranteed to be thread-safe.
-If necessary, you can implement your own thread-safe reactive types for specific underlying data structures using the core dependency tracking system.
+`Ref<T>` is not thread-safe. Use `AtomicObjectRef<T>`, `AtomicIntRef`, etc. for thread-safe refs.
 Effects and watchers are scheduled via `TaskManager` and each runs with a lock to prevent concurrent execution,
 which means effects/watchers themselves are thread-safe.  
 Note that the UI notification scheduler in `TaskManager` should be set to the UI thread context when used in UI applications.
