@@ -24,13 +24,7 @@ namespace Example.Wpf
         {
             InitializeComponent();
 
-            var vm = new MainWindowViewModel();
-            DataContext = vm;
-
-            Reactive.Watch(vm.NewTodoTitle, (title, _) =>
-            {
-                AddButton.IsEnabled = !string.IsNullOrWhiteSpace(title);
-            }, new WatchOptions<string> { Immediate = true });
+            DataContext = new MainWindowViewModel();
         }
     }
 }

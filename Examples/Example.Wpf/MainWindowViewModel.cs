@@ -1,5 +1,4 @@
-﻿using CommunityToolkit.Mvvm.Input;
-using EffectSharp;
+﻿using EffectSharp;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -41,9 +40,15 @@ namespace Example.Wpf
 
                 return toShow.OrderBy(item => item.IsCompleted).ThenBy(item => item.Title).ToList();
             }).DiffAndBindTo(FilteredTodoItems, item => item.Id);
+
+            AddTodoCommand = FunctionCommand.Create<object>(_ => AddTodo(), () => !string.IsNullOrWhiteSpace(NewTodoTitle.Value));
+            SelectAllCommand = FunctionCommand.Create<object>(_ => SelectAll());
+            SelectCompletedCommand = FunctionCommand.Create<object>(_ => SelectCompleted());
+            SelectPendingCommand = FunctionCommand.Create<object>(_ => SelectPending());
         }
 
-        [RelayCommand]
+        public FunctionCommand<object, bool, bool> AddTodoCommand { get; }
+
         public void AddTodo()
         {
             if (!string.IsNullOrWhiteSpace(NewTodoTitle.Value))
@@ -53,7 +58,8 @@ namespace Example.Wpf
             }
         }
 
-        [RelayCommand]
+        public FunctionCommand<object, bool, bool> SelectAllCommand { get; }
+
         public void SelectAll()
         {
             ShowAllItems.Value = true;
@@ -61,7 +67,8 @@ namespace Example.Wpf
             ShowPendingItems.Value = false;
         }
 
-        [RelayCommand]
+        public FunctionCommand<object, bool, bool> SelectCompletedCommand { get; }
+
         public void SelectCompleted()
         {
             ShowAllItems.Value = false;
@@ -69,7 +76,8 @@ namespace Example.Wpf
             ShowPendingItems.Value = false;
         }
 
-        [RelayCommand]
+        public FunctionCommand<object, bool, bool> SelectPendingCommand { get; }
+
         public void SelectPending()
         {
             ShowAllItems.Value = false;
