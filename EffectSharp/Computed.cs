@@ -13,7 +13,7 @@ namespace EffectSharp
     /// <typeparam name="T">The type of the computed value. </typeparam>
     public class Computed<T> : INotifyPropertyChanging, INotifyPropertyChanged, IReactive, IRef<T>, IDisposable
     {
-        private T _value = default;
+        private volatile object _value;
         private volatile bool _isDirty = true;
         private readonly Func<T> _getter;
         private readonly Action _setter;
@@ -69,7 +69,7 @@ namespace EffectSharp
                     }
                 }
 
-                return _value;
+                return (T)_value;
             }
             set
             {
