@@ -7,7 +7,7 @@ namespace EffectSharp.Tests
     public class FunctionCommandTests
     {
         [Fact]
-        public async Task FunctionCommand_ExecutesAction_And_TrackingCanExecute()
+        public async Task FunctionCommand_ExecutesAction_And_TracksCanExecute()
         {
             bool invoked = false;
             var canExecute = Reactive.Ref(true);
@@ -35,7 +35,12 @@ namespace EffectSharp.Tests
             var cmd = FunctionCommand.Create<int>((p) => { }, (param) => false, allowConcurrentExecution: true);
             cmd.ExecutionFailed += (s, e) => observed = e.Exception;
 
-            // Execute should not throw; it should raise ExecutionFailed with FunctionCommandNotExecutableException
+            // Execute with generic param and result should throw FunctionCommandNotExecutableException
+            Assert.Throws<FunctionCommandNotExecutableException>(() => cmd.Execute(0));
+            // observed should be null because Execute threw
+            Assert.Null(observed);
+
+            // Execute with object param should not throw; it should raise ExecutionFailed with FunctionCommandNotExecutableException
             cmd.Execute((object)0);
 
             Assert.NotNull(observed);
@@ -48,7 +53,7 @@ namespace EffectSharp.Tests
             var cmd = FunctionCommand.CreateFromTask<int>(async (p, ct) =>
             {
                 var tcs = new TaskCompletionSource<bool>();
-                using (ct.Register(() => tcs.SetResult(true)))
+                using (ct.Register(() => tcs.SetCanceled()))
                 {
                     await tcs.Task;
                 }
@@ -64,11 +69,20 @@ namespace EffectSharp.Tests
 
             // Cancel the running task
             cts.Cancel();
-            await task;
+            bool canceled = false;
+            try
+            {
+                await task;
+            }
+            catch (OperationCanceledException)
+            {
+                canceled = true;
+            }
 
             // After completion, executing count should be 0 and CanExecute true
             Assert.Equal(0, cmd.ExecutingCount.Value);
             Assert.True(cmd.CanExecute(0));
+            Assert.True(canceled);
         }
 
         [Fact]
