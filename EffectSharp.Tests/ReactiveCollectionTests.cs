@@ -40,7 +40,7 @@ namespace EffectSharp.Tests
         }
 
         [Fact]
-        public async Task ReactiveCollection_WhenItemAdded_NotifySubscribers()
+        public async Task ReactiveCollection_WhenItemAdded_TriggerDependency()
         {
             var reactiveList = Reactive.Collection<int>();
             var sum = Reactive.Computed(() => reactiveList.Sum());
@@ -54,7 +54,7 @@ namespace EffectSharp.Tests
         }
 
         [Fact]
-        public async Task ReactiveCollection_WhenItemRemoved_NotifySubscribers()
+        public async Task ReactiveCollection_WhenItemRemoved_TriggerDependency()
         {
             var reactiveList = Reactive.Collection([1, 2, 3]);
             var sum = Reactive.Computed(() => reactiveList.Sum());
@@ -68,7 +68,7 @@ namespace EffectSharp.Tests
         }
 
         [Fact]
-        public async Task ReactiveCollection_WhenCleared_NotifySubscribers()
+        public async Task ReactiveCollection_WhenCleared_TriggerDependency()
         {
             var reactiveList = Reactive.Collection([1, 2, 3]);
             var count = Reactive.Computed(() => reactiveList.Count);
