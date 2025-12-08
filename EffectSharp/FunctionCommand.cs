@@ -39,7 +39,7 @@ namespace EffectSharp
                 _effect = Reactive.Watch(dependencyValue, (newValue, oldValue) =>
                 {
                     RaiseCanExecuteChanged();
-                }, new WatchOptions<TDependency> { Immediate = true });
+                }, new WatchOptions<TDependency> { Immediate = true, Scheduler = eff => eff.Execute() });
                 _dependencyGetter = () => dependencyValue.Value;
             }
             else
