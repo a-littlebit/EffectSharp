@@ -5,12 +5,18 @@ using System.Windows.Input;
 
 namespace EffectSharp
 {
-    public abstract class FunctionCommandBase<TParam, TResult> : ICommand, IDisposable
+    public interface IFunctionCommand<TParam> : ICommand
     {
-        private readonly Func<TParam, object, bool> _canExecute;
+        IReadOnlyRef<int> ExecutingCount { get; }
+        event EventHandler<FunctionCommandExecutionFailedEventArgs<TParam>> ExecutionFailed;
+    }
+
+    public abstract class FunctionCommandBase<TParam, TDependency, TResult> : IFunctionCommand<TParam>, ICommand, IDisposable
+    {
+        private readonly Func<TParam, TDependency, bool> _canExecute;
         private readonly bool _allowConcurrentExecution;
 
-        private Func<object> _dependencyGetter;
+        private Func<TDependency> _dependencyGetter;
         private readonly Effect _effect;
         private AtomicIntRef _executingCount = new AtomicIntRef(0);
 
@@ -20,8 +26,8 @@ namespace EffectSharp
         public IReadOnlyRef<int> ExecutingCount => _executingCount;
 
         protected FunctionCommandBase(
-            Func<TParam, object, bool> canExecute = null,
-            Func<object> dependencySelector = null,
+            Func<TParam, TDependency, bool> canExecute = null,
+            Func<TDependency> dependencySelector = null,
             bool allowConcurrentExecution = false)
         {
             _canExecute = canExecute ?? ((param, dep) => true);
@@ -33,12 +39,12 @@ namespace EffectSharp
                 _effect = Reactive.Watch(dependencyValue, (newValue, oldValue) =>
                 {
                     RaiseCanExecuteChanged();
-                }, new WatchOptions<object> { Immediate = true });
+                }, new WatchOptions<TDependency> { Immediate = true });
                 _dependencyGetter = () => dependencyValue.Value;
             }
             else
             {
-                _dependencyGetter = () => null;
+                _dependencyGetter = () => default;
             }
         }
 
@@ -73,7 +79,7 @@ namespace EffectSharp
             return _canExecute(parameter, dependencyValue);
         }
 
-        protected object BeginExecution(TParam parameter)
+        protected TDependency BeginExecution(TParam parameter)
         {
             var dependencyValue = _dependencyGetter();
             if (!_canExecute(parameter, dependencyValue))
@@ -116,14 +122,14 @@ namespace EffectSharp
         }
     }
 
-    public class FunctionCommand<TParam, TResult> : FunctionCommandBase<TParam, TResult>
+    public class FunctionCommand<TParam, TDependency, TResult> : FunctionCommandBase<TParam, TDependency, TResult>
     {
-        private readonly Func<TParam, object, TResult> _execute;
+        private readonly Func<TParam, TDependency, TResult> _execute;
 
         public FunctionCommand(
-            Func<TParam, object, TResult> execute,
-            Func<TParam, object, bool> canExecute = null,
-            Func<object> dependencySelector = null,
+            Func<TParam, TDependency, TResult> execute,
+            Func<TParam, TDependency, bool> canExecute = null,
+            Func<TDependency> dependencySelector = null,
             bool allowConcurrentExecution = false)
             : base(
                   canExecute,
@@ -146,36 +152,19 @@ namespace EffectSharp
                 OnExecutionFailed(new FunctionCommandExecutionFailedEventArgs<TParam>(ex, (TParam)parameter));
             }
         }
-
-        public TResult Execute(TParam parameter)
-        {
-            var dependencyValue = BeginExecution(parameter);
-            TResult result;
-            try
-            {
-                result = _execute(parameter, dependencyValue);
-            }
-            catch (Exception)
-            {
-                EndExecution(parameter);
-                throw;
-            }
-            EndExecution(parameter);
-            return result;
-        }
     }
 
-    public class AsyncFunctionCommand<TParam, TResult> : FunctionCommandBase<TParam, TResult>
+    public class AsyncFunctionCommand<TParam, TDependency, TResult> : FunctionCommandBase<TParam, TDependency, TResult>
     {
-        private readonly Func<TParam, object, CancellationToken, Task<TResult>> _executeAsync;
+        private readonly Func<TParam, TDependency, CancellationToken, Task<TResult>> _executeAsync;
         private readonly TaskScheduler _executionScheduler;
 
         public TaskScheduler ExecutionScheduler => _executionScheduler;
 
         public AsyncFunctionCommand(
-            Func<TParam, object, CancellationToken, Task<TResult>> executeAsync,
-            Func<TParam, object, bool> canExecute = null,
-            Func<object> dependencySelector = null,
+            Func<TParam, TDependency, CancellationToken, Task<TResult>> executeAsync,
+            Func<TParam, TDependency, bool> canExecute = null,
+            Func<TDependency> dependencySelector = null,
             bool allowConcurrentExecution = false,
             TaskScheduler executionScheduler = null)
             : base(
