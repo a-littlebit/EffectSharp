@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace EffectSharp
 {
-    public abstract class RefBase<T> : IRef<T>, IReactive, INotifyPropertyChanging, INotifyPropertyChanged
+    public abstract class RefBase<T> : IRef<T>, IReadOnlyRef<T>, IReactive, INotifyPropertyChanging, INotifyPropertyChanged
     {
         public event PropertyChangingEventHandler PropertyChanging;
         public event PropertyChangedEventHandler PropertyChanged;

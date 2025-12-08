@@ -14,4 +14,13 @@ namespace EffectSharp
     {
         T Value { get; set; }
     }
+
+    /// <summary>
+    /// An interface for read-only reactive references that hold a value of type T.
+    /// </summary>
+    /// <typeparam name="T">The type of the value held by the reference. </typeparam>
+    public interface IReadOnlyRef<T> : IReactive
+    {
+        T Value { get; }
+    }
 }

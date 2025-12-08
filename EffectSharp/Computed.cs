@@ -11,7 +11,7 @@ namespace EffectSharp
     /// Represents a computed reactive value that automatically updates when its dependencies change.
     /// </summary>
     /// <typeparam name="T">The type of the computed value. </typeparam>
-    public class Computed<T> : INotifyPropertyChanging, INotifyPropertyChanged, IReactive, IRef<T>, IDisposable
+    public class Computed<T> : INotifyPropertyChanging, INotifyPropertyChanged, IReactive, IRef<T>, IReadOnlyRef<T>, IDisposable
     {
         private volatile object _value;
         private volatile bool _isDirty = true;
