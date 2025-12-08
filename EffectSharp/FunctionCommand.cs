@@ -16,7 +16,7 @@ namespace EffectSharp
         private readonly Func<TParam, TDependency, bool> _canExecute;
         private readonly bool _allowConcurrentExecution;
 
-        private Func<TDependency> _dependencyGetter;
+        private readonly Func<TDependency> _dependencyGetter;
         private readonly Effect _effect;
         private AtomicIntRef _executingCount = new AtomicIntRef(0);
 
