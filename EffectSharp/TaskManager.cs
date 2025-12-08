@@ -17,13 +17,13 @@ namespace EffectSharp
     public static class TaskManager
     {
 
-        private static readonly TaskBatcher<Effect> _triggerBatcher
+        private static readonly TaskBatcher<Effect> _effectBatcher
             = new TaskBatcher<Effect>(TriggerBatchEffects, 0, TaskScheduler.FromCurrentSynchronizationContext());
 
-        private static readonly TaskBatcher<NotifyTask> _notifyBatcher
-            = new TaskBatcher<NotifyTask>(NotifyBatch, 16, TaskScheduler.FromCurrentSynchronizationContext());
+        private static readonly TaskBatcher<NotificationTask> _notificationBatcher
+            = new TaskBatcher<NotificationTask>(NotifyBatch, 16, TaskScheduler.FromCurrentSynchronizationContext());
 
-        private static volatile bool _flushNotifyAfterEffectBatch = true;
+        private static volatile bool _flushNotificationAfterEffectBatch = true;
 
         /// <summary>
         /// Gets or sets the interval, in milliseconds, between effect trigger batches.
@@ -35,8 +35,8 @@ namespace EffectSharp
         /// </remarks>
         public static int EffectIntervalMs
         {
-            get => _triggerBatcher.IntervalMs;
-            set => _triggerBatcher.IntervalMs = value;
+            get => _effectBatcher.IntervalMs;
+            set => _effectBatcher.IntervalMs = value;
         }
 
         /// <summary>
@@ -49,8 +49,8 @@ namespace EffectSharp
         /// </remarks>
         public static TaskScheduler EffectTaskScheduler
         {
-            get => _triggerBatcher.Scheduler;
-            set => _triggerBatcher.Scheduler = value;
+            get => _effectBatcher.Scheduler;
+            set => _effectBatcher.Scheduler = value;
         }
 
         /// <summary>
@@ -61,10 +61,10 @@ namespace EffectSharp
         /// usage. The interval must be a non-negative integer.
         /// Default is 16 ms, aligning with a typical 60Hz UI refresh rate.
         /// </remarks>
-        public static int NotifyIntervalMs
+        public static int NotificationIntervalMs
         {
-            get => _notifyBatcher.IntervalMs;
-            set => _notifyBatcher.IntervalMs = value;
+            get => _notificationBatcher.IntervalMs;
+            set => _notificationBatcher.IntervalMs = value;
         }
 
         /// <summary>
@@ -75,10 +75,10 @@ namespace EffectSharp
         /// concurrency or execution order. Ensure that the assigned <see cref="TaskScheduler"/> is appropriate for the
         /// UI threading model.
         /// </remarks>
-        public static TaskScheduler NotifyTaskScheduler
+        public static TaskScheduler NotificationTaskScheduler
         {
-            get => _notifyBatcher.Scheduler;
-            set => _notifyBatcher.Scheduler = value;
+            get => _notificationBatcher.Scheduler;
+            set => _notificationBatcher.Scheduler = value;
         }
 
         /// <summary>
@@ -90,25 +90,25 @@ namespace EffectSharp
         /// but may increase the frequency of UI updates. Disable this option if you want to
         /// manually control when the notification queue is flushed.
         /// </remarks>
-        public static bool FlushNotifyAfterEffectBatch
+        public static bool FlushNotificationAfterEffectBatch
         {
-            get => _flushNotifyAfterEffectBatch;
-            set => _flushNotifyAfterEffectBatch = value;
+            get => _flushNotificationAfterEffectBatch;
+            set => _flushNotificationAfterEffectBatch = value;
         }
 
         public static void EnqueueEffectTrigger(Effect effect)
         {
-            _triggerBatcher.Enqueue(effect);
+            _effectBatcher.Enqueue(effect);
         }
 
         public static async Task FlushEffectQueue()
         {
-            await _triggerBatcher.FlushAsync();
+            await _effectBatcher.FlushAsync();
         }
 
         public static Task NextEffectTick()
         {
-            return _triggerBatcher.NextTick();
+            return _effectBatcher.NextTick();
         }
 
         public static void TriggerBatchEffects(IEnumerable<Effect> effects)
@@ -118,34 +118,34 @@ namespace EffectSharp
             {
                 effect.Execute();
             }
-            if (FlushNotifyAfterEffectBatch)
+            if (FlushNotificationAfterEffectBatch)
             {
-                _ = _notifyBatcher.FlushAsync();
+                _ = _notificationBatcher.FlushAsync();
             }
         }
 
-        public static void EnqueueNotify(object model, string propertyName, Action<PropertyChangedEventArgs> notifier)
+        public static void EnqueueNotification(object model, string propertyName, Action<PropertyChangedEventArgs> notifier)
         {
-            var task = new NotifyTask
+            var task = new NotificationTask
             {
                 Model = model,
                 PropertyName = propertyName,
                 Notifier = notifier
             };
-            _notifyBatcher.Enqueue(task);
+            _notificationBatcher.Enqueue(task);
         }
 
-        public static async Task FlushNotifyQueue()
+        public static async Task FlushNotificationQueue()
         {
-            await _notifyBatcher.FlushAsync();
+            await _notificationBatcher.FlushAsync();
         }
 
-        public static Task NextNotifyTick()
+        public static Task NextNotificationTick()
         {
-            return _notifyBatcher.NextTick();
+            return _notificationBatcher.NextTick();
         }
 
-        private static void NotifyBatch(IEnumerable<NotifyTask> tasks)
+        private static void NotifyBatch(IEnumerable<NotificationTask> tasks)
         {
             var grouped = tasks.GroupBy(t => (t.Model, t.PropertyName));
             foreach (var group in grouped)
@@ -156,7 +156,7 @@ namespace EffectSharp
         }
     }
 
-    internal class NotifyTask
+    internal class NotificationTask
     {
         internal object Model { get; set; }
         internal string PropertyName { get; set; }

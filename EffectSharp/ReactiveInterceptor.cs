@@ -93,7 +93,7 @@ namespace EffectSharp
             invocation.Proceed();
             if (PropertyChanged != null)
             {
-                TaskManager.EnqueueNotify(target, propertyName, (e) =>
+                TaskManager.EnqueueNotification(target, propertyName, (e) =>
                 {
                     PropertyChanged?.Invoke(target, e);
                 });

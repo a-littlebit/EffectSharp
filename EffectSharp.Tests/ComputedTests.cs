@@ -24,7 +24,7 @@ namespace EffectSharp.Tests
                 notifiedProperty = e.PropertyName;
             };
             product.Price = 400;
-            await TaskManager.FlushNotifyQueue();
+            await TaskManager.FlushNotificationQueue();
             Assert.Equal(440, computedPriceWithTax.Value);
             Assert.Equal(nameof(computedPriceWithTax.Value), notifiedProperty);
         }
