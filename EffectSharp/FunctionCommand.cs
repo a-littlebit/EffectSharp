@@ -30,7 +30,7 @@ namespace EffectSharp
             if (dependencySelector != null)
             {
                 var dependencyValue = Reactive.Computed(dependencySelector);
-                Reactive.Watch(dependencyValue, (newValue, oldValue) =>
+                _effect = Reactive.Watch(dependencyValue, (newValue, oldValue) =>
                 {
                     RaiseCanExecuteChanged();
                 }, new WatchOptions<object> { Immediate = true });
