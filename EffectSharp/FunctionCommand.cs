@@ -152,6 +152,23 @@ namespace EffectSharp
                 OnExecutionFailed(new FunctionCommandExecutionFailedEventArgs<TParam>(ex, (TParam)parameter));
             }
         }
+
+        public TResult Execute(TParam parameter)
+        {
+            var dependencyValue = BeginExecution(parameter);
+            TResult result;
+            try
+            {
+                result = _execute(parameter, dependencyValue);
+            }
+            catch (Exception)
+            {
+                EndExecution(parameter);
+                throw;
+            }
+            EndExecution(parameter);
+            return result;
+        }
     }
 
     public class AsyncFunctionCommand<TParam, TDependency, TResult> : FunctionCommandBase<TParam, TDependency, TResult>
