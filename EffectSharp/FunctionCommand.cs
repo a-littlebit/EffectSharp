@@ -10,7 +10,7 @@ namespace EffectSharp
         private readonly Func<TParam, object, bool> _canExecute;
         private readonly bool _allowConcurrentExecution;
 
-        private object _dependencyValue;
+        private Func<object> _dependencyGetter;
         private readonly Effect _effect;
         private AtomicIntRef _executingCount = new AtomicIntRef(0);
 
@@ -29,11 +29,16 @@ namespace EffectSharp
 
             if (dependencySelector != null)
             {
-                Reactive.Watch(dependencySelector, (newValue, oldValue) =>
+                var dependencyValue = Reactive.Computed(dependencySelector);
+                Reactive.Watch(dependencyValue, (newValue, oldValue) =>
                 {
-                    Volatile.Write(ref _dependencyValue, newValue);
                     RaiseCanExecuteChanged();
                 }, new WatchOptions<object> { Immediate = true });
+                _dependencyGetter = () => dependencyValue.Value;
+            }
+            else
+            {
+                _dependencyGetter = () => null;
             }
         }
 
@@ -64,13 +69,13 @@ namespace EffectSharp
         {
             if (!_allowConcurrentExecution && _executingCount.Value != 0)
                 return false;
-            var dependencyValue = Volatile.Read(ref _dependencyValue);
+            var dependencyValue = _dependencyGetter();
             return _canExecute(parameter, dependencyValue);
         }
 
         protected object BeginExecution(TParam parameter)
         {
-            var dependencyValue = Volatile.Read(ref _dependencyValue);
+            var dependencyValue = _dependencyGetter();
             if (!_canExecute(parameter, dependencyValue))
                 throw new FunctionCommandNotExecutableException();
 
