@@ -36,8 +36,8 @@ namespace EffectSharp
             }
         }
 
-        private ConcurrentDictionary<string, (object Value, Dependency Dependency)> _propertyData =
-            new ConcurrentDictionary<string, (object, Dependency)>();
+        private readonly (object Value, Dependency Dependency)[] _values;
+        private readonly Dictionary<string, int> _propertyOffset;
 
         private static readonly AsyncLocal<bool> _isConstructing = new AsyncLocal<bool>();
 
@@ -53,7 +53,8 @@ namespace EffectSharp
 
             try
             {
-
+                _values = new (object Value, Dependency Dependency)[_propertyCache.Length];
+                _propertyOffset = new Dictionary<string, int>();
                 for (int i = 0; i < _propertyCache.Length; i++)
                 {
                     var prop = _propertyCache[i];
@@ -66,7 +67,8 @@ namespace EffectSharp
                         initialValue = reactiveAttr.Default;
 
                     var dep = reactiveAttr.Reactive ? new Dependency() : null;
-                    _propertyData[prop.Name] = (initialValue, dep);
+                    _propertyOffset[prop.Name] = i;
+                    _values[i] = (initialValue, dep);
                 }
             }
             finally
@@ -77,42 +79,42 @@ namespace EffectSharp
 
         public void TrackDeep()
         {
-            foreach (var data in _propertyData.Values)
+            for (int i = 0; i < _values.Length; i++)
             {
-                data.Dependency?.Track();
-                if (data.Value is IReactive reactive)
+                _values[i].Dependency?.Track();
+                if (Volatile.Read(ref _values[i].Value) is IReactive reactiveValue)
                 {
-                    reactive.TrackDeep();
+                    reactiveValue.TrackDeep();
                 }
             }
         }
 
         public object GetPropertyValue(string propertyName)
         {
-            if (_propertyData.TryGetValue(propertyName, out var data))
+            if (_propertyOffset.TryGetValue(propertyName, out var offset))
             {
-                data.Dependency?.Track();
-                return data.Value;
+                _values[offset].Dependency?.Track();
+                return Volatile.Read(ref _values[offset].Value);
             }
             throw new ArgumentException($"Property '{propertyName}' not found.");
         }
 
         public void SetPropertyValue(string propertyName, object value)
         {
-            if (!_propertyData.TryGetValue(propertyName, out var data))
+            if (!_propertyOffset.TryGetValue(propertyName, out var offset))
                 throw new ArgumentException($"Property '{propertyName}' not found.");
 
-            if (data.Dependency == null)
+            if (_values[offset].Dependency == null)
             {
-                data.Value = value;
-                _propertyData[propertyName] = data;
+                Volatile.Write(ref _values[offset].Value, value);
                 return;
             }
 
             PropertyChanging?.Invoke(this, new PropertyChangingEventArgs(propertyName));
-            data.Value = value;
-            _propertyData[propertyName] = data;
-            data.Dependency.Trigger();
+
+            Volatile.Write(ref _values[offset].Value, value);
+            _values[offset].Dependency.Trigger();
+
             TaskManager.EnqueueNotification(this, propertyName, (args) =>
             {
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
