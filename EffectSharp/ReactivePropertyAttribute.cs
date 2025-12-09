@@ -8,13 +8,13 @@ namespace EffectSharp
     /// An attribute to mark a property as reactive with optional default value, reactivity, and depth.
     /// </summary>
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
-    public sealed class ReactiveProperty : Attribute
+    public sealed class ReactivePropertyAttribute : Attribute
     {
         public object Default { get; set; }
         public bool Reactive { get; }
         public bool Deep { get; }
 
-        public ReactiveProperty(object defaultValue = null, bool reactive = true, bool deep = false)
+        public ReactivePropertyAttribute(object defaultValue = null, bool reactive = true, bool deep = false)
         {
             Default = defaultValue;
             Reactive = reactive;

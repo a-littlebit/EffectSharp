@@ -14,22 +14,22 @@ namespace EffectSharp
     {
         private static readonly PropertyInfo[] _propertyCache;
         private static readonly Dictionary<string, int> _propertyOffset;
-        private static readonly ReactiveProperty[] _reactivePropertyCache;
+        private static readonly ReactivePropertyAttribute[] _reactivePropertyCache;
 
         static ReactiveProxy()
         {
             var type = typeof(T);
             _propertyCache = type.GetProperties(BindingFlags.Instance | BindingFlags.Public);
             _propertyOffset = new Dictionary<string, int>(_propertyCache.Length);
-            _reactivePropertyCache = new ReactiveProperty[_propertyCache.Length];
+            _reactivePropertyCache = new ReactivePropertyAttribute[_propertyCache.Length];
             for (int i = 0; i < _propertyCache.Length; i++)
             {
                 var prop = _propertyCache[i];
                 _propertyOffset[prop.Name] = i;
-                var attr = prop.GetCustomAttribute<ReactiveProperty>();
+                var attr = prop.GetCustomAttribute<ReactivePropertyAttribute>();
                 if (attr == null)
                 {
-                    attr = new ReactiveProperty();
+                    attr = new ReactivePropertyAttribute();
                 }
                 if (attr.Default == null && prop.PropertyType.IsValueType)
                 {
