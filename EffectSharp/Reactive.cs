@@ -18,7 +18,17 @@ namespace EffectSharp
 
         public static T Create<T>() where T : class
         {
-            return DispatchProxy.Create<T, ReactiveProxy<T>>();
+            var proxy = DispatchProxy.Create<T, ReactiveProxy<T>>();
+            (proxy as ReactiveProxy<T>).InitializeForValues();
+            return proxy;
+        }
+
+        public static T Create<T>(T instance) where T : class
+        {
+            if (instance == null) throw new ArgumentNullException(nameof(instance));
+            var proxy = DispatchProxy.Create<T, ReactiveProxy<T>>();
+            (proxy as ReactiveProxy<T>).InitializeForTarget(instance);
+            return proxy;
         }
 
         public static object Create(Type type)

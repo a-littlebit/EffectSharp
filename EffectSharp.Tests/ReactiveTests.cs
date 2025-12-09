@@ -7,9 +7,11 @@ namespace EffectSharp.Tests
         [Fact]
         public async Task Reactive_WhenSetProperty_NotifyPropertyChange()
         {
-            var product = Reactive.Create<Product>();
-            product.Name = "Laptop";
-            product.Price = 1000;
+            var product = Reactive.Create<Product>(new ProductEntity()
+            {
+                Name = "Initial",
+                Price = 500
+            });
 
             object? notifier = null;
             string? changedPropertyName = null;

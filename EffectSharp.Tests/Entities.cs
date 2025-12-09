@@ -20,4 +20,10 @@ namespace EffectSharp.Tests
         [ReactiveProperty(defaultValue: 1)]
         public int Quantity { get; set; }
     }
+
+    public class ProductEntity : Product
+    {
+        public string Name { get; set; } = string.Empty;
+        public int Price { get; set; }
+    }
 }
