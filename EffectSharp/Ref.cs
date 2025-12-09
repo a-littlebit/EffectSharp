@@ -16,18 +16,28 @@ namespace EffectSharp
         private Dependency _dependency = new Dependency();
         private IEqualityComparer<T> _equalityComparer;
 
-        private bool _isDeep = false;
-        public bool IsDeep => _isDeep;
-
         protected abstract T Read();
         protected abstract void Write(T value);
         protected void Track()
         {
             _dependency.Track();
         }
-        protected void Trigger()
+
+        protected void BeforeChange()
+        {
+            PropertyChanging?.Invoke(this, new PropertyChangingEventArgs(nameof(Value)));
+        }
+
+        protected void AfterChange()
         {
             _dependency.Trigger();
+            if (PropertyChanged != null)
+            {
+                TaskManager.EnqueueNotification(this, nameof(Value), (e) =>
+                {
+                    PropertyChanged?.Invoke(this, e);
+                });
+            }
         }
 
         protected RefBase(IEqualityComparer<T> equalityComparer = null)
@@ -51,18 +61,7 @@ namespace EffectSharp
 
                 PropertyChanging?.Invoke(this, new PropertyChangingEventArgs(nameof(Value)));
 
-                T newValue = value;
-                if (_isDeep)
-                {
-                    var reactiveValue = Reactive.TryCreate(newValue);
-                    if (value is IReactive r)
-                    {
-                        r.SetDeep();
-                    }
-                    newValue = reactiveValue;
-                }
-
-                Write(newValue);
+                Write(value);
 
                 if (PropertyChanged != null)
                 {
@@ -75,38 +74,14 @@ namespace EffectSharp
             }
         }
 
-        public bool SetDeep()
+        public virtual bool SetDeep()
         {
-            if (_isDeep) return false;
-            _isDeep = true;
-
-            var value = Read();
-            if (value == null) return true;
-            if (value is IReactive reactiveValue)
-            {
-                reactiveValue.SetDeep();
-            }
-            else
-            {
-                var deepValue = Reactive.TryCreate(value);
-                if (deepValue is IReactive deepReactiveValue)
-                {
-                    deepReactiveValue.SetDeep();
-                    Write(deepValue);
-                }
-            }
-            return true;
+            return false;
         }
 
-        public void TrackDeep()
+        public virtual void TrackDeep()
         {
-            _dependency.Track();
-
-            var value = Read();
-            if (value != null && value is IReactive reactiveValue)
-            {
-                reactiveValue.TrackDeep();
-            }
+            _dependency.Track(); 
         }
     }
 
@@ -117,6 +92,8 @@ namespace EffectSharp
     public class Ref<T> : RefBase<T>
     {
         private T _value;
+
+        private bool _isDeep = false;
 
         public Ref(T value, IEqualityComparer<T> equalityComparer = null)
             : base(equalityComparer)
@@ -131,7 +108,53 @@ namespace EffectSharp
 
         protected override void Write(T value)
         {
-            _value = value;
+            if (_isDeep)
+            {
+                var reactiveValue = Reactive.TryCreate(value);
+                if (value is IReactive r)
+                {
+                    r.SetDeep();
+                }
+                _value = reactiveValue;
+            }
+            else
+            {
+                _value = value;
+            }
+        }
+
+        public override bool SetDeep()
+        {
+            if (_isDeep) return false;
+            _isDeep = true;
+
+            var value = _value;
+            if (value == null) return true;
+            if (value is IReactive reactiveValue)
+            {
+                reactiveValue.SetDeep();
+            }
+            else
+            {
+                var deepValue = Reactive.TryCreate(value);
+                if (deepValue is IReactive deepReactiveValue)
+                {
+                    deepReactiveValue.SetDeep();
+                    _value = deepValue;
+                }
+            }
+            return true;
+        }
+
+        public override void TrackDeep()
+        {
+            Track();
+
+            var value = _value;
+            if (value != null && value is IReactive reactiveValue)
+            {
+                reactiveValue.TrackDeep();
+            }
         }
     }
 
@@ -146,19 +169,33 @@ namespace EffectSharp
         }
         protected override T Read() => Volatile.Read(ref _value);
         protected override void Write(T value) => Volatile.Write(ref _value, value);
+
+        public override void TrackDeep()
+        {
+            Track();
+            var value = Volatile.Read(ref _value);
+            if (value != null && value is IReactive reactiveValue)
+            {
+                reactiveValue.TrackDeep();
+            }
+        }
+
         public T CompareExchange(T newValue, T comparand)
         {
             var value = Interlocked.CompareExchange(ref _value, newValue, comparand);
-            if (value != newValue)
+            if (ReferenceEquals(value, comparand))
             {
-                Trigger();
+                AfterChange();
             }
             return value;
         }
         public T Exchange(T newValue)
         {
             var value = Interlocked.Exchange(ref _value, newValue);
-            Trigger();
+            if (!ReferenceEquals(value, newValue))
+            {
+                AfterChange();
+            }
             return value;
         }
     }
@@ -177,31 +214,34 @@ namespace EffectSharp
 
         public int Increment()
         {
+            BeforeChange();
             var value = Interlocked.Increment(ref _value);
-            Trigger();
+            AfterChange();
             return value;
         }
 
         public int Decrement()
         {
+            BeforeChange();
             var value = Interlocked.Decrement(ref _value);
-            Trigger();
+            AfterChange();
             return value;
         }
 
         public int Add(int delta)
         {
+            BeforeChange();
             var value = Interlocked.Add(ref _value, delta);
-            Trigger();
+            AfterChange();
             return value;
         }
 
         public int CompareExchange(int newValue, int comparand)
         {
             var value = Interlocked.CompareExchange(ref _value, newValue, comparand);
-            if (value != newValue)
+            if (value == comparand)
             {
-                Trigger();
+                AfterChange();
             }
             return value;
         }
@@ -209,7 +249,10 @@ namespace EffectSharp
         public int Exchange(int newValue)
         {
             var value = Interlocked.Exchange(ref _value, newValue);
-            Trigger();
+            if (value != newValue)
+            {
+                AfterChange();
+            }
             return value;
         }
     }
@@ -225,35 +268,41 @@ namespace EffectSharp
         protected override void Write(long value) => Volatile.Write(ref _value, value);
         public long Increment()
         {
+            BeforeChange();
             var value = Interlocked.Increment(ref _value);
-            Trigger();
+            AfterChange();
             return value;
         }
         public long Decrement()
         {
+            BeforeChange();
             var value = Interlocked.Decrement(ref _value);
-            Trigger();
+            AfterChange();
             return value;
         }
         public long Add(long delta)
         {
+            BeforeChange();
             var value = Interlocked.Add(ref _value, delta);
-            Trigger();
+            AfterChange();
             return value;
         }
         public long CompareExchange(long newValue, long comparand)
         {
             var value = Interlocked.CompareExchange(ref _value, newValue, comparand);
-            if (value != newValue)
+            if (value == comparand)
             {
-                Trigger();
+                AfterChange();
             }
             return value;
         }
         public long Exchange(long newValue)
         {
             var value = Interlocked.Exchange(ref _value, newValue);
-            Trigger();
+            if (value != newValue)
+            {
+                AfterChange();
+            }
             return value;
         }
     }
@@ -272,16 +321,19 @@ namespace EffectSharp
         public float Exchange(float newValue)
         {
             var value = Interlocked.Exchange(ref _value, newValue);
-            Trigger();
+            if (value != newValue)
+            {
+                AfterChange();
+            }
             return value;
         }
 
         public float CompareExchange(float newValue, float comparand)
         {
             var value = Interlocked.CompareExchange(ref _value, newValue, comparand);
-            if (value != newValue)
+            if (value == comparand)
             {
-                Trigger();
+                AfterChange();
             }
             return value;
         }
@@ -299,15 +351,18 @@ namespace EffectSharp
         public double Exchange(double newValue)
         {
             var value = Interlocked.Exchange(ref _value, newValue);
-            Trigger();
+            if (value != newValue)
+            {
+                AfterChange();
+            }
             return value;
         }
         public double CompareExchange(double newValue, double comparand)
         {
             var value = Interlocked.CompareExchange(ref _value, newValue, comparand);
-            if (value != newValue)
+            if (value == comparand)
             {
-                Trigger();
+                AfterChange();
             }
             return value;
         }
