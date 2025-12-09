@@ -12,17 +12,20 @@ namespace EffectSharp
     public class ReactiveProxy<T> : DispatchProxy, IReactive, INotifyPropertyChanging, INotifyPropertyChanged
         where T : class
     {
-        private static PropertyInfo[] _propertyCache;
-        private static ReactiveProperty[] _reactivePropertyCache;
+        private static readonly PropertyInfo[] _propertyCache;
+        private static readonly Dictionary<string, int> _propertyOffset;
+        private static readonly ReactiveProperty[] _reactivePropertyCache;
 
         static ReactiveProxy()
         {
             var type = typeof(T);
             _propertyCache = type.GetProperties(BindingFlags.Instance | BindingFlags.Public);
+            _propertyOffset = new Dictionary<string, int>(_propertyCache.Length);
             _reactivePropertyCache = new ReactiveProperty[_propertyCache.Length];
             for (int i = 0; i < _propertyCache.Length; i++)
             {
                 var prop = _propertyCache[i];
+                _propertyOffset[prop.Name] = i;
                 var attr = prop.GetCustomAttribute<ReactiveProperty>();
                 if (attr == null)
                 {
@@ -37,7 +40,6 @@ namespace EffectSharp
         }
 
         private readonly (object Value, Dependency Dependency)[] _values;
-        private readonly Dictionary<string, int> _propertyOffset;
 
         private static readonly AsyncLocal<bool> _isConstructing = new AsyncLocal<bool>();
 
@@ -54,7 +56,6 @@ namespace EffectSharp
             try
             {
                 _values = new (object Value, Dependency Dependency)[_propertyCache.Length];
-                _propertyOffset = new Dictionary<string, int>();
                 for (int i = 0; i < _propertyCache.Length; i++)
                 {
                     var prop = _propertyCache[i];
@@ -67,7 +68,6 @@ namespace EffectSharp
                         initialValue = reactiveAttr.Default;
 
                     var dep = reactiveAttr.Reactive ? new Dependency() : null;
-                    _propertyOffset[prop.Name] = i;
                     _values[i] = (initialValue, dep);
                 }
             }
