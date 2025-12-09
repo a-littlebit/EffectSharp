@@ -14,10 +14,10 @@ namespace EffectSharp.Tests
 
     public interface Order
     {
-        [ReactivePropertyAttribute(deep: true)]
+        [ReactiveProperty(deep: true)]
         public Product Product { get; set; }
 
-        [ReactivePropertyAttribute(defaultValue: 1)]
+        [ReactiveProperty(defaultValue: 1)]
         public int Quantity { get; set; }
     }
 }

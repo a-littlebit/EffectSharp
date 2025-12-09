@@ -12,12 +12,12 @@ namespace Example.Wpf
 {
     public interface TodoItem
     {
-        [ReactivePropertyAttribute(reactive: false)]
+        [ReactiveProperty(reactive: false)]
         public Guid Id { get; set; }
 
         public string Title { get; set; }
 
-        [ReactivePropertyAttribute(defaultValue: false)]
+        [ReactiveProperty(defaultValue: false)]
         public bool IsCompleted { get; set; }
     }
 
