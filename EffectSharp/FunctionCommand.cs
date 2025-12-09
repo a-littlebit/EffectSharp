@@ -110,7 +110,7 @@ namespace EffectSharp
             {
                 _executingCount.Increment();
             }
-            else if (_executingCount.CompareExchange(1, 0) != 0)
+            else if (!_executingCount.CompareExchange(1, 0))
             {
                 throw new FunctionCommandNotExecutableException();
             }
