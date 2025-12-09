@@ -22,9 +22,22 @@ namespace EffectSharp
         {
             _dependency.Track();
         }
-        protected void Trigger()
+
+        protected void BeforeChange()
+        {
+            PropertyChanging?.Invoke(this, new PropertyChangingEventArgs(nameof(Value)));
+        }
+
+        protected void AfterChange()
         {
             _dependency.Trigger();
+            if (PropertyChanged != null)
+            {
+                TaskManager.EnqueueNotification(this, nameof(Value), (e) =>
+                {
+                    PropertyChanged?.Invoke(this, e);
+                });
+            }
         }
 
         protected RefBase(IEqualityComparer<T> equalityComparer = null)
@@ -170,16 +183,19 @@ namespace EffectSharp
         public T CompareExchange(T newValue, T comparand)
         {
             var value = Interlocked.CompareExchange(ref _value, newValue, comparand);
-            if (value != newValue)
+            if (ReferenceEquals(value, comparand))
             {
-                Trigger();
+                AfterChange();
             }
             return value;
         }
         public T Exchange(T newValue)
         {
             var value = Interlocked.Exchange(ref _value, newValue);
-            Trigger();
+            if (!ReferenceEquals(value, newValue))
+            {
+                AfterChange();
+            }
             return value;
         }
     }
@@ -198,31 +214,34 @@ namespace EffectSharp
 
         public int Increment()
         {
+            BeforeChange();
             var value = Interlocked.Increment(ref _value);
-            Trigger();
+            AfterChange();
             return value;
         }
 
         public int Decrement()
         {
+            BeforeChange();
             var value = Interlocked.Decrement(ref _value);
-            Trigger();
+            AfterChange();
             return value;
         }
 
         public int Add(int delta)
         {
+            BeforeChange();
             var value = Interlocked.Add(ref _value, delta);
-            Trigger();
+            AfterChange();
             return value;
         }
 
         public int CompareExchange(int newValue, int comparand)
         {
             var value = Interlocked.CompareExchange(ref _value, newValue, comparand);
-            if (value != newValue)
+            if (value == comparand)
             {
-                Trigger();
+                AfterChange();
             }
             return value;
         }
@@ -230,7 +249,10 @@ namespace EffectSharp
         public int Exchange(int newValue)
         {
             var value = Interlocked.Exchange(ref _value, newValue);
-            Trigger();
+            if (value != newValue)
+            {
+                AfterChange();
+            }
             return value;
         }
     }
@@ -246,35 +268,41 @@ namespace EffectSharp
         protected override void Write(long value) => Volatile.Write(ref _value, value);
         public long Increment()
         {
+            BeforeChange();
             var value = Interlocked.Increment(ref _value);
-            Trigger();
+            AfterChange();
             return value;
         }
         public long Decrement()
         {
+            BeforeChange();
             var value = Interlocked.Decrement(ref _value);
-            Trigger();
+            AfterChange();
             return value;
         }
         public long Add(long delta)
         {
+            BeforeChange();
             var value = Interlocked.Add(ref _value, delta);
-            Trigger();
+            AfterChange();
             return value;
         }
         public long CompareExchange(long newValue, long comparand)
         {
             var value = Interlocked.CompareExchange(ref _value, newValue, comparand);
-            if (value != newValue)
+            if (value == comparand)
             {
-                Trigger();
+                AfterChange();
             }
             return value;
         }
         public long Exchange(long newValue)
         {
             var value = Interlocked.Exchange(ref _value, newValue);
-            Trigger();
+            if (value != newValue)
+            {
+                AfterChange();
+            }
             return value;
         }
     }
@@ -293,16 +321,19 @@ namespace EffectSharp
         public float Exchange(float newValue)
         {
             var value = Interlocked.Exchange(ref _value, newValue);
-            Trigger();
+            if (value != newValue)
+            {
+                AfterChange();
+            }
             return value;
         }
 
         public float CompareExchange(float newValue, float comparand)
         {
             var value = Interlocked.CompareExchange(ref _value, newValue, comparand);
-            if (value != newValue)
+            if (value == comparand)
             {
-                Trigger();
+                AfterChange();
             }
             return value;
         }
@@ -320,15 +351,18 @@ namespace EffectSharp
         public double Exchange(double newValue)
         {
             var value = Interlocked.Exchange(ref _value, newValue);
-            Trigger();
+            if (value != newValue)
+            {
+                AfterChange();
+            }
             return value;
         }
         public double CompareExchange(double newValue, double comparand)
         {
             var value = Interlocked.CompareExchange(ref _value, newValue, comparand);
-            if (value != newValue)
+            if (value == comparand)
             {
-                Trigger();
+                AfterChange();
             }
             return value;
         }
