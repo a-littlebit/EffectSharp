@@ -5,13 +5,34 @@ using System.Windows.Input;
 
 namespace EffectSharp
 {
-    public interface IFunctionCommand<TParam> : ICommand
+    public interface IReactiveCommand<TParam> : ICommand
     {
         IReadOnlyRef<int> ExecutingCount { get; }
         event EventHandler<FunctionCommandExecutionFailedEventArgs<TParam>> ExecutionFailed;
+
+        bool CanExecute(TParam parameter);
+        void RaiseCanExecuteChanged();
     }
 
-    public abstract class FunctionCommandBase<TParam, TDependency, TResult> : IFunctionCommand<TParam>, ICommand, IDisposable
+    public interface IFunctionCommand<TParam, TResult> : IReactiveCommand<TParam>
+    {
+        TResult Execute(TParam parameter);
+    }
+
+    public interface IFunctionCommand<TParam> : IFunctionCommand<TParam, bool>
+    {
+    }
+
+    public interface IAsyncFunctionCommand<TParam, TResult> : IReactiveCommand<TParam>
+    {
+        Task<TResult> Execute(TParam parameter, CancellationToken cancellationToken = default);
+    }
+
+    public interface IAsyncFunctionCommand<TParam> : IAsyncFunctionCommand<TParam, bool>
+    {
+    }
+
+    public abstract class FunctionCommandBase<TParam, TDependency, TResult> : IReactiveCommand<TParam>, ICommand, IDisposable
     {
         private readonly Func<TParam, TDependency, bool> _canExecute;
         private readonly bool _allowConcurrentExecution;
@@ -122,7 +143,7 @@ namespace EffectSharp
         }
     }
 
-    public class FunctionCommand<TParam, TDependency, TResult> : FunctionCommandBase<TParam, TDependency, TResult>
+    public class FunctionCommand<TParam, TDependency, TResult> : FunctionCommandBase<TParam, TDependency, TResult>, IFunctionCommand<TParam, TResult>
     {
         private readonly Func<TParam, TDependency, TResult> _execute;
 
@@ -171,7 +192,7 @@ namespace EffectSharp
         }
     }
 
-    public class AsyncFunctionCommand<TParam, TDependency, TResult> : FunctionCommandBase<TParam, TDependency, TResult>
+    public class AsyncFunctionCommand<TParam, TDependency, TResult> : FunctionCommandBase<TParam, TDependency, TResult>, IAsyncFunctionCommand<TParam, TResult>
     {
         private readonly Func<TParam, TDependency, CancellationToken, Task<TResult>> _executeAsync;
         private readonly TaskScheduler _executionScheduler;
@@ -232,6 +253,40 @@ namespace EffectSharp
             }
             EndExecution(parameter);
             return result;
+        }
+    }
+
+    public class FunctionCommand<TParam> : FunctionCommand<TParam, bool, bool>, IFunctionCommand<TParam>
+    {
+        public FunctionCommand(
+            Func<TParam, bool, bool> execute,
+            Func<TParam, bool, bool> canExecute = null,
+            Func<bool> dependencySelector = null,
+            bool allowConcurrentExecution = false)
+            : base(
+                  execute,
+                  canExecute,
+                  dependencySelector,
+                  allowConcurrentExecution)
+        {
+        }
+    }
+
+    public class AsyncFunctionCommand<TParam> : AsyncFunctionCommand<TParam, bool, bool>, IAsyncFunctionCommand<TParam>
+    {
+        public AsyncFunctionCommand(
+            Func<TParam, bool, CancellationToken, Task<bool>> executeAsync,
+            Func<TParam, bool, bool> canExecute = null,
+            Func<bool> dependencySelector = null,
+            bool allowConcurrentExecution = false,
+            TaskScheduler executionScheduler = null)
+            : base(
+                  executeAsync,
+                  canExecute,
+                  dependencySelector,
+                  allowConcurrentExecution,
+                  executionScheduler)
+        {
         }
     }
 
@@ -298,7 +353,7 @@ namespace EffectSharp
         /// <param name="canExecute">An optional function to determine whether the command can execute. If not provided, the command is always executable.</param>
         /// <param name="allowConcurrentExecution">Indicates whether concurrent executions of the command are allowed.</param>
         /// <returns>A new instance of <see cref="FunctionCommand{TParam, TDependency, TResult}"/>.</returns>
-        public static FunctionCommand<TParam, bool, TResult> Create<TParam, TResult>(
+        public static IFunctionCommand<TParam, TResult> Create<TParam, TResult>(
             Func<TParam, TResult> execute,
             Func<bool> canExecute = null,
             bool allowConcurrentExecution = true)
@@ -327,7 +382,7 @@ namespace EffectSharp
         /// <param name="canExecute">An optional function to determine whether the command can execute. If not provided, the command is always executable.</param>
         /// <param name="allowConcurrentExecution">Indicates whether concurrent executions of the command are allowed.</param>
         /// <returns>A new instance of <see cref="FunctionCommand{TParam, TDependency, TResult}"/>.</returns>
-        public static FunctionCommand<TParam, bool, bool> Create<TParam>(
+        public static IFunctionCommand<TParam> Create<TParam>(
             Action<TParam> execute,
             Func<bool> canExecute = null,
             bool allowConcurrentExecution = true)
@@ -336,7 +391,7 @@ namespace EffectSharp
             {
                 canExecute = () => true;
             }
-            return new FunctionCommand<TParam, bool, bool>(
+            return new FunctionCommand<TParam>(
                 (param, can) =>
                 {
                     execute(param);
@@ -360,7 +415,7 @@ namespace EffectSharp
         /// <param name="canExecute">A function to determine whether the command can execute.</param>
         /// <param name="allowConcurrentExecution">Indicates whether concurrent executions of the command are allowed.</param>
         /// <returns>A new instance of <see cref="FunctionCommand{TParam, TDependency, TResult}"/>.</returns>
-        public static FunctionCommand<TParam, bool, TResult> Create<TParam, TResult>(
+        public static IFunctionCommand<TParam, TResult> Create<TParam, TResult>(
             Func<TParam, TResult> execute,
             Func<TParam, bool> canExecute,
             bool allowConcurrentExecution = true)
@@ -385,12 +440,12 @@ namespace EffectSharp
         /// <param name="canExecute">A function to determine whether the command can execute.</param>
         /// <param name="allowConcurrentExecution">Indicates whether concurrent executions of the command are allowed.</param>
         /// <returns>A new instance of <see cref="FunctionCommand{TParam, TDependency, TResult}"/>.</returns>
-        public static FunctionCommand<TParam, bool, bool> Create<TParam>(
+        public static IFunctionCommand<TParam> Create<TParam>(
             Action<TParam> execute,
             Func<TParam, bool> canExecute,
             bool allowConcurrentExecution = true)
         {
-            return new FunctionCommand<TParam, bool, bool>(
+            return new FunctionCommand<TParam>(
                 (param, can) =>
                 {
                     execute(param);
@@ -447,7 +502,7 @@ namespace EffectSharp
         /// <param name="allowConcurrentExecution">Indicates whether concurrent executions of the command are allowed.</param>
         /// <param name="executionScheduler">An optional task scheduler to control the context in which the command executes.</param>
         /// <returns>A new instance of <see cref="AsyncFunctionCommand{TParam, TDependency, TResult}"/>.</returns>
-        public static AsyncFunctionCommand<TParam, bool, TResult> CreateFromTask<TParam, TResult>(
+        public static IAsyncFunctionCommand<TParam, TResult> CreateFromTask<TParam, TResult>(
             Func<TParam, CancellationToken, Task<TResult>> executeAsync,
             Func<bool> canExecute = null,
             bool allowConcurrentExecution = true,
@@ -478,7 +533,7 @@ namespace EffectSharp
         /// <param name="allowConcurrentExecution">Indicates whether concurrent executions of the command are allowed.</param>
         /// <param name="executionScheduler">An optional task scheduler to control the context in which the command executes.</param>
         /// <returns>A new instance of <see cref="AsyncFunctionCommand{TParam, TDependency, TResult}"/>.</returns>
-        public static AsyncFunctionCommand<TParam, bool, bool> CreateFromTask<TParam>(
+        public static IAsyncFunctionCommand<TParam> CreateFromTask<TParam>(
             Func<TParam, CancellationToken, Task> executeAsync,
             Func<bool> canExecute = null,
             bool allowConcurrentExecution = true,
@@ -488,7 +543,7 @@ namespace EffectSharp
             {
                 canExecute = () => true;
             }
-            return new AsyncFunctionCommand<TParam, bool, bool>(
+            return new AsyncFunctionCommand<TParam>(
                 async (param, can, token) =>
                 {
                     await executeAsync(param, token);
@@ -515,7 +570,7 @@ namespace EffectSharp
         /// <param name="allowConcurrentExecution">Indicates whether concurrent executions of the command are allowed.</param>
         /// <param name="executionScheduler">An optional task scheduler to control the context in which the command executes.</param>
         /// <returns>A new instance of <see cref="AsyncFunctionCommand{TParam, TDependency, TResult}"/>.</returns>
-        public static AsyncFunctionCommand<TParam, bool, TResult> CreateFromTask<TParam, TResult>(
+        public static IAsyncFunctionCommand<TParam, TResult> CreateFromTask<TParam, TResult>(
             Func<TParam, CancellationToken, Task<TResult>> executeAsync,
             Func<TParam, bool> canExecute,
             bool allowConcurrentExecution = true,
@@ -543,13 +598,13 @@ namespace EffectSharp
         /// <param name="allowConcurrentExecution">Indicates whether concurrent executions of the command are allowed.</param>
         /// <param name="executionScheduler">An optional task scheduler to control the context in which the command executes.</param>
         /// <returns>A new instance of <see cref="AsyncFunctionCommand{TParam, TDependency, TResult}"/>.</returns>
-        public static AsyncFunctionCommand<TParam, bool, bool> CreateFromTask<TParam>(
+        public static IAsyncFunctionCommand<TParam> CreateFromTask<TParam>(
             Func<TParam, CancellationToken, Task> executeAsync,
             Func<TParam, bool> canExecute,
             bool allowConcurrentExecution = true,
             TaskScheduler executionScheduler = null)
         {
-            return new AsyncFunctionCommand<TParam, bool, bool>(
+            return new AsyncFunctionCommand<TParam>(
                 async (param, can, token) =>
                 {
                     await executeAsync(param, token);

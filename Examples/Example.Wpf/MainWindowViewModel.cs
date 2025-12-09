@@ -47,7 +47,7 @@ namespace Example.Wpf
             SelectPendingCommand = FunctionCommand.Create<object>(_ => SelectPending());
         }
 
-        public FunctionCommand<object, bool, bool> AddTodoCommand { get; }
+        public IFunctionCommand<object> AddTodoCommand { get; }
 
         public void AddTodo()
         {
@@ -58,7 +58,7 @@ namespace Example.Wpf
             }
         }
 
-        public FunctionCommand<object, bool, bool> SelectAllCommand { get; }
+        public IFunctionCommand<object> SelectAllCommand { get; }
 
         public void SelectAll()
         {
@@ -67,7 +67,7 @@ namespace Example.Wpf
             ShowPendingItems.Value = false;
         }
 
-        public FunctionCommand<object, bool, bool> SelectCompletedCommand { get; }
+        public IFunctionCommand<object> SelectCompletedCommand { get; }
 
         public void SelectCompleted()
         {
@@ -76,7 +76,7 @@ namespace Example.Wpf
             ShowPendingItems.Value = false;
         }
 
-        public FunctionCommand<object, bool, bool> SelectPendingCommand { get; }
+        public IFunctionCommand<object> SelectPendingCommand { get; }
 
         public void SelectPending()
         {
