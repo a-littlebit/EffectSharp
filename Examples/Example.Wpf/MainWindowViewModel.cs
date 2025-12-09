@@ -11,13 +11,15 @@ using System.Threading.Tasks;
 
 namespace Example.Wpf
 {
-    public class TodoItem : INotifyPropertyChanged
+    public interface TodoItem
     {
-        public event PropertyChangedEventHandler? PropertyChanged;
+        [ReactiveProperty(reactive: false)]
+        public Guid Id { get; set; }
 
-        public Guid Id { get; } = Guid.NewGuid();
-        public virtual required string Title { get; set; }
-        public virtual bool IsCompleted { get; set; }
+        public string Title { get; set; }
+
+        [ReactiveProperty(defaultValue: false)]
+        public bool IsCompleted { get; set; }
     }
 
     public partial class MainWindowViewModel
@@ -48,7 +50,10 @@ namespace Example.Wpf
         {
             if (!string.IsNullOrWhiteSpace(NewTodoTitle.Value))
             {
-                TodoItems.Add(Reactive.Create(new TodoItem { Title = NewTodoTitle.Value, IsCompleted = false }));
+                var item = Reactive.Create<TodoItem>();
+                item.Id = Guid.NewGuid();
+                item.Title = NewTodoTitle.Value;
+                TodoItems.Add(item);
                 NewTodoTitle.Value = string.Empty;
             }
         }
