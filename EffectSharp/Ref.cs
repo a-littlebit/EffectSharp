@@ -16,9 +16,6 @@ namespace EffectSharp
         private Dependency _dependency = new Dependency();
         private IEqualityComparer<T> _equalityComparer;
 
-        private bool _isDeep = false;
-        public bool IsDeep => _isDeep;
-
         protected abstract T Read();
         protected abstract void Write(T value);
         protected void Track()
@@ -51,18 +48,7 @@ namespace EffectSharp
 
                 PropertyChanging?.Invoke(this, new PropertyChangingEventArgs(nameof(Value)));
 
-                T newValue = value;
-                if (_isDeep)
-                {
-                    var reactiveValue = Reactive.TryCreate(newValue);
-                    if (value is IReactive r)
-                    {
-                        r.SetDeep();
-                    }
-                    newValue = reactiveValue;
-                }
-
-                Write(newValue);
+                Write(value);
 
                 if (PropertyChanged != null)
                 {
@@ -75,38 +61,14 @@ namespace EffectSharp
             }
         }
 
-        public bool SetDeep()
+        public virtual bool SetDeep()
         {
-            if (_isDeep) return false;
-            _isDeep = true;
-
-            var value = Read();
-            if (value == null) return true;
-            if (value is IReactive reactiveValue)
-            {
-                reactiveValue.SetDeep();
-            }
-            else
-            {
-                var deepValue = Reactive.TryCreate(value);
-                if (deepValue is IReactive deepReactiveValue)
-                {
-                    deepReactiveValue.SetDeep();
-                    Write(deepValue);
-                }
-            }
-            return true;
+            return false;
         }
 
-        public void TrackDeep()
+        public virtual void TrackDeep()
         {
-            _dependency.Track();
-
-            var value = Read();
-            if (value != null && value is IReactive reactiveValue)
-            {
-                reactiveValue.TrackDeep();
-            }
+            _dependency.Track(); 
         }
     }
 
@@ -117,6 +79,8 @@ namespace EffectSharp
     public class Ref<T> : RefBase<T>
     {
         private T _value;
+
+        private bool _isDeep = false;
 
         public Ref(T value, IEqualityComparer<T> equalityComparer = null)
             : base(equalityComparer)
@@ -131,7 +95,53 @@ namespace EffectSharp
 
         protected override void Write(T value)
         {
-            _value = value;
+            if (_isDeep)
+            {
+                var reactiveValue = Reactive.TryCreate(value);
+                if (value is IReactive r)
+                {
+                    r.SetDeep();
+                }
+                _value = reactiveValue;
+            }
+            else
+            {
+                _value = value;
+            }
+        }
+
+        public override bool SetDeep()
+        {
+            if (_isDeep) return false;
+            _isDeep = true;
+
+            var value = _value;
+            if (value == null) return true;
+            if (value is IReactive reactiveValue)
+            {
+                reactiveValue.SetDeep();
+            }
+            else
+            {
+                var deepValue = Reactive.TryCreate(value);
+                if (deepValue is IReactive deepReactiveValue)
+                {
+                    deepReactiveValue.SetDeep();
+                    _value = deepValue;
+                }
+            }
+            return true;
+        }
+
+        public override void TrackDeep()
+        {
+            Track();
+
+            var value = _value;
+            if (value != null && value is IReactive reactiveValue)
+            {
+                reactiveValue.TrackDeep();
+            }
         }
     }
 
@@ -146,6 +156,17 @@ namespace EffectSharp
         }
         protected override T Read() => Volatile.Read(ref _value);
         protected override void Write(T value) => Volatile.Write(ref _value, value);
+
+        public override void TrackDeep()
+        {
+            Track();
+            var value = Volatile.Read(ref _value);
+            if (value != null && value is IReactive reactiveValue)
+            {
+                reactiveValue.TrackDeep();
+            }
+        }
+
         public T CompareExchange(T newValue, T comparand)
         {
             var value = Interlocked.CompareExchange(ref _value, newValue, comparand);
