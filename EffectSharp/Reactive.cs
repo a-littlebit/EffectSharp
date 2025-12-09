@@ -47,9 +47,9 @@ namespace EffectSharp
             return new ReactiveDictionary<TKey, TValue>();
         }
 
-        public static Ref<T> Ref<T>(T initialValue)
+        public static Ref<T> Ref<T>(T initialValue = default, IEqualityComparer<T> equalityComparer = null)
         {
-            return new Ref<T>(initialValue);
+            return new Ref<T>(initialValue, equalityComparer);
         }
 
         public static Effect Effect(Action action, Action<Effect> scheduler = null, bool lazy = false)
@@ -57,7 +57,7 @@ namespace EffectSharp
             return new Effect(action, scheduler, lazy);
         }
 
-        public static Computed<T> Computed<T>(Func<T> getter, Action setter = null)
+        public static Computed<T> Computed<T>(Func<T> getter, Action<T> setter = null)
         {
             return new Computed<T>(getter, setter);
         }

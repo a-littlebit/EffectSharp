@@ -106,13 +106,13 @@ namespace EffectSharp
 
             if (_values[offset].Dependency == null)
             {
-                Volatile.Write(ref _values[offset].Value, value);
+                Interlocked.Exchange(ref _values[offset].Value, value);
                 return;
             }
 
             PropertyChanging?.Invoke(this, new PropertyChangingEventArgs(propertyName));
 
-            Volatile.Write(ref _values[offset].Value, value);
+            Interlocked.Exchange(ref _values[offset].Value, value);
             _values[offset].Dependency.Trigger();
 
             TaskManager.EnqueueNotification(this, propertyName, (args) =>

@@ -8,16 +8,26 @@ using System.Threading.Tasks;
 
 namespace EffectSharp
 {
-    public abstract class RefBase<T> : IRef<T>, IReactive, INotifyPropertyChanging, INotifyPropertyChanged
+
+    /// <summary>
+    /// A reactive reference that holds a value of type T and notifies subscribers on changes.
+    /// </summary>
+    /// <typeparam name="T">The type of the value held by the reference. </typeparam>
+    public class Ref<T> : IRef<T>, IReactive, INotifyPropertyChanging, INotifyPropertyChanged
     {
         public event PropertyChangingEventHandler PropertyChanging;
         public event PropertyChangedEventHandler PropertyChanged;
 
-        private Dependency _dependency = new Dependency();
-        private IEqualityComparer<T> _equalityComparer;
+        private readonly Dependency _dependency = new Dependency();
+        protected readonly IAtomic<T> _value;
+        private readonly IEqualityComparer<T> _equalityComparer;
 
-        protected abstract T Read();
-        protected abstract void Write(T value);
+        public Ref(T initialValue = default, IEqualityComparer<T> equalityComparer = null)
+        {
+            _value = AtomicFactory<T>.Create(initialValue);
+            _equalityComparer = equalityComparer ?? EqualityComparer<T>.Default;
+        }
+
         protected void Track()
         {
             _dependency.Track();
@@ -40,289 +50,114 @@ namespace EffectSharp
             }
         }
 
-        protected RefBase(IEqualityComparer<T> equalityComparer = null)
-        {
-            _equalityComparer = equalityComparer ?? EqualityComparer<T>.Default;
-        }
-
         public T Value
         {
             get
             {
                 _dependency.Track();
-                return Read();
+                return _value.Value;
             }
             set
             {
-                if (_equalityComparer.Equals(Read(), value))
+                if (_equalityComparer.Equals(_value.Value, value))
                 {
                     return;
                 }
 
-                PropertyChanging?.Invoke(this, new PropertyChangingEventArgs(nameof(Value)));
+                BeforeChange();
 
-                Write(value);
+                _value.Value = value;
 
-                if (PropertyChanged != null)
-                {
-                    TaskManager.EnqueueNotification(this, nameof(Value), (e) =>
-                    {
-                        PropertyChanged?.Invoke(this, e);
-                    });
-                }
-                _dependency.Trigger();
-            }
-        }
-
-        public virtual void TrackDeep()
-        {
-            _dependency.Track(); 
-        }
-    }
-
-    /// <summary>
-    /// A reactive reference that holds a value of type T and notifies subscribers on changes.
-    /// </summary>
-    /// <typeparam name="T">The type of the value held by the reference. </typeparam>
-    public class Ref<T> : RefBase<T>
-    {
-        private T _value;
-
-        public Ref(T value, IEqualityComparer<T> equalityComparer = null)
-            : base(equalityComparer)
-        {
-            _value = value;
-        }
-
-        protected override T Read()
-        {
-            return _value;
-        }
-
-        protected override void Write(T value)
-        {
-            _value = value;
-        }
-
-        public override void TrackDeep()
-        {
-            Track();
-
-            var value = _value;
-            if (value != null && value is IReactive reactiveValue)
-            {
-                reactiveValue.TrackDeep();
-            }
-        }
-    }
-
-    public class AtomicObjectRef<T> : RefBase<T>
-        where T : class
-    {
-        private T _value;
-        public AtomicObjectRef(T value, IEqualityComparer<T> equalityComparer)
-            : base(equalityComparer)
-        {
-            _value = value;
-        }
-        protected override T Read() => Volatile.Read(ref _value);
-        protected override void Write(T value) => Volatile.Write(ref _value, value);
-
-        public override void TrackDeep()
-        {
-            Track();
-            var value = Volatile.Read(ref _value);
-            if (value != null && value is IReactive reactiveValue)
-            {
-                reactiveValue.TrackDeep();
-            }
-        }
-
-        public T CompareExchange(T newValue, T comparand)
-        {
-            var value = Interlocked.CompareExchange(ref _value, newValue, comparand);
-            if (ReferenceEquals(value, comparand))
-            {
                 AfterChange();
             }
-            return value;
         }
+
+        public bool CompareExchange(T newValue, T compared)
+        {
+            if (_value.CompareExchange(newValue, compared))
+            {
+                if (!_equalityComparer.Equals(compared, newValue))
+                {
+                    AfterChange();
+                }
+                return true;
+            }
+            return false;
+        }
+
         public T Exchange(T newValue)
         {
-            var value = Interlocked.Exchange(ref _value, newValue);
-            if (!ReferenceEquals(value, newValue))
+            var oldValue = _value.Exchange(newValue);
+            if (!_equalityComparer.Equals(oldValue, newValue))
             {
                 AfterChange();
             }
-            return value;
+            return oldValue;
+        }
+
+        public void TrackDeep()
+        {
+            _dependency.Track();
+            var value = _value.Value;
+            if (value is IReactive reactive)
+            {
+                reactive.TrackDeep();
+            }
         }
     }
 
-    public class AtomicIntRef : RefBase<int>
+    public class AtomicIntRef : Ref<int>
     {
-        private int _value;
-
-        public AtomicIntRef(int value = 0)
-        {
-            _value = value;
-        }
-
-        protected override int Read() => Volatile.Read(ref _value);
-        protected override void Write(int value) => Volatile.Write(ref _value, value);
+        public AtomicIntRef(int initialValue = 0) : base(initialValue, EqualityComparer<int>.Default) { }
 
         public int Increment()
         {
             BeforeChange();
-            var value = Interlocked.Increment(ref _value);
+            var newValue = ((AtomicInt)_value).Increment();
             AfterChange();
-            return value;
+            return newValue;
         }
 
         public int Decrement()
         {
             BeforeChange();
-            var value = Interlocked.Decrement(ref _value);
+            var newValue = ((AtomicInt)_value).Decrement();
             AfterChange();
-            return value;
+            return newValue;
         }
 
         public int Add(int delta)
         {
             BeforeChange();
-            var value = Interlocked.Add(ref _value, delta);
+            var newValue = ((AtomicInt)_value).Add(delta);
             AfterChange();
-            return value;
-        }
-
-        public int CompareExchange(int newValue, int comparand)
-        {
-            var value = Interlocked.CompareExchange(ref _value, newValue, comparand);
-            if (value == comparand)
-            {
-                AfterChange();
-            }
-            return value;
-        }
-
-        public int Exchange(int newValue)
-        {
-            var value = Interlocked.Exchange(ref _value, newValue);
-            if (value != newValue)
-            {
-                AfterChange();
-            }
-            return value;
+            return newValue;
         }
     }
 
-    public class AtomicLongRef : RefBase<long>
+    public class AtomicLongRef : Ref<long>
     {
-        private long _value;
-        public AtomicLongRef(long value = 0)
-        {
-            _value = value;
-        }
-        protected override long Read() => Volatile.Read(ref _value);
-        protected override void Write(long value) => Volatile.Write(ref _value, value);
+        public AtomicLongRef(long initialValue = 0) : base(initialValue, EqualityComparer<long>.Default) { }
         public long Increment()
         {
             BeforeChange();
-            var value = Interlocked.Increment(ref _value);
+            var newValue = ((AtomicLong)_value).Increment();
             AfterChange();
-            return value;
+            return newValue;
         }
         public long Decrement()
         {
             BeforeChange();
-            var value = Interlocked.Decrement(ref _value);
+            var newValue = ((AtomicLong)_value).Decrement();
             AfterChange();
-            return value;
+            return newValue;
         }
         public long Add(long delta)
         {
             BeforeChange();
-            var value = Interlocked.Add(ref _value, delta);
+            var newValue = ((AtomicLong)_value).Add(delta);
             AfterChange();
-            return value;
-        }
-        public long CompareExchange(long newValue, long comparand)
-        {
-            var value = Interlocked.CompareExchange(ref _value, newValue, comparand);
-            if (value == comparand)
-            {
-                AfterChange();
-            }
-            return value;
-        }
-        public long Exchange(long newValue)
-        {
-            var value = Interlocked.Exchange(ref _value, newValue);
-            if (value != newValue)
-            {
-                AfterChange();
-            }
-            return value;
-        }
-    }
-
-    public class AtomicFloatRef : RefBase<float>
-    {
-        private float _value;
-        public AtomicFloatRef(float value = 0)
-        {
-            _value = value;
-        }
-
-        protected override float Read() => Volatile.Read(ref _value);
-        protected override void Write(float value) => Volatile.Write(ref _value, value);
-
-        public float Exchange(float newValue)
-        {
-            var value = Interlocked.Exchange(ref _value, newValue);
-            if (value != newValue)
-            {
-                AfterChange();
-            }
-            return value;
-        }
-
-        public float CompareExchange(float newValue, float comparand)
-        {
-            var value = Interlocked.CompareExchange(ref _value, newValue, comparand);
-            if (value == comparand)
-            {
-                AfterChange();
-            }
-            return value;
-        }
-    }
-
-    public class AtomicDoubleRef : RefBase<double>
-    {
-        private double _value;
-        public AtomicDoubleRef(double value = 0)
-        {
-            _value = value;
-        }
-        protected override double Read() => Volatile.Read(ref _value);
-        protected override void Write(double value) => Volatile.Write(ref _value, value);
-        public double Exchange(double newValue)
-        {
-            var value = Interlocked.Exchange(ref _value, newValue);
-            if (value != newValue)
-            {
-                AfterChange();
-            }
-            return value;
-        }
-        public double CompareExchange(double newValue, double comparand)
-        {
-            var value = Interlocked.CompareExchange(ref _value, newValue, comparand);
-            if (value == comparand)
-            {
-                AfterChange();
-            }
-            return value;
+            return newValue;
         }
     }
 }

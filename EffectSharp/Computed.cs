@@ -13,25 +13,24 @@ namespace EffectSharp
     /// <typeparam name="T">The type of the computed value. </typeparam>
     public class Computed<T> : INotifyPropertyChanging, INotifyPropertyChanged, IReactive, IRef<T>, IDisposable
     {
-        private volatile object _value;
+        private volatile IAtomic<T> _value;
         private volatile bool _isDirty = true;
-        private readonly Func<T> _getter;
-        private readonly Action _setter;
+        private readonly Action<T> _setter;
         private readonly Dependency _dependency = new Dependency();
         private readonly Effect _effect;
 
         public event PropertyChangingEventHandler PropertyChanging;
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public Computed(Func<T> getter, Action setter = null)
+        public Computed(Func<T> getter, Action<T> setter = null)
         {
-            _getter = getter;
+            _value = AtomicFactory<T>.Create();
             _setter = setter;
             _effect = new Effect(() =>
             {
                 if (!_isDirty) return;
 
-                _value = getter();
+                _value.Value = getter();
 
                 _isDirty = false;
             }, (_) => Invalidate(), true);
@@ -54,13 +53,13 @@ namespace EffectSharp
                     }
                 }
 
-                return (T)_value;
+                return _value.Value;
             }
             set
             {
                 if (_setter == null)
                     throw new InvalidOperationException("This computed property is read-only.");
-                _setter();
+                _setter(value);
             }
         }
 
