@@ -122,20 +122,20 @@ namespace EffectSharp.Tests
         public async Task Watch_WhenDeepOption_TracksNestedChanges()
         {
             // Arrange
-            var nestedRef = Reactive.Ref(new Order
-            {
-                Product = new Product { Name = "Widget", Price = 100 },
-                Quantity = 1
-            }, true);
+            var order = Reactive.Create<Order>();
+            order.Product.Name = "Widget";
+            order.Product.Price = 100;
+            order.Quantity = 1;
+
             int effectRunCount = 0;
             // Act
-            IDisposable sub = Reactive.Watch(nestedRef, (_, _) =>
+            IDisposable sub = Reactive.Watch(() => order, (_, _) =>
             {
-                _ = nestedRef.Value.Product.Price;
+                _ = order.Product.Price;
                 effectRunCount++;
             }, new WatchOptions<Order> { Deep = true });
             // Change a nested property
-            nestedRef.Value.Product.Price = 150;
+            order.Product.Price = 150;
             // Assert
             await Reactive.NextTick();
             Assert.Equal(1, effectRunCount);

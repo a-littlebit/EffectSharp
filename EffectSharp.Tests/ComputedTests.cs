@@ -11,11 +11,10 @@ namespace EffectSharp.Tests
         [Fact]
         public async Task Computed_WhenDependentPropertyChanges_RecomputesValue()
         {
-            var product = Reactive.Create(new Product
-            {
-                Name = "Tablet",
-                Price = 300
-            });
+            var product = Reactive.Create<Product>();
+            product.Name = "Tablet";
+            product.Price = 300;
+
             var computedPriceWithTax = Reactive.Computed(() => product.Price + (int)(product.Price * 0.1));
             Assert.Equal(330, computedPriceWithTax.Value);
             string? notifiedProperty = null;
@@ -32,11 +31,10 @@ namespace EffectSharp.Tests
         [Fact]
         public void Computed_WhenDependentComputedChanges_RecomputesValue()
         {
-            var product = Reactive.Create(new Product
-            {
-                Name = "Headphones",
-                Price = 150
-            });
+            var product = Reactive.Create<Product>();
+            product.Name = "Headphones";
+            product.Price = 150;
+
             var computedDiscountedPrice = Reactive.Computed(() => product.Price - 20);
             var computedFinalPrice = Reactive.Computed(() => computedDiscountedPrice.Value + (int)(computedDiscountedPrice.Value * 0.1));
             Assert.Equal(143, computedFinalPrice.Value);
@@ -47,11 +45,10 @@ namespace EffectSharp.Tests
         [Fact]
         public void Computed_WhenAccessedMultipleTimes_UsesCache()
         {
-            var product = Reactive.Create(new Product
-            {
-                Name = "Monitor",
-                Price = 200
-            });
+            var product = Reactive.Create<Product>();
+            product.Name = "Monitor";
+            product.Price = 200;
+
             int computeCount = 0;
             var computedPriceWithTax = Reactive.Computed(() =>
             {

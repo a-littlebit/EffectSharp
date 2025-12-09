@@ -6,15 +6,18 @@ using System.Threading.Tasks;
 
 namespace EffectSharp.Tests
 {
-    public class Product
+    public interface Product
     {
-        public virtual required string Name { get; set; }
-        public virtual int Price { get; set; }
+        public string Name { get; set; }
+        public int Price { get; set; }
     }
 
-    public class Order
+    public interface Order
     {
-        public virtual required Product Product { get; set; }
-        public virtual int Quantity { get; set; }
+        [ReactiveProperty(deep: true)]
+        public Product Product { get; set; }
+
+        [ReactiveProperty(defaultValue: 1)]
+        public int Quantity { get; set; }
     }
 }

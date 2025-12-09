@@ -1,5 +1,4 @@
-﻿using Castle.DynamicProxy;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -15,59 +14,17 @@ namespace EffectSharp
     /// </summary>
     public static class Reactive
     {
-        private static readonly AsyncLocal<ProxyGenerator> _proxyGenerator = new AsyncLocal<ProxyGenerator>();
+        private static readonly MethodInfo _createMethod = typeof(Reactive).GetMethod(nameof(Create), Array.Empty<Type>());
 
-        public static ProxyGenerator CurrentProxyGenerator
+        public static T Create<T>() where T : class
         {
-            get { return _proxyGenerator.Value; }
-            set { _proxyGenerator.Value = value; }
+            return DispatchProxy.Create<T, ReactiveProxy<T>>();
         }
 
-        public static T Create<T>(T target) where T : class
+        public static object Create(Type type)
         {
-            if (target == null) throw new ArgumentNullException(nameof(target));
-            if (target is IReactive) return target;
-            if (!ReactiveInterceptor.CanProxyType(target.GetType()))
-                throw new InvalidOperationException($"Cannot create reactive proxy for type '{target.GetType().FullName}'. It must be a non-sealed class.");
-
-            return (T)CreateInternal(target);
-        }
-
-        public static T TryCreate<T>(T target)
-        {
-            if (target == null || target is IReactive || !ReactiveInterceptor.CanProxyType(target.GetType()))
-                return target;
-            return (T)CreateInternal(target);
-        }
-
-        private static object CreateInternal(object target)
-        {
-            Type[] types = { typeof(INotifyPropertyChanging), typeof(INotifyPropertyChanged), typeof(IReactive) };
-            var interceptor = new ReactiveInterceptor();
-
-            var proxyGenerator = _proxyGenerator.Value;
-            if (proxyGenerator == null)
-            {
-                proxyGenerator = new ProxyGenerator();
-                _proxyGenerator.Value = proxyGenerator;
-            }
-
-            var proxy = proxyGenerator.CreateClassProxyWithTarget(
-                target.GetType(),
-                types,
-                target,
-                interceptor);
-            return proxy;
-        }
-
-        public static T CreateDeep<T>(T target) where T : class
-        {
-            var root = Create(target);
-            if (root is IReactive reactive)
-            {
-                reactive.SetDeep();
-            }
-            return root;
+            var method = _createMethod.MakeGenericMethod(type);
+            return method.Invoke(null, null);
         }
 
         public static ReactiveCollection<T> Collection<T>()
@@ -90,17 +47,9 @@ namespace EffectSharp
             return new ReactiveDictionary<TKey, TValue>();
         }
 
-        public static Ref<T> Ref<T>(T initialValue, bool deep = false)
+        public static Ref<T> Ref<T>(T initialValue = default, IEqualityComparer<T> equalityComparer = null)
         {
-            if (initialValue == null)
-                throw new ArgumentNullException(nameof(initialValue));
-
-            var refObj = new Ref<T>(initialValue);
-            if (deep)
-            {
-                refObj.SetDeep();
-            }
-            return refObj;
+            return new Ref<T>(initialValue, equalityComparer);
         }
 
         public static Effect Effect(Action action, Action<Effect> scheduler = null, bool lazy = false)
@@ -108,7 +57,7 @@ namespace EffectSharp
             return new Effect(action, scheduler, lazy);
         }
 
-        public static Computed<T> Computed<T>(Func<T> getter, Action setter = null)
+        public static Computed<T> Computed<T>(Func<T> getter, Action<T> setter = null)
         {
             return new Computed<T>(getter, setter);
         }

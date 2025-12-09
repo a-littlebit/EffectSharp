@@ -7,11 +7,10 @@ namespace EffectSharp.Tests
         [Fact]
         public async Task Reactive_WhenSetProperty_NotifyPropertyChange()
         {
-            var product = Reactive.Create(new Product
-            {
-                Name = "Laptop",
-                Price = 1000
-            });
+            var product = Reactive.Create<Product>();
+            product.Name = "Laptop";
+            product.Price = 1000;
+
             object? notifier = null;
             string? changedPropertyName = null;
             ((INotifyPropertyChanged)product)!.PropertyChanged += (sender, e) =>
@@ -29,15 +28,11 @@ namespace EffectSharp.Tests
         [Fact]
         public async Task Reactive_WhenSetNestedProperty_NotifyPropertyChange()
         {
-            var order = Reactive.CreateDeep(new Order
-            {
-                Product = new Product
-                {
-                    Name = "Phone",
-                    Price = 500
-                },
-                Quantity = 2
-            });
+            var order = Reactive.Create<Order>();
+            order.Quantity = 2;
+            order.Product.Name = "Phone";
+            order.Product.Price = 500;
+
             object? notifier = null;
             string? changedPropertyName = null;
             ((INotifyPropertyChanged)order.Product)!.PropertyChanged += (sender, e) =>
@@ -55,13 +50,12 @@ namespace EffectSharp.Tests
         [Fact]
         public async Task Reactive_WhenSetProperty_TriggerSubcribers()
         {
-            var product = Reactive.Create(new Product
-            {
-                Name = "Laptop",
-                Price = 1000
-            });
+            var product = Reactive.Create<Product>();
+            product.Name = "Laptop";
+            product.Price = 1000;
+
             bool priceChanged = false;
-            Reactive.Watch(() => product.Price, (_, __) =>
+            Reactive.Watch(() => product.Price, (_, _) =>
             {
                 priceChanged = true;
             });
