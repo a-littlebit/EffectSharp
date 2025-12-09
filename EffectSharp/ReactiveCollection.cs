@@ -21,7 +21,6 @@ namespace EffectSharp
 
         private readonly List<Dependency> _indexDependencies = new List<Dependency>();
         private readonly Dependency _listDependency = new Dependency();
-        private bool _isDeep = false;
 
         private void EnsureDependencyIndex(int index)
         {
@@ -175,41 +174,6 @@ namespace EffectSharp
                 _listDependency.Track();
             }
             return index;
-        }
-
-        private T Deep(T value)
-        {
-            if (!_isDeep) return value;
-            if (value is IReactive r)
-            {
-                r.SetDeep();
-                return value;
-            }
-            var reactiveValue = Reactive.TryCreate(value);
-            if (reactiveValue is IReactive rNew)
-            {
-                rNew.SetDeep();
-                return reactiveValue;
-            }
-            return value;
-        }
-
-        public bool SetDeep()
-        {
-            if (_isDeep)
-                return false;
-
-            _isDeep = true;
-            for (int i = 0; i < base.Count; i++)
-            {
-                var item = this[i];
-                var deepItem = Deep(item);
-                if (!ReferenceEquals(item, deepItem))
-                {
-                    base.SetItem(i, deepItem);
-                }
-            }
-            return true;
         }
 
         public void TrackDeep()

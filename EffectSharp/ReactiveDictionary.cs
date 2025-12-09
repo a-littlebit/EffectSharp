@@ -21,43 +21,7 @@ namespace EffectSharp
         // dependency to track changes to the entire set of keys
         private readonly Dependency _keySetDependency = new Dependency();
 
-        private bool _isDeep = false;
-
         public const string KeySetPropertyName = "KeySet[]";
-
-        private TValue Deep(TValue value)
-        {
-            if (!_isDeep) return value;
-            if (value is IReactive r)
-            {
-                r.SetDeep();
-                return value;
-            }
-            var reactiveValue = Reactive.TryCreate(value);
-            if (reactiveValue is IReactive rNew)
-            {
-                rNew.SetDeep();
-                return (TValue)rNew;
-            }
-            return value;
-        }
-
-        public bool SetDeep()
-        {
-            if (_isDeep)
-                return false;
-
-            _isDeep = true;
-            foreach (var pair in _innerDictionary)
-            {
-                var deepValue = Deep(pair.Value.Item1);
-                if (!ReferenceEquals(deepValue, pair.Value.Item1))
-                {
-                    _innerDictionary[pair.Key] = pair.Value;
-                }
-            }
-            return true;
-        }
 
         public void TrackDeep()
         {
@@ -108,14 +72,14 @@ namespace EffectSharp
                 {
                     // if it exists, update the value and trigger its dependency
                     var data = _innerDictionary[key];
-                    data.Item1 = Deep(value);
+                    data.Item1 = value;
                     _innerDictionary[key] = data;
                     data.Item2.Trigger();
                 }
                 else
                 {
                     // otherwise, add a new entry with a new Dependency
-                    _innerDictionary[key] = (Deep(value), new Dependency());
+                    _innerDictionary[key] = (value, new Dependency());
                     _keySetDependency.Trigger();
                 }
             }
@@ -127,7 +91,7 @@ namespace EffectSharp
                 throw new ArgumentNullException(nameof(key));
 
             // add the key-value pair with its dependency to the inner dictionary
-            _innerDictionary.Add(key, (Deep(value), new Dependency()));
+            _innerDictionary.Add(key, (value, new Dependency()));
 
             // trigger the KeySet dependency to indicate a new key has been added
             _keySetDependency.Trigger();

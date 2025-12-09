@@ -74,11 +74,6 @@ namespace EffectSharp
             }
         }
 
-        public virtual bool SetDeep()
-        {
-            return false;
-        }
-
         public virtual void TrackDeep()
         {
             _dependency.Track(); 
@@ -93,8 +88,6 @@ namespace EffectSharp
     {
         private T _value;
 
-        private bool _isDeep = false;
-
         public Ref(T value, IEqualityComparer<T> equalityComparer = null)
             : base(equalityComparer)
         {
@@ -108,42 +101,7 @@ namespace EffectSharp
 
         protected override void Write(T value)
         {
-            if (_isDeep)
-            {
-                var reactiveValue = Reactive.TryCreate(value);
-                if (value is IReactive r)
-                {
-                    r.SetDeep();
-                }
-                _value = reactiveValue;
-            }
-            else
-            {
-                _value = value;
-            }
-        }
-
-        public override bool SetDeep()
-        {
-            if (_isDeep) return false;
-            _isDeep = true;
-
-            var value = _value;
-            if (value == null) return true;
-            if (value is IReactive reactiveValue)
-            {
-                reactiveValue.SetDeep();
-            }
-            else
-            {
-                var deepValue = Reactive.TryCreate(value);
-                if (deepValue is IReactive deepReactiveValue)
-                {
-                    deepReactiveValue.SetDeep();
-                    _value = deepValue;
-                }
-            }
-            return true;
+            _value = value;
         }
 
         public override void TrackDeep()

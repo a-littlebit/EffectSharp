@@ -20,8 +20,6 @@ namespace EffectSharp
         private readonly Dependency _dependency = new Dependency();
         private readonly Effect _effect;
 
-        private bool _isDeep = false;
-
         public event PropertyChangingEventHandler PropertyChanging;
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -32,21 +30,8 @@ namespace EffectSharp
             _effect = new Effect(() =>
             {
                 if (!_isDirty) return;
-                var value = _getter();
 
-                if (_isDeep)
-                {
-                    var reactiveValue = Reactive.TryCreate(value);
-                    if (value is IReactive r)
-                    {
-                        r.SetDeep();
-                    }
-                    _value = reactiveValue;
-                }
-                else
-                {
-                    _value = value;
-                }
+                _value = getter();
 
                 _isDirty = false;
             }, (_) => Invalidate(), true);
@@ -98,32 +83,11 @@ namespace EffectSharp
             _effect.Dispose();
         }
 
-        public bool SetDeep()
-        {
-            if (_isDeep) return false;
-            _isDeep = true;
-            if (_value == null) return true;
-            if (_value is IReactive reactiveValue)
-            {
-                reactiveValue.SetDeep();
-            }
-            else
-            {
-                var deepValue = Reactive.TryCreate(_value);
-                if (deepValue is IReactive deepReactiveValue)
-                {
-                    deepReactiveValue.SetDeep();
-                    _value = deepValue;
-                }
-            }
-            return true;
-        }
-
         public void TrackDeep()
         {
             _dependency.Track();
-            if (_value == null) return;
-            if (_value is IReactive reactiveValue)
+            var value = Value;
+            if (value != null && value is IReactive reactiveValue)
             {
                 reactiveValue.TrackDeep();
             }

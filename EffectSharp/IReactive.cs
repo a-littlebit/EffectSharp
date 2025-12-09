@@ -11,7 +11,6 @@ namespace EffectSharp
     /// </summary>
     public interface IReactive
     {
-        bool SetDeep();
         void TrackDeep();
     }
 }
