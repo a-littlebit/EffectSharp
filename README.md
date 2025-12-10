@@ -1,6 +1,6 @@
 # EffectSharp
 
-> Lightweight reactive state management for .NET with a Vue 3 inspired API (`ref`, `computed`, `watch`, `effect`, reactive objects, collections & dictionaries, list diff-binding).
+> Lightweight reactive state management for .NET with a Vue 3 inspired API.
 
 ## Table of Contents
 - [Overview](#overview)
@@ -8,17 +8,18 @@
 - [Quick Start](#quick-start)
 - [Core Concepts](#core-concepts)
     - [`Ref<T>`]
-    - Reactive Objects (`Reactive.Create` / `CreateDeep` / `TryCreate`)
+    - Reactive Objects (`Reactive.Create`)
     - Computed Values (`Reactive.Computed`)
     - Effects (`Reactive.Effect`)
     - Watching Changes (`Reactive.Watch`)
     - Reactive Collections (`Reactive.Collection`)
     - Reactive Dictionaries (`Reactive.Dictionary`)
+    - Commands (`FunctionCommand`)
 - [Usage Examples](#usage-examples)
 - [Advanced Topics](#advanced-topics)
     - Notification Batching & `TaskManager` configuration
     - Custom Effect Schedulers
-    - Deep Watching & `NonReactive` opt-outs
+    - Deep Watching
     - List Diff & Binding (`DiffAndBindTo`)
 - [Comparison with Vue 3](#comparison-with-vue-3)
 - [Limitations](#limitations)
@@ -28,12 +29,6 @@
 ## Overview
 EffectSharp brings a fine-grained reactive system to .NET similar to Vue 3's reactivity core. Instead of heavy global state containers, you compose reactive primitives that automatically track dependencies and propagate updates efficiently.
 
-Recent updates include:
-- Deep mode across refs, computed values, proxies, and collections/dictionaries.
-- Reactive dictionaries with per-key dependency tracking.
-- Diff-based binding from lists to `ObservableCollection<T>`.
-- Unified async batching with `TaskManager` plus `Reactive.NextTick()`.
-
 It focuses on:
 - Minimal Ceremony: Opt-in reactivity with clear primitives.
 - Predictable Updates: Dependency tracking via transparent property access.
@@ -41,16 +36,16 @@ It focuses on:
 - UI Friendly: Batched `INotifyPropertyChanged` events reduce UI churn (e.g., WPF, MAUI).
 
 ## Key Features
-- `Ref<T>` primitive for single mutable reactive values, optional deep mode.
-- Reactive proxies for plain class instances (virtual properties required), deep wrapping via `SetDeep()`.
-- `TryCreate` helper to wrap if possible, otherwise return original.
-- Dependency-tracked computed values (`Computed<T>`) with lazy evaluation & caching (supports deep mode).
+- `Ref<T>` primitive for single mutable reactive values.
+- Reactive proxies generated via `DispatchProxy` for interfaces or classes, using `ReactivePropertyAttribute` to control reactivity and deep behavior per property.
+- Dependency-tracked computed values (`Computed<T>`) with lazy evaluation & caching.
 - Effects that auto re-run when dependencies change; optional scheduling; `Untracked` helpers.
 - Flexible watchers: `Ref<T>`, computed getter functions, tuples and complex shapes, deep tracking.
 - Reactive `ObservableCollection<T>` enhancement with per-index and list-level dependencies.
 - Reactive dictionaries with per-key tracking and key-set dependency.
 - LIS-based diff & binding: bind source lists to `ObservableCollection<T>` with minimal updates.
 - Unified batching via `TaskManager`; `Reactive.NextTick()` awaits both effect and notify cycles.
+- Command helpers (`FunctionCommand`) for synchronous/async commands with `CanExecute` tracking, execution counting, failure events, and optional concurrency control.
 
 ## Quick Start
 
@@ -58,12 +53,20 @@ It focuses on:
 ```csharp
 using EffectSharp;
 
-// Reactive object (class must be non-sealed; virtual properties needed for proxy)
-var product = Reactive.Create(new Product { Name = "Laptop", Price = 1000 });
+// Reactive object proxy
+public interface IProduct
+{
+    [ReactiveProperty(defaultValue: "")]
+    string Name { get; set; }
+    int Price { get; set; }
+}
 
-// Ref primitive (with optional deep mode)
+var product = Reactive.Create<IProduct>();
+product.Name = "Laptop";
+product.Price = 1000;
+
+// Ref primitive
 var count = Reactive.Ref(0);
-var orderRef = Reactive.Ref(new Order { Product = new Product { Name = "Phone", Price = 500 }, Quantity = 1 }, deep: true);
 
 // Computed value
 var priceWithTax = Reactive.Computed(() => product.Price + (int)(product.Price * 0.1));
@@ -130,24 +133,30 @@ Reactive.Effect(() => Console.WriteLine(counter.Value));
 counter.Value++; // Effect prints updated value
 ```
 
-### Reactive Objects (`Reactive.Create` / `CreateDeep` / `TryCreate`)
-Wrap an existing instance in a dynamic proxy using Castle.DynamicProxy. Requirements:
-- Class must be non-sealed.
-- Properties you want tracked must be `virtual`.
-`CreateDeep` additionally enables deep behavior via `SetDeep()` internally. `TryCreate` returns the original instance if it cannot be proxied.
+### Reactive Objects (`Reactive.Create`)
+Create proxies via `DispatchProxy` using interfaces. Use `ReactivePropertyAttribute` to control per-property behavior:
+- `reactive: true|false` — whether property changes are tracked and notify.
+- `deep: true|false` — whether nested objects are treated reactively.
+- `defaultValue` — optional default value for initial state.
 ```csharp
-var order = Reactive.CreateDeep(new Order {
-    Product = new Product { Name = "Phone", Price = 500 },
-    Quantity = 2
-});
+var order = Reactive.Create<IOrder>();
+order.Quantity = 2; // default can be provided by attribute
+order.Product = Reactive.Create<IProduct>();
+order.Product.Name = "Phone";
+order.Product.Price = 500;
 Reactive.Effect(() => Console.WriteLine(order.Product.Price));
 order.Product.Price = 600; // Effect reruns
+
+// optional: specify target instance
+var myOrder = Reactive.Create<IOrder>(new MyOrder());
 ```
 
 ### Computed Values (`Reactive.Computed`)
 Lazy, cached derivations. Recomputed only when one of the dependencies accessed during its last evaluation changes.
 ```csharp
-var product = Reactive.Create(new Product { Name = "Tablet", Price = 300 });
+var product = Reactive.Create<IProduct>();
+product.Name = "Tablet";
+product.Price = 300;
 var priceWithTax = Reactive.Computed(() => product.Price + (int)(product.Price * 0.1));
 Console.WriteLine(priceWithTax.Value); // 330
 product.Price = 400;
@@ -157,19 +166,22 @@ Console.WriteLine(priceWithTax.Value); // 440 (recomputed)
 ### Effects (`Reactive.Effect`)
 Encapsulate reactive logic. Any dependency read during its execution registers it as a subscriber. Supports custom scheduler for throttling/coalescing and `Untracked` helpers to perform side effects without capturing dependencies.
 ```csharp
-var throttled = Reactive.Effect(() => {
-    _ = product.Price; // Track dependency
-}, effect => {
-    // Simple scheduler example: defer with Task.Run
-    Task.Run(() => effect.Execute());
+var effect = Reactive.Effect(() => {
+    Console.WriteLine($"Product price is now {product.Price}"); // Track dependency
+    Effect.Untracked(() => {
+        // access without tracking `updateTime`
+        Console.WriteLine($"Updated at {updateTime.Value}");
+    });
 });
+// dispose to stop tracking
+effect.Dispose();
 ```
 
 ### Watching Changes (`Reactive.Watch`)
 `Watch` lets you observe specific sources without executing a full effect body manually. It returns an `Effect` you can dispose to stop watching. Variants:
 - Ref-based: `Watch(refObj, (newVal, oldVal) => ...)`
 - Getter-based: `Watch(() => (refA.Value, refB.Value), callback)`; supports tuples and enumerable shapes
-- Options: `Immediate`, `Deep`, `EqualityComparer<T>`
+- Options: `Immediate`, `Deep`, `EqualityComparer<T>`, `Scheduler`
 ```csharp
 var refA = Reactive.Ref(1);
 var refB = Reactive.Ref(10);
@@ -200,6 +212,23 @@ await Reactive.NextTick();
 Console.WriteLine(hasFoo.Value); // true
 ```
 
+### Commands (`FunctionCommand`)
+Create commands with automatic `CanExecute` tracking, optional async execution, and execution counting.
+```csharp
+var canExecute = Reactive.Ref(true);
+var cmd = FunctionCommand.Create<object>(_ => DoWork(), canExecute: () => canExecute.Value);
+cmd.CanExecuteChanged += (s, e) => { /* react to can-execute changes */ };
+
+// Async variant with concurrency control
+var asyncCmd = FunctionCommand.CreateFromTask<object>(async _ => {
+    await Task.Delay(100);
+    return true;
+}, canExecute: () => canExecute.Value, allowConcurrentExecution: false);
+
+// Observe executing count
+var executingCount = asyncCmd.ExecutingCount.Value; // IReadOnlyRef<int>
+```
+
 ## Usage Examples
 
 See [a-littlebit/EffectSharp · GitHub](https://github.com/a-littlebit/EffectSharp/tree/main/Examples/) for more usage examples.
@@ -226,7 +255,7 @@ var effect = Reactive.Effect(() => DoWork(), eff => {
 ```
 
 ### Deep Watching
-`WatchOptions.Deep = true` tracks nested reactive properties (including refs/collections/dictionaries). Use the `NonReactive` attribute to opt out for specific properties/classes.
+`WatchOptions<T>.Deep = true` tracks nested reactive properties (including refs/collections/dictionaries). Per-property deep behavior for proxies is configured via `ReactivePropertyAttribute(deep: true)`.
 
 ### List Diff & Binding
 Bind a source list to an `ObservableCollection<T>` with diffing:
@@ -245,21 +274,21 @@ This minimizes updates to `target` based on the longest increasing subsequence (
 | Vue 3 Concept | EffectSharp Equivalent |
 |---------------|------------------------|
 | `ref()`       | `Reactive.Ref()` |
-| `reactive()`  | `Reactive.Create()` / `Reactive.CreateDeep()` |
+| `reactive()`  | `Reactive.Create()` |
 | `computed()`  | `Reactive.Computed()` |
 | `watch()`     | `Reactive.Watch()` |
 | `effect` (internal) | `Reactive.Effect()` |
 | Track dependencies | `Dependency.Track()` / Property interception |
 | `nextTick()` | `Reactive.NextTick()` |
-| Microtask queue | `TaskManager` configuration |
+| Microtask queue | `TaskManager` |
 
 ## Limitations
-- Only non-sealed classes with `virtual` properties are proxied.
-- Structs / records (non-class) are not reactive directly (wrap them inside a `Ref<T>`).
-- Diff-binding provided for lists to `ObservableCollection<T>`.
-- Deep watch may cause overhead on large graphs.
+- Prefer interface-only design: define interfaces and use `Reactive.Create<IYourInterface>()` so EffectSharp provides the implementation.
+If you need to use classes, ensure they implement an interface with properties you want to be reactive.
+- Structs/records are not reactive directly (wrap them inside `Ref<T>`).
+- Diff-binding is provided for lists to `ObservableCollection<T>`.
+- Deep tracking may increase overhead on large graphs; configure per-property via `ReactivePropertyAttribute`.
 - No persistence layer integration yet.
-- Use `NonReactive` to exclude properties/classes from tracking.
 
 ## FAQ
 **Q: Do I need to adjust `TaskManager` Configuration?**  
@@ -271,13 +300,10 @@ Dispose the `Effect` returned by `Reactive.Effect()` or `Reactive.Watch()`.
 If you want to perform side effects without tracking dependencies, use `Effect.Untracked(() => { ... })`.
 
 **Q: Is EffectSharp thread-safe?**  
-Reactive proxies are thread-safe or not depending on the underlying object except for deep ones,
-which are not thread-safe until `SetDeep()` is done.  
-`Ref<T>` is not thread-safe. Use `AtomicObjectRef<T>`, `AtomicIntRef`, etc. for thread-safe refs.
-Effects and watchers are scheduled via `TaskManager` and each runs with a lock to prevent concurrent execution,
-which means effects/watchers themselves are thread-safe.  
-Note that the UI notification scheduler in `TaskManager` should be set to the UI thread context when used in UI applications.
-The default is `TaskScheduler.FromCurrentSynchronizationContext()`.
+Effects/watchers are scheduled and guarded against concurrent execution.
+`Ref<T>` uses atomic storage implementations for primitive types (`AtomicIntRef`, `AtomicLongRef`) to reduce contention, but high-level thread safety depends on your usage pattern.
+Proxy thread safety depends on your underlying types. If no target instance is provided, the default proxy gets and sets properties atomically.
+For UI apps, configure `TaskManager` notification scheduler to the UI context (e.g., `TaskScheduler.FromCurrentSynchronizationContext()`).
 
 **Q: What is the difference between keyed and unkeyed diff-binding?**  
 Keyed binding is preferred when items have a unique identifier property, it is usually more efficient.
