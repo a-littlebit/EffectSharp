@@ -32,11 +32,10 @@ namespace EffectSharp
 
         private void Validate(Func<T> getter)
         {
-            if (Interlocked.CompareExchange(ref _dirtyFlag, 1, 2) != 2)
-            {
-                return;
-            }
+            Interlocked.CompareExchange(ref _dirtyFlag, 1, 2);
 
+            // When entering this method, we must recompute the value.
+            // Or the effect will lose track of dependencies if we skip computation.
             _value.Value = getter();
 
             Interlocked.CompareExchange(ref _dirtyFlag, 0, 1);
