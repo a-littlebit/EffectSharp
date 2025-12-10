@@ -54,6 +54,20 @@ namespace EffectSharp
         }
 
         /// <summary>
+        /// Occurs when a batch of effect processing fails.
+        /// </summary>
+        public static event EventHandler<BatchProcessingFailedEventArgs<Effect>> EffectFailed
+        {
+            add => _effectBatcher.BatchProcessingFailed += value;
+            remove => _effectBatcher.BatchProcessingFailed -= value;
+        }
+
+        public static void TraceEffectFailure(object sender, BatchProcessingFailedEventArgs<Effect> e)
+        {
+            System.Diagnostics.Trace.TraceError($"Effect batch processing failed: {e.Exception}");
+        }
+
+        /// <summary>
         /// Gets or sets the interval, in milliseconds, between UI notification batches.
         /// </summary>
         /// <remarks>
@@ -82,6 +96,20 @@ namespace EffectSharp
         }
 
         /// <summary>
+        /// Occurs when a batch of notification fails.
+        /// </summary>
+        public static event EventHandler<BatchProcessingFailedEventArgs<NotificationTask>> NotificationFailed
+        {
+            add => _notificationBatcher.BatchProcessingFailed += value;
+            remove => _notificationBatcher.BatchProcessingFailed -= value;
+        }
+
+        public static void TraceNotificationFailure(object sender, BatchProcessingFailedEventArgs<NotificationTask> e)
+        {
+            System.Diagnostics.Trace.TraceError($"Notification batch processing failed: {e.Exception}");
+        }
+
+        /// <summary>
         /// Gets or sets a value indicating whether to automatically flush the notification queue
         /// after each effect execution batch. Default is true.
         /// </summary>
@@ -94,6 +122,12 @@ namespace EffectSharp
         {
             get => _flushNotificationAfterEffectBatch;
             set => _flushNotificationAfterEffectBatch = value;
+        }
+
+        static TaskManager()
+        {
+            EffectFailed += TraceEffectFailure;
+            NotificationFailed += TraceNotificationFailure;
         }
 
         public static void EnqueueEffectTrigger(Effect effect)
@@ -156,10 +190,10 @@ namespace EffectSharp
         }
     }
 
-    internal class NotificationTask
+    public class NotificationTask
     {
-        internal object Model { get; set; }
-        internal string PropertyName { get; set; }
-        internal Action<PropertyChangedEventArgs> Notifier { get; set; }
+        public object Model { get; set; }
+        public string PropertyName { get; set; }
+        public Action<PropertyChangedEventArgs> Notifier { get; set; }
     }
 }
