@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Keep a Changelog and uses Semantic Versioning (when versions are published). For now, changes are grouped by version and date.
 
-## Unreleased
+## 1.2.0 - 2025-12-10
 
 This release focuses on four main areas: LIS-based diff, command API, interface-based proxying, and atomic reactive references, plus targeted bug fixes.
 
