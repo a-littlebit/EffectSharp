@@ -95,7 +95,6 @@ Console.WriteLine(sum.Value); // 5
 
 ### Bind to UI (WPF example)
 ```csharp
-using CommunityToolkit.Mvvm.Input;
 using EffectSharp;
 
 // ViewModel with reactive properties
@@ -109,11 +108,11 @@ public class MyViewModel
         DisplayText = Reactive.Computed(() => $"Counter: {Counter.Value}");
     }
     
-    [RelayCommand]
-    public void Increment() => Counter.Value++;
+    public IFunctionCommand<object> IncrementCommand
+        => FunctionCommand.Create<object>(_ => Counter.Value++);
 
-    [RelayCommand]
-    public void Decrement() => Counter.Value--;
+    public IFunctionCommand<object> DecrementCommand
+        => FunctionCommand.Create<object>(_ => Counter.Value--);
 }
 ```
 
