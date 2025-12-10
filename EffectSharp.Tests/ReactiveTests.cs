@@ -43,7 +43,7 @@ namespace EffectSharp.Tests
                 changedPropertyName = e.PropertyName;
             };
             order.Product.Price = 600;
-            // Flush the notify queue to ensure the PropertyChanged event is raised
+            // Flush the notification queue to ensure the PropertyChanged event is raised
             await TaskManager.FlushNotificationQueue();
             Assert.Same(order.Product, notifier);
             Assert.Equal(nameof(order.Product.Price), changedPropertyName);

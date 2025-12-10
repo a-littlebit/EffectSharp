@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 
 namespace EffectSharp
@@ -15,8 +12,6 @@ namespace EffectSharp
         private static readonly PropertyInfo[] _propertyCache;
         private static readonly Dictionary<string, int> _propertyOffset;
         private static readonly ReactivePropertyAttribute[] _reactivePropertyCache;
-        private static readonly ConditionalWeakTable<T, Dependency[]> _attachedDependencies
-            = new ConditionalWeakTable<T, Dependency[]>();
 
         static ReactiveProxy()
         {
@@ -41,35 +36,8 @@ namespace EffectSharp
             }
         }
 
-        private static Dependency[] InitializeAttachedDependencies(T target)
-        {
-            var dependencies = new Dependency[_propertyCache.Length];
-            for (int i = 0; i < _propertyCache.Length; i++)
-            {
-                var reactiveAttr = _reactivePropertyCache[i];
-                if (reactiveAttr.Reactive)
-                {
-                    dependencies[i] = new Dependency();
-                }
-            }
-            return dependencies;
-        }
-
-        private static Dependency[] GetOrCreateAttachedDependencies(T target)
-        {
-            return _attachedDependencies.GetValue(target, InitializeAttachedDependencies);
-        }
-
-        private static Dependency GetOrCreateAttachedDependency(T target, string propertyName)
-        {
-            if (_propertyOffset.TryGetValue(propertyName, out var offset))
-            {
-                return GetOrCreateAttachedDependencies(target)[offset];
-            }
-            throw new ArgumentException($"Property '{propertyName}' not found.");
-        }
-
-        private (object Value, Dependency Dependency)[] _values;
+        private Dependency[] _dependencies;
+        private object[] _values;
         private T _target;
 
         private static readonly AsyncLocal<bool> _isInitializing = new AsyncLocal<bool>();
@@ -81,21 +49,20 @@ namespace EffectSharp
         {
         }
 
-        public void InitializeForTarget(T target)
-        {
-            _target = target;
-        }
-
         public void InitializeForValues()
         {
             if (_isInitializing.Value)
                 throw new InvalidOperationException($"Recursive construction of ReactiveProxy<{typeof(T).Name}> detected. Check the deep properties to avoid infinite recursion.");
 
+            var deps = new Dependency[_propertyCache.Length];
+            if (Interlocked.CompareExchange(ref _dependencies, deps, null) != null)
+                throw new InvalidOperationException($"ReactiveProxy<{typeof(T).Name}> is already initialized.");
+
+            _values = new object[_propertyCache.Length];
             _isInitializing.Value = true;
 
             try
             {
-                _values = new (object Value, Dependency Dependency)[_propertyCache.Length];
                 for (int i = 0; i < _propertyCache.Length; i++)
                 {
                     var prop = _propertyCache[i];
@@ -107,8 +74,11 @@ namespace EffectSharp
                     else
                         initialValue = reactiveAttr.Default;
 
-                    var dep = reactiveAttr.Reactive ? new Dependency() : null;
-                    _values[i] = (initialValue, dep);
+                    _values[i] = initialValue;
+                    if (reactiveAttr.Reactive)
+                    {
+                        _dependencies[i] = new Dependency();
+                    }
                 }
             }
             finally
@@ -117,9 +87,26 @@ namespace EffectSharp
             }
         }
 
+        public void InitializeForTarget(T target)
+        {
+            var deps = new Dependency[_propertyCache.Length];
+            if (Interlocked.CompareExchange(ref _dependencies, deps, null) != null)
+                throw new InvalidOperationException($"ReactiveProxy<{typeof(T).Name}> is already initialized.");
+
+            _target = target;
+            for (int i = 0; i < _propertyCache.Length; i++)
+            {
+                var reactiveAttr = _reactivePropertyCache[i];
+                if (reactiveAttr.Reactive)
+                {
+                    _dependencies[i] = new Dependency();
+                }
+            }
+        }
+
         private void ThrowIfNotInitialized()
         {
-            if (_target == null && _values == null)
+            if (_dependencies == null)
             {
                 throw new InvalidOperationException($"ReactiveProxy<{typeof(T).Name}> is not initialized. Call InitializeForTarget or InitializeForValues before using it.");
             }
@@ -128,29 +115,17 @@ namespace EffectSharp
         public void TrackDeep()
         {
             ThrowIfNotInitialized();
-            if (_target != null)
+            for (int i = 0; i < _propertyCache.Length; i++)
             {
-                var attachedDeps = GetOrCreateAttachedDependencies(_target);
-                for (int i = 0; i < attachedDeps.Length; i++)
+                _dependencies[i]?.Track();
+                object value;
+                if (_target != null)
+                    value = _propertyCache[i].GetValue(_target);
+                else
+                    value = Volatile.Read(ref _values[i]);
+                if (value != null && value is IReactive reactiveValue)
                 {
-                    attachedDeps[i]?.Track();
-                    var value = _propertyCache[i].GetValue(_target);
-                    if (value != null && value is IReactive reactiveValue)
-                    {
-                        reactiveValue.TrackDeep();
-                    }
-                }
-            }
-            else
-            {
-                for (int i = 0; i < _values.Length; i++)
-                {
-                    _values[i].Dependency?.Track();
-                    var value = Volatile.Read(ref _values[i].Value);
-                    if (value != null && value is IReactive reactiveValue)
-                    {
-                        reactiveValue.TrackDeep();
-                    }
+                    reactiveValue.TrackDeep();
                 }
             }
         }
@@ -162,15 +137,14 @@ namespace EffectSharp
             {
                 throw new ArgumentException($"Property '{propertyName}' not found.");
             }
+            _dependencies[offset]?.Track();
             if (_target != null)
             {
-                GetOrCreateAttachedDependencies(_target)[offset]?.Track();
                 return _propertyCache[offset].GetValue(_target);
             }
             else
             {
-                _values[offset].Dependency?.Track();
-                return Volatile.Read(ref _values[offset].Value);
+                return Volatile.Read(ref _values[offset]);
             }
         }
 
@@ -180,30 +154,25 @@ namespace EffectSharp
             if (!_propertyOffset.TryGetValue(propertyName, out var offset))
                 throw new ArgumentException($"Property '{propertyName}' not found.");
 
-            Dependency dependency;
-            if (_target != null)
-                dependency = GetOrCreateAttachedDependencies(_target)[offset];
-            else
-                dependency = _values[offset].Dependency;
-            if (dependency == null)
-            {
-                Interlocked.Exchange(ref _values[offset].Value, value);
-                return;
-            }
+            Dependency dependency = _dependencies[offset];
 
-            PropertyChanging?.Invoke(this, new PropertyChangingEventArgs(propertyName));
+            if (dependency != null)
+                PropertyChanging?.Invoke(this, new PropertyChangingEventArgs(propertyName));
 
             if (_target != null)
                 _propertyCache[offset].SetValue(_target, value);
             else
-                Interlocked.Exchange(ref _values[offset].Value, value);
-            dependency.Trigger();
+                Interlocked.Exchange(ref _values[offset], value);
 
-            TaskManager.EnqueueNotification(this, propertyName, (args) =>
+            if (dependency != null)
             {
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-            });
-            return;
+                dependency.Trigger();
+
+                TaskManager.EnqueueNotification(this, propertyName, (args) =>
+                {
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                });
+            }
         }
 
         protected override object Invoke(MethodInfo targetMethod, object[] args)
