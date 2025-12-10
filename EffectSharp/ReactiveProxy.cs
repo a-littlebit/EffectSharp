@@ -130,11 +130,15 @@ namespace EffectSharp
             }
         }
 
-        public object GetPropertyValue(string propertyName)
+        public object GetPropertyValue(string propertyName, MethodInfo targetMethod = null)
         {
             ThrowIfNotInitialized();
             if (!_propertyOffset.TryGetValue(propertyName, out var offset))
             {
+                if (_target != null && targetMethod != null)
+                {
+                    return targetMethod.Invoke(_target, null);
+                }
                 throw new ArgumentException($"Property '{propertyName}' not found.");
             }
             _dependencies[offset]?.Track();
@@ -148,11 +152,18 @@ namespace EffectSharp
             }
         }
 
-        public void SetPropertyValue(string propertyName, object value)
+        public void SetPropertyValue(string propertyName, object value, MethodInfo targetMethod = null)
         {
             ThrowIfNotInitialized();
             if (!_propertyOffset.TryGetValue(propertyName, out var offset))
+            {
+                if (_target != null && targetMethod != null)
+                {
+                    targetMethod.Invoke(_target, new object[] { value });
+                    return;
+                }
                 throw new ArgumentException($"Property '{propertyName}' not found.");
+            }
 
             Dependency dependency = _dependencies[offset];
 
@@ -177,13 +188,23 @@ namespace EffectSharp
 
         protected override object Invoke(MethodInfo targetMethod, object[] args)
         {
-            ThrowIfNotInitialized();
-            switch (targetMethod.Name)
+            if (!targetMethod.IsSpecialName)
             {
-                case nameof(IReactive.TrackDeep):
+                if (targetMethod.DeclaringType == typeof(IReactive) && targetMethod.Name == nameof(IReactive.TrackDeep))
+                {
                     TrackDeep();
                     return null;
+                }
+                ThrowIfNotInitialized();
+                if (_target != null)
+                {
+                    return targetMethod.Invoke(_target, args);
+                }
+                throw new NotImplementedException($"Method '{targetMethod.Name}' is not implemented in ReactiveProxy.");
+            }
 
+            switch (targetMethod.Name)
+            {
                 case var name when name.StartsWith("get_"):
                     var propertyName = name.Substring(4);
                     return GetPropertyValue(propertyName);
