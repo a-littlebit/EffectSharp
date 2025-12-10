@@ -52,7 +52,7 @@ namespace EffectSharp.Tests
         {
             var cmd = FunctionCommand.CreateFromTask<int>(async (p, ct) =>
             {
-                var tcs = new TaskCompletionSource<bool>();
+                var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 using (ct.Register(() => tcs.SetCanceled()))
                 {
                     await tcs.Task;
@@ -88,7 +88,7 @@ namespace EffectSharp.Tests
         [Fact]
         public async Task AsyncFunctionCommand_WhenThrows_RaisesExecutionFailed()
         {
-            var tcs = new TaskCompletionSource<Exception>();
+            var tcs = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
             var cmd = FunctionCommand.CreateFromTask<int>(async (p, ct) =>
             {
                 await Task.Yield();

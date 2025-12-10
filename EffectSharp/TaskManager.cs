@@ -137,7 +137,7 @@ namespace EffectSharp
 
         public static async Task FlushEffectQueue()
         {
-            await _effectBatcher.FlushAsync();
+            await _effectBatcher.FlushAsync().ConfigureAwait(false);
         }
 
         public static Task NextEffectTick()
@@ -145,7 +145,7 @@ namespace EffectSharp
             return _effectBatcher.NextTick();
         }
 
-        public static void TriggerBatchEffects(IEnumerable<Effect> effects)
+        public static void TriggerBatchEffects(List<Effect> effects)
         {
             var uniqueEffects = new HashSet<Effect>(effects);
             foreach (var effect in uniqueEffects)
@@ -171,7 +171,7 @@ namespace EffectSharp
 
         public static async Task FlushNotificationQueue()
         {
-            await _notificationBatcher.FlushAsync();
+            await _notificationBatcher.FlushAsync().ConfigureAwait(false);
         }
 
         public static Task NextNotificationTick()
@@ -179,7 +179,7 @@ namespace EffectSharp
             return _notificationBatcher.NextTick();
         }
 
-        private static void NotifyBatch(IEnumerable<NotificationTask> tasks)
+        private static void NotifyBatch(List<NotificationTask> tasks)
         {
             var grouped = tasks.GroupBy(t => (t.Model, t.PropertyName));
             foreach (var group in grouped)

@@ -15,7 +15,7 @@ namespace EffectSharp
     public class TaskBatcher<T> : IDisposable
     {
         #region Private Fields
-        private readonly Action<IEnumerable<T>> _batchProcessor; // Synchronous batch processing callback (must run sync)
+        private readonly Action<List<T>> _batchProcessor; // Synchronous batch processing callback (must run sync)
         private int _intervalMs; // Execution interval in milliseconds (0 = merge tasks rapidly)
         private TaskScheduler _scheduler; // Task scheduler (supports dynamic switching with eventual consistency)
         private readonly ConcurrentQueue<(T Item, long Sequence)> _taskQueue = new ConcurrentQueue<(T Item, long Sequence)>(); // Task queue with sequence numbers for NextTick tracking
@@ -44,7 +44,7 @@ namespace EffectSharp
         /// <param name="scheduler">Initial scheduler to execute batch processing tasks</param>
         /// <exception cref="ArgumentNullException">Thrown if any required parameter is null</exception>
         /// <exception cref="ArgumentOutOfRangeException">Thrown if interval is negative</exception>
-        public TaskBatcher(Action<IEnumerable<T>> batchProcessor, int intervalMs, TaskScheduler scheduler)
+        public TaskBatcher(Action<List<T>> batchProcessor, int intervalMs, TaskScheduler scheduler)
         {
             _batchProcessor = batchProcessor ?? throw new ArgumentNullException(nameof(batchProcessor));
             if (intervalMs < 0)
@@ -111,7 +111,7 @@ namespace EffectSharp
             _taskQueue.Enqueue((item, sequence));
 
             // Start the batch processing loop asynchronously (fire-and-forget)
-            _ = StartBatchProcessingLoopAsync().ConfigureAwait(false);
+            _ = StartBatchProcessingLoopAsync();
         }
 
         /// <summary>
@@ -287,7 +287,7 @@ namespace EffectSharp
 
                     // Process one batch of tasks and record the time cost in milliseconds
                     var startTime = Environment.TickCount;
-                    await ProcessBatchAsync();
+                    await ProcessBatchAsync().ConfigureAwait(false);
                     var endTime = Environment.TickCount;
                     lastTimeCostMs = endTime - startTime;
                 }
@@ -307,7 +307,7 @@ namespace EffectSharp
             }
 
             // Dequeue all tasks currently in the queue and ensure sequence continuity
-            var batch = new List<(T Item, long Sequence)>(_taskQueue.Count);
+            var batch = new List<T>(_taskQueue.Count);
             var dequeuedSeq = _dequeuedCounter;
             var expectedSeq = new HashSet<long>();
             bool dequeuedAny;
@@ -321,8 +321,8 @@ namespace EffectSharp
                         await Task.Yield();
                     }
                 }
-                batch.Add(taskWithSeq);
-                var seq = taskWithSeq.Sequence;
+                var (task, seq) = taskWithSeq;
+                batch.Add(task);
                 if (seq < dequeuedSeq)
                 {
                     expectedSeq.Remove(seq);
@@ -349,26 +349,24 @@ namespace EffectSharp
             }
 
             // Extract task data and get the latest scheduler
-            var taskData = batch.Select(t => t.Item);
             var currentScheduler = Scheduler;
 
             // Run the synchronous batch processor on the specified scheduler
             var processTask = Task.Factory.StartNew(
-                () =>
-                {
-                    _batchProcessor(taskData); // synchronous callback
-                },
+                () => _batchProcessor(batch),
                 CancellationToken.None,
-                TaskCreationOptions.DenyChildAttach,
+                TaskCreationOptions.DenyChildAttach | TaskCreationOptions.RunContinuationsAsynchronously,
                 currentScheduler);
 
             _ = processTask.ContinueWith(async t =>
             {
-                // Update the processed counter and notify waiters
-                var ex = t.Exception?.InnerException;
-                await AfterBatchProcess(lastDequeuedSeq, dequeuedSeq,
-                    ex == null ? null : taskData.ToList(), ex);
-            });
+                var exception = t.Exception?.InnerException ?? t.Exception;
+                await AfterBatchProcess(lastDequeuedSeq, dequeuedSeq, batch, exception).ConfigureAwait(false);
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.RunContinuationsAsynchronously,
+            TaskScheduler.Default).Unwrap();
+            return;
         }
 
         private async Task AfterBatchProcess(long beforeProcessSeq, long processedSeq, List<T> batch = null, Exception ex = null)
