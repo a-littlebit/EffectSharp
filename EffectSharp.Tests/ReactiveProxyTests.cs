@@ -2,7 +2,7 @@ using System.ComponentModel;
 
 namespace EffectSharp.Tests
 {
-    public class ReactiveTests
+    public class ReactiveProxyTests
     {
         [Fact]
         public async Task Reactive_WhenSetProperty_NotifyPropertyChange()
@@ -25,6 +25,7 @@ namespace EffectSharp.Tests
             await TaskManager.FlushNotificationQueue();
             Assert.Same(product, notifier);
             Assert.Equal(nameof(product.Price), changedPropertyName);
+            Assert.Equal(1200, product.Price);
         }
 
         [Fact]
@@ -47,6 +48,7 @@ namespace EffectSharp.Tests
             await TaskManager.FlushNotificationQueue();
             Assert.Same(order.Product, notifier);
             Assert.Equal(nameof(order.Product.Price), changedPropertyName);
+            Assert.Equal(600, order.Product.Price);
         }
 
         [Fact]
