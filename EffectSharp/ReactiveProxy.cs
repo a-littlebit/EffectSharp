@@ -45,6 +45,8 @@ namespace EffectSharp
         public event PropertyChangingEventHandler PropertyChanging;
         public event PropertyChangedEventHandler PropertyChanged;
 
+        public T Target => _target;
+
         public ReactiveProxy()
         {
         }
