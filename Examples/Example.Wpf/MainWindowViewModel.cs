@@ -13,12 +13,12 @@ namespace Example.Wpf
     public interface ITodoItem
     {
         [ReactiveProperty(reactive: false)]
-        public Guid Id { get; set; }
+        Guid Id { get; set; }
 
-        public string Title { get; set; }
+        string Title { get; set; }
 
         [ReactiveProperty(defaultValue: false)]
-        public bool IsCompleted { get; set; }
+        bool IsCompleted { get; set; }
     }
 
     public partial class MainWindowViewModel

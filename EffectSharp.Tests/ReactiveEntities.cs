@@ -8,17 +8,17 @@ namespace EffectSharp.Tests
 {
     public interface IProduct
     {
-        public string Name { get; set; }
-        public int Price { get; set; }
+        string Name { get; set; }
+        int Price { get; set; }
     }
 
     public interface IOrder
     {
         [ReactiveProperty(deep: true)]
-        public IProduct Product { get; set; }
+        IProduct Product { get; set; }
 
         [ReactiveProperty(defaultValue: 1)]
-        public int Quantity { get; set; }
+        int Quantity { get; set; }
     }
 
     public class Product : IProduct
