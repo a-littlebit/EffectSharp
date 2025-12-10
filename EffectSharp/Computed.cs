@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace EffectSharp
@@ -14,7 +15,7 @@ namespace EffectSharp
     public class Computed<T> : INotifyPropertyChanging, INotifyPropertyChanged, IReactive, IRef<T>, IReadOnlyRef<T>, IDisposable
     {
         private volatile IAtomic<T> _value;
-        private volatile bool _isDirty = true;
+        private int _dirtyFlag = 2; // 0: clean, 1: computing, 2: dirty
         private readonly Action<T> _setter;
         private readonly Dependency _dependency = new Dependency();
         private readonly Effect _effect;
@@ -26,14 +27,19 @@ namespace EffectSharp
         {
             _value = AtomicFactory<T>.Create();
             _setter = setter;
-            _effect = new Effect(() =>
+            _effect = new Effect(() => Validate(getter), (_) => Invalidate(), true);
+        }
+
+        private void Validate(Func<T> getter)
+        {
+            if (Interlocked.CompareExchange(ref _dirtyFlag, 1, 2) != 2)
             {
-                if (!_isDirty) return;
+                return;
+            }
 
-                _value.Value = getter();
+            _value.Value = getter();
 
-                _isDirty = false;
-            }, (_) => Invalidate(), true);
+            Interlocked.CompareExchange(ref _dirtyFlag, 0, 1);
         }
 
         public T Value
@@ -42,11 +48,11 @@ namespace EffectSharp
             {
                 _dependency.Track();
 
-                if (_isDirty)
+                if (Volatile.Read(ref _dirtyFlag) != 0)
                 {
                     lock (_effect)
                     {
-                        if (_isDirty)
+                        if (Volatile.Read(ref _dirtyFlag) != 0)
                         {
                             _effect.Execute();
                         }
@@ -65,7 +71,7 @@ namespace EffectSharp
 
         public void Invalidate()
         {
-            _isDirty = true;
+            Interlocked.Exchange(ref _dirtyFlag, 2);
             PropertyChanging?.Invoke(this, new PropertyChangingEventArgs(nameof(Value)));
             _dependency.Trigger();
             if (PropertyChanged != null)
