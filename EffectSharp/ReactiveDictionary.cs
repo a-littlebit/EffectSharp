@@ -15,13 +15,32 @@ namespace EffectSharp
     public class ReactiveDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IReactive
     {
         // inner storage for actual data and key-specific dependencies
-        private readonly Dictionary<TKey, (TValue, Dependency)> _innerDictionary =
-            new Dictionary<TKey, (TValue, Dependency)>();
+        private readonly Dictionary<TKey, (TValue, Dependency)> _innerDictionary;
 
         // dependency to track changes to the entire set of keys
         private readonly Dependency _keySetDependency = new Dependency();
 
         public const string KeySetPropertyName = "KeySet[]";
+
+        public ReactiveDictionary()
+        {
+            _innerDictionary = new Dictionary<TKey, (TValue, Dependency)>();
+        }
+
+        public ReactiveDictionary(IEqualityComparer<TKey> comparer)
+        {
+            _innerDictionary = new Dictionary<TKey, (TValue, Dependency)>(comparer);
+        }
+
+        public ReactiveDictionary(int capacity)
+        {
+            _innerDictionary = new Dictionary<TKey, (TValue, Dependency)>(capacity);
+        }
+
+        public ReactiveDictionary(int capacity, IEqualityComparer<TKey> comparer)
+        {
+            _innerDictionary = new Dictionary<TKey, (TValue, Dependency)>(capacity, comparer);
+        }
 
         public void TrackDeep()
         {
