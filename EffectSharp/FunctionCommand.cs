@@ -53,6 +53,7 @@ namespace EffectSharp
         {
             _canExecute = canExecute ?? ((param, dep) => true);
             _allowConcurrentExecution = allowConcurrentExecution;
+            ExecutionFailed += FunctionCommand.TraceExecutionFailure;
 
             if (dependencySelector != null)
             {
@@ -614,6 +615,11 @@ namespace EffectSharp
                 () => true,
                 allowConcurrentExecution,
                 executionScheduler);
+        }
+
+        public static void TraceExecutionFailure<TParam>(object sender, FunctionCommandExecutionFailedEventArgs<TParam> eventArgs)
+        {
+            System.Diagnostics.Trace.TraceError($"FunctionCommand {sender.GetHashCode()} execution failed. Parameter: {eventArgs.Parameter}, Exception: {eventArgs.Exception}");
         }
     }
 }
