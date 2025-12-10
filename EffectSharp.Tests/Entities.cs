@@ -6,22 +6,22 @@ using System.Threading.Tasks;
 
 namespace EffectSharp.Tests
 {
-    public interface Product
+    public interface IProduct
     {
         public string Name { get; set; }
         public int Price { get; set; }
     }
 
-    public interface Order
+    public interface IOrder
     {
         [ReactiveProperty(deep: true)]
-        public Product Product { get; set; }
+        public IProduct Product { get; set; }
 
         [ReactiveProperty(defaultValue: 1)]
         public int Quantity { get; set; }
     }
 
-    public class ProductEntity : Product
+    public class Product : IProduct
     {
         public string Name { get; set; } = string.Empty;
         public int Price { get; set; }

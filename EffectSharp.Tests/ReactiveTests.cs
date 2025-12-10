@@ -7,7 +7,7 @@ namespace EffectSharp.Tests
         [Fact]
         public async Task Reactive_WhenSetProperty_NotifyPropertyChange()
         {
-            var product = Reactive.Create<Product>(new ProductEntity()
+            var product = Reactive.Create<IProduct>(new Product()
             {
                 Name = "Initial",
                 Price = 500
@@ -30,7 +30,7 @@ namespace EffectSharp.Tests
         [Fact]
         public async Task Reactive_WhenSetNestedProperty_NotifyPropertyChange()
         {
-            var order = Reactive.Create<Order>();
+            var order = Reactive.Create<IOrder>();
             order.Quantity = 2;
             order.Product.Name = "Phone";
             order.Product.Price = 500;
@@ -52,7 +52,7 @@ namespace EffectSharp.Tests
         [Fact]
         public async Task Reactive_WhenSetProperty_TriggerSubcribers()
         {
-            var product = Reactive.Create<Product>();
+            var product = Reactive.Create<IProduct>();
             product.Name = "Laptop";
             product.Price = 1000;
 

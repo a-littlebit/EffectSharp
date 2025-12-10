@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Example.Wpf
 {
-    public interface TodoItem
+    public interface ITodoItem
     {
         [ReactiveProperty(reactive: false)]
         public Guid Id { get; set; }
@@ -24,13 +24,13 @@ namespace Example.Wpf
     public partial class MainWindowViewModel
     {
         public Ref<string> NewTodoTitle { get; } = Reactive.Ref(string.Empty);
-        public ReactiveCollection<TodoItem> TodoItems { get; } = new();
+        public ReactiveCollection<ITodoItem> TodoItems { get; } = new();
 
         public Ref<bool> ShowCompletedItems { get; } = Reactive.Ref(false);
         public Ref<bool> ShowPendingItems { get; } = Reactive.Ref(false);
         public Ref<bool> ShowAllItems { get; } = Reactive.Ref(true);
 
-        public ObservableCollection<TodoItem> FilteredTodoItems { get; } = new();
+        public ObservableCollection<ITodoItem> FilteredTodoItems { get; } = new();
 
         public MainWindowViewModel()
         {
@@ -55,7 +55,7 @@ namespace Example.Wpf
         {
             if (!string.IsNullOrWhiteSpace(NewTodoTitle.Value))
             {
-                var item = Reactive.Create<TodoItem>();
+                var item = Reactive.Create<ITodoItem>();
                 item.Id = Guid.NewGuid();
                 item.Title = NewTodoTitle.Value;
                 TodoItems.Add(item);

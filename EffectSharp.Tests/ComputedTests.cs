@@ -11,7 +11,7 @@ namespace EffectSharp.Tests
         [Fact]
         public async Task Computed_WhenDependentPropertyChanges_RecomputesValue()
         {
-            var product = Reactive.Create<Product>();
+            var product = Reactive.Create<IProduct>();
             product.Name = "Tablet";
             product.Price = 300;
 
@@ -31,7 +31,7 @@ namespace EffectSharp.Tests
         [Fact]
         public void Computed_WhenDependentComputedChanges_RecomputesValue()
         {
-            var product = Reactive.Create<Product>();
+            var product = Reactive.Create<IProduct>();
             product.Name = "Headphones";
             product.Price = 150;
 
@@ -45,7 +45,7 @@ namespace EffectSharp.Tests
         [Fact]
         public void Computed_WhenAccessedMultipleTimes_UsesCache()
         {
-            var product = Reactive.Create<Product>();
+            var product = Reactive.Create<IProduct>();
             product.Name = "Monitor";
             product.Price = 200;
 

@@ -122,7 +122,7 @@ namespace EffectSharp.Tests
         public async Task Watch_WhenDeepOption_TracksNestedChanges()
         {
             // Arrange
-            var order = Reactive.Create<Order>();
+            var order = Reactive.Create<IOrder>();
             order.Product.Name = "Widget";
             order.Product.Price = 100;
             order.Quantity = 1;
@@ -133,7 +133,7 @@ namespace EffectSharp.Tests
             {
                 _ = order.Product.Price;
                 effectRunCount++;
-            }, new WatchOptions<Order> { Deep = true });
+            }, new WatchOptions<IOrder> { Deep = true });
             // Change a nested property
             order.Product.Price = 150;
             // Assert
