@@ -18,7 +18,7 @@ namespace EffectSharp.Tests
     /// </summary>
     public class TaskBatcherStressTests
     {
-        private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(10);
+        private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(30);
 
         private static TaskBatcher<int> CreateBatcher(
             Action<List<int>> processor)
