@@ -354,7 +354,7 @@ namespace EffectSharp
         /// <param name="initialValue">Initial double value</param>
         public AtomicDouble(double initialValue)
         {
-            _value = BitConverter.DoubleToInt64Bits(initialValue);
+            _value = initialValue;
         }
 
         /// <summary>
