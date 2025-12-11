@@ -11,6 +11,9 @@ namespace EffectSharp
     /// </summary>
     public interface IReactive
     {
+        /// <summary>
+        /// Tracks dependencies for the current reactive value and recursively tracks nested reactive members.
+        /// </summary>
         void TrackDeep();
     }
 }

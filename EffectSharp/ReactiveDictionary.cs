@@ -22,26 +22,41 @@ namespace EffectSharp
 
         public const string KeySetPropertyName = "KeySet[]";
 
+        /// <summary>
+        /// Initializes an empty reactive dictionary.
+        /// </summary>
         public ReactiveDictionary()
         {
             _innerDictionary = new Dictionary<TKey, (TValue, Dependency)>();
         }
 
+        /// <summary>
+        /// Initializes a reactive dictionary with a custom key comparer.
+        /// </summary>
         public ReactiveDictionary(IEqualityComparer<TKey> comparer)
         {
             _innerDictionary = new Dictionary<TKey, (TValue, Dependency)>(comparer);
         }
 
+        /// <summary>
+        /// Initializes a reactive dictionary with an initial capacity.
+        /// </summary>
         public ReactiveDictionary(int capacity)
         {
             _innerDictionary = new Dictionary<TKey, (TValue, Dependency)>(capacity);
         }
 
+        /// <summary>
+        /// Initializes a reactive dictionary with an initial capacity and custom key comparer.
+        /// </summary>
         public ReactiveDictionary(int capacity, IEqualityComparer<TKey> comparer)
         {
             _innerDictionary = new Dictionary<TKey, (TValue, Dependency)>(capacity, comparer);
         }
 
+        /// <summary>
+        /// Recursively tracks nested reactive values and key dependencies.
+        /// </summary>
         public void TrackDeep()
         {
             _keySetDependency.Track();
@@ -57,14 +72,29 @@ namespace EffectSharp
         }
 
         // readonly wrapper to intercept access
+        /// <summary>
+        /// Gets a reactive view of the dictionary keys.
+        /// </summary>
         public ICollection<TKey> Keys => new KeyCollection(this);
 
+        /// <summary>
+        /// Gets a reactive view of the dictionary values.
+        /// </summary>
         public ICollection<TValue> Values => new ValueCollection(this);
 
+        /// <summary>
+        /// Gets the number of elements contained in the dictionary.
+        /// </summary>
         public int Count => _innerDictionary.Count;
 
+        /// <summary>
+        /// Indicates whether the dictionary is read-only.
+        /// </summary>
         public bool IsReadOnly => false;
 
+        /// <summary>
+        /// Gets or sets the value associated with the specified key, tracking key and value dependencies.
+        /// </summary>
         public TValue this[TKey key]
         {
             get
@@ -104,6 +134,9 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Adds the specified key and value to the dictionary.
+        /// </summary>
         public void Add(TKey key, TValue value)
         {
             if (key == null)
@@ -116,6 +149,9 @@ namespace EffectSharp
             _keySetDependency.Trigger();
         }
 
+        /// <summary>
+        /// Determines whether the dictionary contains the specified key, tracking dependencies appropriately.
+        /// </summary>
         public bool ContainsKey(TKey key)
         {
             if (_innerDictionary.TryGetValue(key, out var data))
@@ -132,6 +168,9 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Removes the value with the specified key from the dictionary.
+        /// </summary>
         public bool Remove(TKey key)
         {
             if (key == null)
@@ -154,6 +193,9 @@ namespace EffectSharp
             return false;
         }
 
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
         public bool TryGetValue(TKey key, out TValue value)
         {
             if (_innerDictionary.TryGetValue(key, out var data))
@@ -174,6 +216,9 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Removes all keys and values from the dictionary.
+        /// </summary>
         public void Clear()
         {
             if (_innerDictionary.Count == 0)
@@ -232,6 +277,9 @@ namespace EffectSharp
             return Remove(item.Key);
         }
 
+        /// <summary>
+        /// Returns an enumerator that iterates through the dictionary, tracking key and keyset dependencies.
+        /// </summary>
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
             // when enumerating, track KeySet

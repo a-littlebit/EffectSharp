@@ -11,8 +11,8 @@ using System.Threading.Tasks;
 namespace EffectSharp
 {
     /// <summary>
-    /// Provides static methods and properties for batching, scheduling, and triggering effect and notification tasks
-    /// within the application.
+    /// Global task manager coordinating batched processing of reactive effects and property change notifications.
+    /// Provides static methods and properties for batching, scheduling, and triggering tasks.
     /// </summary>
     public static class TaskManager
     {
@@ -25,17 +25,20 @@ namespace EffectSharp
 
         private static volatile bool _flushNotificationAfterEffectBatch = true;
 
+        /// <summary>
+        /// Gets the batcher responsible for processing queued <see cref="Effect"/> triggers.
+        /// </summary>
         public static TaskBatcher<Effect> EffectBatcher => _effectBatcher;
+        /// <summary>
+        /// Gets the batcher responsible for processing queued property change notifications.
+        /// </summary>
         public static TaskBatcher<NotificationTask> NotificationBatcher => _notificationBatcher;
 
         /// <summary>
         /// Attempts to initialize the <see cref="TaskBatcher{Effect}"/> using the specified supplier function
         /// if it has not already been created.
         /// </summary>
-        /// <param name="supplier">
-        /// A function that supplies a new instance of a <see cref="TaskBatcher{Effect}"/>. This function is invoked only
-        /// if the effect batcher has not yet been initialized.
-        /// </param>
+        /// <param name="supplier">Supplier invoked to create the batcher if not yet initialized.</param>
         /// <returns>true if the effect batcher was successfully created; otherwise, false.</returns>
         public static bool TryCreateEffectBatcher(Func<TaskBatcher<Effect>> supplier)
         {
@@ -73,10 +76,7 @@ namespace EffectSharp
         /// Attempts to initialize the <see cref="TaskBatcher{NotificationTask}"/> using the specified supplier function
         /// if it has not already been created.
         /// </summary>
-        /// <param name="supplier">
-        /// A function that supplies a new instance of a <see cref="TaskBatcher{NotificationTask}"/>. This function is invoked only
-        /// if the notification batcher has not yet been initialized.
-        /// </param>
+        /// <param name="supplier">Supplier invoked to create the batcher if not yet initialized.</param>
         /// <returns>true if the notification batcher was successfully created; otherwise, false.</returns>
         public static bool TryCreateNotificationBatcher(Func<TaskBatcher<NotificationTask>> supplier)
         {
@@ -98,10 +98,7 @@ namespace EffectSharp
         /// Gets the <see cref="TaskBatcher{NotificationTask}"/> instance for processing notification tasks,
         /// creating a default one if it does not already exist.
         /// </summary>
-        /// <returns>
-        /// The singleton <see cref="TaskBatcher{NotificationTask}"/> instance
-        /// used for batching and processing notification tasks.
-        /// </returns>
+        /// <returns>The singleton <see cref="TaskBatcher{NotificationTask}"/> used for batching notifications.</returns>
         public static TaskBatcher<NotificationTask> GetOrCreateDefaultNotificationBatcher()
         {
             TryCreateNotificationBatcher(() =>
@@ -151,6 +148,9 @@ namespace EffectSharp
             remove => GetOrCreateDefaultEffectBatcher().BatchProcessingFailed -= value;
         }
 
+        /// <summary>
+        /// Default tracer for effect batch processing failures.
+        /// </summary>
         public static void TraceEffectFailure(object sender, BatchProcessingFailedEventArgs<Effect> e)
         {
             System.Diagnostics.Trace.TraceError($"Effect batch processing failed: {e.Exception}");
@@ -193,6 +193,9 @@ namespace EffectSharp
             remove => GetOrCreateDefaultNotificationBatcher().BatchProcessingFailed -= value;
         }
 
+        /// <summary>
+        /// Default tracer for notification batch processing failures.
+        /// </summary>
         public static void TraceNotificationFailure(object sender, BatchProcessingFailedEventArgs<NotificationTask> e)
         {
             System.Diagnostics.Trace.TraceError($"Notification batch processing failed: {e.Exception}");
@@ -213,11 +216,17 @@ namespace EffectSharp
             set => _flushNotificationAfterEffectBatch = value;
         }
 
+        /// <summary>
+        /// Enqueues an effect for batched execution.
+        /// </summary>
         public static void EnqueueEffectTrigger(Effect effect)
         {
             GetOrCreateDefaultEffectBatcher().Enqueue(effect);
         }
 
+        /// <summary>
+        /// Asynchronously flushes the effect queue.
+        /// </summary>
         public static async Task FlushEffectQueue()
         {
             var effectBatcher = _effectBatcher;
@@ -225,12 +234,18 @@ namespace EffectSharp
                 await effectBatcher.FlushAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Returns a task that completes when all currently enqueued effects are processed.
+        /// </summary>
         public static Task NextEffectTick()
         {
             var effectBatcher = _effectBatcher;
             return effectBatcher != null ? effectBatcher.NextTick() : Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Default processor that executes each effect immediately on the current thread.
+        /// </summary>
         public static async Task DefaultEffectBatchProcessor(List<Effect> effects)
         {
             var uniqueEffects = new HashSet<Effect>(effects);
@@ -249,6 +264,9 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Enqueues a property change notification task.
+        /// </summary>
         public static void EnqueueNotification(object model, string propertyName, Action<PropertyChangedEventArgs> notifier)
         {
             var task = new NotificationTask
@@ -260,6 +278,9 @@ namespace EffectSharp
             GetOrCreateDefaultNotificationBatcher().Enqueue(task);
         }
 
+        /// <summary>
+        /// Asynchronously flushes the notification queue.
+        /// </summary>
         public static async Task FlushNotificationQueue()
         {
             var notificationBatcher = _notificationBatcher;
@@ -267,12 +288,18 @@ namespace EffectSharp
                 await notificationBatcher.FlushAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Returns a task that completes when all currently enqueued notifications are processed.
+        /// </summary>
         public static Task NextNotificationTick()
         {
             var notificationBatcher = _notificationBatcher;
             return notificationBatcher != null ? notificationBatcher.NextTick() : Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Default processor that invokes each notification action.
+        /// </summary>
         public static void DefaultNotificationBatchProcessor(List<NotificationTask> tasks)
         {
             var grouped = tasks.GroupBy(t => (t.Model, t.PropertyName));
@@ -284,10 +311,22 @@ namespace EffectSharp
         }
     }
 
+    /// <summary>
+    /// Represents a property change notification task.
+    /// </summary>
     public class NotificationTask
     {
+        /// <summary>
+        /// The object whose property changed.
+        /// </summary>
         public object Model { get; set; }
+        /// <summary>
+        /// The name of the property that changed.
+        /// </summary>
         public string PropertyName { get; set; }
+        /// <summary>
+        /// The action to invoke with the <see cref="PropertyChangedEventArgs"/>.
+        /// </summary>
         public Action<PropertyChangedEventArgs> Notifier { get; set; }
     }
 }

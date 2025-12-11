@@ -5,17 +5,39 @@ using System.Windows.Input;
 
 namespace EffectSharp
 {
+    /// <summary>
+    /// Reactive command interface with execution tracking and failure notification.
+    /// </summary>
+    /// <typeparam name="TParam">Command parameter type.</typeparam>
     public interface IReactiveCommand<TParam> : ICommand
     {
+        /// <summary>
+        /// Read-only count of ongoing command executions.
+        /// </summary>
         IReadOnlyRef<int> ExecutingCount { get; }
+        /// <summary>
+        /// Raised when command execution throws an exception.
+        /// </summary>
         event EventHandler<FunctionCommandExecutionFailedEventArgs<TParam>> ExecutionFailed;
 
+        /// <summary>
+        /// Returns whether the command can execute with the given parameter.
+        /// </summary>
         bool CanExecute(TParam parameter);
+        /// <summary>
+        /// Raises <see cref="ICommand.CanExecuteChanged"/> to notify UI of executability changes.
+        /// </summary>
         void RaiseCanExecuteChanged();
     }
 
+    /// <summary>
+    /// Synchronous function command.
+    /// </summary>
     public interface IFunctionCommand<TParam, TResult> : IReactiveCommand<TParam>
     {
+        /// <summary>
+        /// Executes the command and returns the result.
+        /// </summary>
         TResult Execute(TParam parameter);
     }
 
@@ -23,8 +45,14 @@ namespace EffectSharp
     {
     }
 
+    /// <summary>
+    /// Asynchronous function command.
+    /// </summary>
     public interface IAsyncFunctionCommand<TParam, TResult> : IReactiveCommand<TParam>
     {
+        /// <summary>
+        /// Asynchronously executes the command and returns the result.
+        /// </summary>
         Task<TResult> Execute(TParam parameter, CancellationToken cancellationToken = default);
     }
 
@@ -32,6 +60,9 @@ namespace EffectSharp
     {
     }
 
+    /// <summary>
+    /// Base implementation for reactive commands with dependency-driven executability and execution tracking.
+    /// </summary>
     public abstract class FunctionCommandBase<TParam, TDependency, TResult> : IReactiveCommand<TParam>, ICommand, IDisposable
     {
         private readonly Func<TParam, TDependency, bool> _canExecute;
@@ -41,9 +72,18 @@ namespace EffectSharp
         private readonly Effect _effect;
         private AtomicIntRef _executingCount = new AtomicIntRef(0);
 
+        /// <summary>
+        /// Raised when command executability changes.
+        /// </summary>
         public event EventHandler CanExecuteChanged;
+        /// <summary>
+        /// Raised when execution fails with an exception.
+        /// </summary>
         public event EventHandler<FunctionCommandExecutionFailedEventArgs<TParam>> ExecutionFailed;
 
+        /// <summary>
+        /// Read-only count of ongoing executions.
+        /// </summary>
         public IReadOnlyRef<int> ExecutingCount => _executingCount;
 
         protected FunctionCommandBase(
@@ -70,6 +110,9 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Notifies listeners that the result of <see cref="CanExecute(TParam)"/> may have changed.
+        /// </summary>
         public virtual void RaiseCanExecuteChanged()
         {
             if (CanExecuteChanged != null)
@@ -81,6 +124,9 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Invokes the <see cref="ExecutionFailed"/> event.
+        /// </summary>
         protected virtual void OnExecutionFailed(FunctionCommandExecutionFailedEventArgs<TParam> args)
         {
             ExecutionFailed?.Invoke(this, args);
@@ -93,6 +139,9 @@ namespace EffectSharp
             return CanExecute((TParam)parameter);
         }
 
+        /// <summary>
+        /// Returns whether the command can execute given the parameter and current dependency value.
+        /// </summary>
         public bool CanExecute(TParam parameter)
         {
             if (!_allowConcurrentExecution && _executingCount.Value != 0)
@@ -101,6 +150,9 @@ namespace EffectSharp
             return _canExecute(parameter, dependencyValue);
         }
 
+        /// <summary>
+        /// Begins execution: validates executability and updates execution counters.
+        /// </summary>
         protected TDependency BeginExecution(TParam parameter)
         {
             var dependencyValue = _dependencyGetter();
@@ -123,6 +175,9 @@ namespace EffectSharp
             return dependencyValue;
         }
 
+        /// <summary>
+        /// Ends execution: updates execution counters and notifies executability changes.
+        /// </summary>
         protected void EndExecution(TParam parameter)
         {
             if (_allowConcurrentExecution)
@@ -136,14 +191,23 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Non-generic ICommand entry point.
+        /// </summary>
         public abstract void Execute(object parameter);
 
+        /// <summary>
+        /// Disposes internal reactive resources.
+        /// </summary>
         public void Dispose()
         {
             _effect?.Dispose();
         }
     }
 
+    /// <summary>
+    /// Synchronous reactive function command.
+    /// </summary>
     public class FunctionCommand<TParam, TDependency, TResult> : FunctionCommandBase<TParam, TDependency, TResult>, IFunctionCommand<TParam, TResult>
     {
         private readonly Func<TParam, TDependency, TResult> _execute;
@@ -175,6 +239,9 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Executes the command and returns the result.
+        /// </summary>
         public TResult Execute(TParam parameter)
         {
             var dependencyValue = BeginExecution(parameter);
@@ -193,11 +260,17 @@ namespace EffectSharp
         }
     }
 
+    /// <summary>
+    /// Asynchronous reactive function command.
+    /// </summary>
     public class AsyncFunctionCommand<TParam, TDependency, TResult> : FunctionCommandBase<TParam, TDependency, TResult>, IAsyncFunctionCommand<TParam, TResult>
     {
         private readonly Func<TParam, TDependency, CancellationToken, Task<TResult>> _executeAsync;
         private readonly TaskScheduler _executionScheduler;
 
+        /// <summary>
+        /// Optional task scheduler used to run the asynchronous execution.
+        /// </summary>
         public TaskScheduler ExecutionScheduler => _executionScheduler;
 
         public AsyncFunctionCommand(
@@ -228,6 +301,9 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Asynchronously executes the command and returns the result.
+        /// </summary>
         public async Task<TResult> Execute(TParam parameter, CancellationToken cancellationToken = default)
         {
             var dependencyValue = BeginExecution(parameter);
@@ -257,6 +333,9 @@ namespace EffectSharp
         }
     }
 
+    /// <summary>
+    /// Synchronous reactive function command with boolean dependency.
+    /// </summary>
     public class FunctionCommand<TParam> : FunctionCommand<TParam, bool, bool>, IFunctionCommand<TParam>
     {
         public FunctionCommand(
@@ -273,6 +352,9 @@ namespace EffectSharp
         }
     }
 
+    /// <summary>
+    /// Asynchronous reactive function command with boolean dependency.
+    /// </summary>
     public class AsyncFunctionCommand<TParam> : AsyncFunctionCommand<TParam, bool, bool>, IAsyncFunctionCommand<TParam>
     {
         public AsyncFunctionCommand(
@@ -291,9 +373,18 @@ namespace EffectSharp
         }
     }
 
+    /// <summary>
+    /// Event args carrying execution failure details for a command.
+    /// </summary>
     public class FunctionCommandExecutionFailedEventArgs<TParam> : EventArgs
     {
+        /// <summary>
+        /// The exception thrown during execution.
+        /// </summary>
         public Exception Exception { get; }
+        /// <summary>
+        /// The parameter used for the failed execution.
+        /// </summary>
         public TParam Parameter { get; }
         public FunctionCommandExecutionFailedEventArgs(Exception exception, TParam parameter)
         {
@@ -302,6 +393,9 @@ namespace EffectSharp
         }
     }
 
+    /// <summary>
+    /// Exception thrown when a command is invoked while not executable.
+    /// </summary>
     public class FunctionCommandNotExecutableException : Exception
     {
         public FunctionCommandNotExecutableException()

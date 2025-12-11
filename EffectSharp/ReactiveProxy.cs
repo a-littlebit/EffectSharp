@@ -6,6 +6,11 @@ using System.Threading;
 
 namespace EffectSharp
 {
+    /// <summary>
+    /// Dynamic reactive proxy for interfaces and classes, providing property tracking,
+    /// change notifications, deep tracking support, and optional delegation to a target instance.
+    /// </summary>
+    /// <typeparam name="T">The proxied type.</typeparam>
     public class ReactiveProxy<T> : DispatchProxy, IReactive, INotifyPropertyChanging, INotifyPropertyChanged
         where T : class
     {
@@ -42,15 +47,28 @@ namespace EffectSharp
 
         private static readonly ThreadLocal<bool> _isInitializing = new ThreadLocal<bool>();
 
+        /// <summary>
+        /// Raised before a reactive property value changes.
+        /// </summary>
         public event PropertyChangingEventHandler PropertyChanging;
+        /// <summary>
+        /// Raised after a reactive property value has changed.
+        /// </summary>
         public event PropertyChangedEventHandler PropertyChanged;
 
+        /// <summary>
+        /// The underlying target instance if initialized via <see cref="InitializeForTarget(T)"/>; otherwise null.
+        /// </summary>
         public T Target => _target;
 
         public ReactiveProxy()
         {
         }
 
+        /// <summary>
+        /// Initializes the proxy to store values internally without a backing target.
+        /// Deep properties marked with <see cref="ReactivePropertyAttribute.Deep"/> will be created as reactive proxies.
+        /// </summary>
         public void InitializeForValues()
         {
             if (_isInitializing.Value)
@@ -89,6 +107,12 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Initializes the proxy to delegate property accessors to the specified target instance.
+        /// Properties participate in dependency tracking by default unless explicitly marked with
+        /// <see cref="ReactivePropertyAttribute.Reactive"/> = <c>false</c> on the interface property.
+        /// </summary>
+        /// <param name="target">The target instance to proxy.</param>
         public void InitializeForTarget(T target)
         {
             var deps = new Dependency[_propertyCache.Length];
@@ -114,6 +138,9 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Tracks all reactive dependencies for each property and recursively tracks nested reactive values.
+        /// </summary>
         public void TrackDeep()
         {
             ThrowIfNotInitialized();
@@ -132,6 +159,12 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Gets the value of the specified property, participating in dependency tracking if reactive.
+        /// </summary>
+        /// <param name="propertyName">The property name.</param>
+        /// <param name="targetMethod">Optional target method used when delegating to target for non-tracked access.</param>
+        /// <returns>The property value.</returns>
         public object GetPropertyValue(string propertyName, MethodInfo targetMethod = null)
         {
             ThrowIfNotInitialized();
@@ -154,6 +187,12 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Sets the value of the specified property and triggers dependency notifications if reactive.
+        /// </summary>
+        /// <param name="propertyName">The property name.</param>
+        /// <param name="value">The value to set.</param>
+        /// <param name="targetMethod">Optional target method used when delegating to target for non-tracked access.</param>
         public void SetPropertyValue(string propertyName, object value, MethodInfo targetMethod = null)
         {
             ThrowIfNotInitialized();
@@ -188,6 +227,13 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Intercepts method calls and routes property getters/setters to reactive handlers,
+        /// or delegates to the target instance for regular methods.
+        /// </summary>
+        /// <param name="targetMethod">Method invoked on the proxy.</param>
+        /// <param name="args">Arguments for the method.</param>
+        /// <returns>Return value from the invocation.</returns>
         protected override object Invoke(MethodInfo targetMethod, object[] args)
         {
             if (!targetMethod.IsSpecialName)

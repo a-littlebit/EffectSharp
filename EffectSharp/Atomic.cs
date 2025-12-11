@@ -81,16 +81,25 @@ namespace EffectSharp
             return Interlocked.Exchange(ref _value, newValue);
         }
 
+        /// <summary>
+        /// Atomically increments the value and returns the new value.
+        /// </summary>
         public int Increment()
         {
             return Interlocked.Increment(ref _value);
         }
 
+        /// <summary>
+        /// Atomically decrements the value and returns the new value.
+        /// </summary>
         public int Decrement()
         {
             return Interlocked.Decrement(ref _value);
         }
 
+        /// <summary>
+        /// Atomically adds the specified delta and returns the new value.
+        /// </summary>
         public int Add(int value)
         {
             return Interlocked.Add(ref _value, value);
@@ -157,16 +166,25 @@ namespace EffectSharp
             return Interlocked.Exchange(ref _value, newValue);
         }
 
+        /// <summary>
+        /// Atomically increments the value and returns the new value.
+        /// </summary>
         public long Increment()
         {
             return Interlocked.Increment(ref _value);
         }
 
+        /// <summary>
+        /// Atomically decrements the value and returns the new value.
+        /// </summary>
         public long Decrement()
         {
             return Interlocked.Decrement(ref _value);
         }
 
+        /// <summary>
+        /// Atomically adds the specified delta and returns the new value.
+        /// </summary>
         public long Add(long value)
         {
             return Interlocked.Add(ref _value, value);
@@ -249,7 +267,7 @@ namespace EffectSharp
     }
 
     /// <summary>
-    /// Atomic implementation for float type (no boxing, based on int bit conversion)
+    /// Atomic implementation for float type (no boxing).
     /// </summary>
     public class AtomicFloat : IAtomic<float>
     {
@@ -319,7 +337,7 @@ namespace EffectSharp
     }
 
     /// <summary>
-    /// Atomic implementation for double type (no boxing, based on long bit conversion)
+    /// Atomic implementation for double type (no boxing).
     /// </summary>
     public class AtomicDouble : IAtomic<double>
     {
@@ -866,6 +884,9 @@ namespace EffectSharp
             return Interlocked.CompareExchange(ref _value, newValue, compareValue) == (object)compareValue;
         }
 
+        /// <summary>
+        /// Atomically exchange the current value with a new value.
+        /// </summary>
         public T Exchange(T newValue)
         {
             return (T)Interlocked.Exchange(ref _value, newValue);
@@ -941,10 +962,10 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Create <see cref="IAtomic{T}" /> instance with specified initial value
+        /// Create <see cref="IAtomic{T}"/> instance with specified initial value.
         /// </summary>
         /// <param name="initialValue">Initial value (default: default(T))</param>
-        /// <returns>Optimal Create <see cref="IAtomic{T}" /> implementation</returns>
+        /// <returns>Optimal <see cref="IAtomic{T}"/> implementation for <typeparamref name="T"/>.</returns>
         public static IAtomic<T> Create(T initialValue = default)
         {
             return _creator(initialValue);

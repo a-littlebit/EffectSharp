@@ -13,15 +13,28 @@ namespace EffectSharp
     /// A reactive reference that holds a value of type T and notifies subscribers on changes.
     /// </summary>
     /// <typeparam name="T">The type of the value held by the reference. </typeparam>
+    /// <summary>
+    /// A reactive reference that holds a value of type T and notifies subscribers on changes.
+    /// </summary>
+    /// <typeparam name="T">The type of the value held by the reference. </typeparam>
     public class Ref<T> : IRef<T>, IReadOnlyRef<T>, IReactive, INotifyPropertyChanging, INotifyPropertyChanged
     {
+        /// <summary>
+        /// Raised before the value changes.
+        /// </summary>
         public event PropertyChangingEventHandler PropertyChanging;
+        /// <summary>
+        /// Raised after the value has changed.
+        /// </summary>
         public event PropertyChangedEventHandler PropertyChanged;
 
         private readonly Dependency _dependency = new Dependency();
         protected readonly IAtomic<T> _value;
         private readonly IEqualityComparer<T> _equalityComparer;
 
+        /// <summary>
+        /// Initializes a new reactive reference with an optional initial value and equality comparer.
+        /// </summary>
         public Ref(T initialValue = default, IEqualityComparer<T> equalityComparer = null)
         {
             _value = AtomicFactory<T>.Create(initialValue);
@@ -50,6 +63,9 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Gets or sets the current value, participating in dependency tracking.
+        /// </summary>
         public T Value
         {
             get
@@ -72,6 +88,9 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Atomically sets the value to <paramref name="newValue"/> if the current value equals <paramref name="compared"/>.
+        /// </summary>
         public bool CompareExchange(T newValue, T compared)
         {
             if (_value.CompareExchange(newValue, compared))
@@ -85,6 +104,9 @@ namespace EffectSharp
             return false;
         }
 
+        /// <summary>
+        /// Atomically swaps the value with <paramref name="newValue"/> and returns the old value.
+        /// </summary>
         public T Exchange(T newValue)
         {
             var oldValue = _value.Exchange(newValue);
@@ -95,6 +117,9 @@ namespace EffectSharp
             return oldValue;
         }
 
+        /// <summary>
+        /// Tracks the dependency and recursively tracks nested reactive values.
+        /// </summary>
         public void TrackDeep()
         {
             _dependency.Track();
@@ -106,10 +131,19 @@ namespace EffectSharp
         }
     }
 
+    /// <summary>
+    /// Reactive atomic integer reference with convenience operations.
+    /// </summary>
     public class AtomicIntRef : Ref<int>
     {
+        /// <summary>
+        /// Initializes a new atomic integer reference.
+        /// </summary>
         public AtomicIntRef(int initialValue = 0) : base(initialValue, EqualityComparer<int>.Default) { }
 
+        /// <summary>
+        /// Atomically increments the value and returns the new value.
+        /// </summary>
         public int Increment()
         {
             BeforeChange();
@@ -118,6 +152,9 @@ namespace EffectSharp
             return newValue;
         }
 
+        /// <summary>
+        /// Atomically decrements the value and returns the new value.
+        /// </summary>
         public int Decrement()
         {
             BeforeChange();
@@ -126,6 +163,9 @@ namespace EffectSharp
             return newValue;
         }
 
+        /// <summary>
+        /// Atomically adds <paramref name="delta"/> to the value and returns the new value.
+        /// </summary>
         public int Add(int delta)
         {
             BeforeChange();
@@ -135,9 +175,18 @@ namespace EffectSharp
         }
     }
 
+    /// <summary>
+    /// Reactive atomic long reference with convenience operations.
+    /// </summary>
     public class AtomicLongRef : Ref<long>
     {
+        /// <summary>
+        /// Initializes a new atomic long reference.
+        /// </summary>
         public AtomicLongRef(long initialValue = 0) : base(initialValue, EqualityComparer<long>.Default) { }
+        /// <summary>
+        /// Atomically increments the value and returns the new value.
+        /// </summary>
         public long Increment()
         {
             BeforeChange();
@@ -145,6 +194,9 @@ namespace EffectSharp
             AfterChange();
             return newValue;
         }
+        /// <summary>
+        /// Atomically decrements the value and returns the new value.
+        /// </summary>
         public long Decrement()
         {
             BeforeChange();
@@ -152,6 +204,9 @@ namespace EffectSharp
             AfterChange();
             return newValue;
         }
+        /// <summary>
+        /// Atomically adds <paramref name="delta"/> to the value and returns the new value.
+        /// </summary>
         public long Add(long delta)
         {
             BeforeChange();

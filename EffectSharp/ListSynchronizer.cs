@@ -5,6 +5,10 @@ using System.Linq;
 
 namespace EffectSharp
 {
+    /// <summary>
+    /// Helpers to synchronize an <see cref="ObservableCollection{T}"/> with a target list by keys,
+    /// supporting unique and duplicate keys, minimal moves, and order preservation.
+    /// </summary>
     public static class ListSynchronizer
     {
         /// <summary>
@@ -99,7 +103,7 @@ namespace EffectSharp
 
         #region Utilities for SyncUnique
         /// <summary>
-        /// Calculate lengths of common prefix and suffix and extend them by moving side elements
+        /// Calculates lengths of common prefix and suffix and extends them by moving side elements when possible.
         /// </summary>
         private static (int, int) ExtendCommonPrefixAndSuffix<T, K>(
             ObservableCollection<T> source,
@@ -153,7 +157,7 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Build a mapping from keys to their indices in the collection
+        /// Builds a mapping from unique keys to their indices in the collection.
         /// </summary>
         private static Dictionary<K, int> BuildKeyToIndexMap<T, K>(
             IList<T> collection,
@@ -176,11 +180,10 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Move disordered elements in source to match target
+        /// Moves disordered elements in source to match target with minimal moves using LIS.
         /// </summary>
         /// <remarks>
-        /// It works by sorting the sourceToTarget array using the minimum number of moves,
-        /// which is total elements minus length of longest increasing subsequence (LIS).
+        /// Sorts the mapping array with the minimum number of moves computed as n - LIS length.
         /// </remarks>
         private static void MoveDisorderedElements<T>(
             ObservableCollection<T> source,
@@ -257,9 +260,8 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Compute indices of one LIS (longest increasing subsequence) in the input array.
-        /// Returns the list of indices (relative to input) that form the LIS, in increasing order.
-        /// O(n log n).
+        /// Computes indices of a longest increasing subsequence (LIS) in the input array.
+        /// Returns indices forming the LIS in increasing order. Complexity: O(n log n).
         /// </summary>
         private static int[] ComputeLisIndices(int[] arr)
         {
@@ -308,7 +310,7 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Move an array item from one index to another
+        /// Moves an array item from one index to another.
         /// </summary>
         private static void MoveArrayItem<T>(T[] array, int fromIndex, int toIndex)
         {
@@ -327,7 +329,7 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Insert new elements from target into source
+        /// Inserts new elements from target into source between specified ranges.
         /// </summary>
         private static void InsertNewElements<T, K>(
             ObservableCollection<T> source,
@@ -456,7 +458,7 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Build a mapping from keys to queues of their indices in the collection
+        /// Builds a mapping from keys to queues of their indices in the collection (supports duplicates).
         /// </summary>
         private static Dictionary<K, Queue<int>> BuildKeyToIndexQueueMap<T, K>(
             IList<T> collection,

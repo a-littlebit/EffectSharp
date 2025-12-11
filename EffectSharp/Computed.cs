@@ -20,9 +20,20 @@ namespace EffectSharp
         private readonly Dependency _dependency = new Dependency();
         private readonly Effect _effect;
 
+        /// <summary>
+        /// Raised before the computed <see cref="Value"/> changes.
+        /// </summary>
         public event PropertyChangingEventHandler PropertyChanging;
+        /// <summary>
+        /// Raised after the computed <see cref="Value"/> has changed.
+        /// </summary>
         public event PropertyChangedEventHandler PropertyChanged;
 
+        /// <summary>
+        /// Creates a computed reactive value.
+        /// </summary>
+        /// <param name="getter">Function that computes the value based on tracked dependencies.</param>
+        /// <param name="setter">Optional setter to support assignment to <see cref="Value"/>.</param>
         public Computed(Func<T> getter, Action<T> setter = null)
         {
             _value = AtomicFactory<T>.Create();
@@ -41,6 +52,10 @@ namespace EffectSharp
             Interlocked.CompareExchange(ref _dirtyFlag, 0, 1);
         }
 
+        /// <summary>
+        /// Gets or sets the computed value. Getting participates in dependency tracking and recomputation when dirty.
+        /// Setting delegates to the provided setter if available; otherwise throws for read-only computed values.
+        /// </summary>
         public T Value
         {
             get
@@ -68,6 +83,9 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Marks the computed value as dirty and triggers notifications.
+        /// </summary>
         public void Invalidate()
         {
             Interlocked.Exchange(ref _dirtyFlag, 2);
@@ -82,11 +100,17 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Disposes the internal effect used for recomputation.
+        /// </summary>
         public void Dispose()
         {
             _effect.Dispose();
         }
 
+        /// <summary>
+        /// Tracks the dependency and recursively tracks nested reactive values.
+        /// </summary>
         public void TrackDeep()
         {
             _dependency.Track();

@@ -16,6 +16,13 @@ namespace EffectSharp
     {
         private static readonly MethodInfo _createMethod = typeof(Reactive).GetMethod(nameof(Create), Array.Empty<Type>());
 
+        /// <summary>
+        /// Creates a new reactive proxy instance of <typeparamref name="T"/> that stores values internally.
+        /// Properties are reactive by default unless annotated with <see cref="ReactivePropertyAttribute"/> specifying otherwise.
+        /// Interface-typed properties marked with <see cref="ReactivePropertyAttribute.Deep"/> are initialized as nested reactive proxies.
+        /// </summary>
+        /// <typeparam name="T">The interface or class type to proxy. Must be a reference type.</typeparam>
+        /// <returns>A reactive proxy implementing <typeparamref name="T"/>.</returns>
         public static T Create<T>() where T : class
         {
             var proxy = DispatchProxy.Create<T, ReactiveProxy<T>>();
@@ -23,6 +30,14 @@ namespace EffectSharp
             return proxy;
         }
 
+        /// <summary>
+        /// Creates a reactive proxy that delegates property access to the specified <paramref name="instance"/>.
+        /// Properties participate in dependency tracking by default unless marked with <see cref="ReactivePropertyAttribute.Reactive"/> = <c>false</c> on the interface.
+        /// </summary>
+        /// <typeparam name="T">The interface or class type to proxy. Must be a reference type.</typeparam>
+        /// <param name="instance">The target instance to delegate to.</param>
+        /// <returns>A reactive proxy wrapping the provided instance.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="instance"/> is null.</exception>
         public static T Create<T>(T instance) where T : class
         {
             if (instance == null) throw new ArgumentNullException(nameof(instance));
@@ -31,47 +46,110 @@ namespace EffectSharp
             return proxy;
         }
 
+        /// <summary>
+        /// Creates a new reactive proxy for the specified reference <paramref name="type"/> using reflection.
+        /// Equivalent to calling the generic <see cref="Create{T}()"/> with <paramref name="type"/> as <typeparamref name="T"/>.
+        /// </summary>
+        /// <param name="type">The reference type to proxy.</param>
+        /// <returns>A reactive proxy instance implementing the specified type.</returns>
         public static object Create(Type type)
         {
             var method = _createMethod.MakeGenericMethod(type);
             return method.Invoke(null, null);
         }
 
+        /// <summary>
+        /// Creates an empty <see cref="ReactiveCollection{T}"/>.
+        /// </summary>
+        /// <typeparam name="T">Element type.</typeparam>
+        /// <returns>A new reactive collection.</returns>
         public static ReactiveCollection<T> Collection<T>()
         {
             return new ReactiveCollection<T>();
         }
 
+        /// <summary>
+        /// Creates a <see cref="ReactiveCollection{T}"/> initialized with the items from <paramref name="collection"/>.
+        /// </summary>
+        /// <typeparam name="T">Element type.</typeparam>
+        /// <param name="collection">Source items used to populate the collection.</param>
+        /// <returns>A new reactive collection containing the provided items.</returns>
         public static ReactiveCollection<T> Collection<T>(IEnumerable<T> collection)
         {
             return new ReactiveCollection<T>(collection);
         }
 
+        /// <summary>
+        /// Creates a <see cref="ReactiveCollection{T}"/> initialized with the contents of <paramref name="list"/>.
+        /// </summary>
+        /// <typeparam name="T">Element type.</typeparam>
+        /// <param name="list">Source list used to populate the collection.</param>
+        /// <returns>A new reactive collection containing the list's items.</returns>
         public static ReactiveCollection<T> Collection<T>(List<T> list)
         {
             return new ReactiveCollection<T>(list);
         }
 
+        /// <summary>
+        /// Creates an empty <see cref="ReactiveDictionary{TKey, TValue}"/>.
+        /// </summary>
+        /// <typeparam name="TKey">Key type.</typeparam>
+        /// <typeparam name="TValue">Value type.</typeparam>
+        /// <returns>A new reactive dictionary.</returns>
         public static ReactiveDictionary<TKey, TValue> Dictionary<TKey, TValue>()
         {
             return new ReactiveDictionary<TKey, TValue>();
         }
 
+        /// <summary>
+        /// Creates a reactive reference with the specified initial value and optional equality comparer.
+        /// </summary>
+        /// <typeparam name="T">The referenced value type.</typeparam>
+        /// <param name="initialValue">Initial value stored in the reference.</param>
+        /// <param name="equalityComparer">Optional equality comparer used to suppress no-op updates.</param>
+        /// <returns>A new <see cref="Ref{T}"/>.</returns>
         public static Ref<T> Ref<T>(T initialValue = default, IEqualityComparer<T> equalityComparer = null)
         {
             return new Ref<T>(initialValue, equalityComparer);
         }
 
+        /// <summary>
+        /// Creates and returns a new <see cref="Effect"/> that executes the provided <paramref name="action"/>,
+        /// tracking dependencies and re-running when they change. Optionally schedules execution via <paramref name="scheduler"/>.
+        /// </summary>
+        /// <param name="action">The effect body to execute.</param>
+        /// <param name="scheduler">Optional scheduler invoked with the effect instance to control when it runs.</param>
+        /// <param name="lazy">If true, defers the first execution until explicitly scheduled.</param>
+        /// <returns>The created effect.</returns>
         public static Effect Effect(Action action, Action<Effect> scheduler = null, bool lazy = false)
         {
             return new Effect(action, scheduler, lazy);
         }
 
+        /// <summary>
+        /// Creates a <see cref="Computed{T}"/> value backed by the specified getter and optional setter.
+        /// </summary>
+        /// <typeparam name="T">Computed value type.</typeparam>
+        /// <param name="getter">Function that produces the value and participates in dependency tracking.</param>
+        /// <param name="setter">Optional setter invoked when the computed is assigned.</param>
+        /// <returns>A new computed value.</returns>
         public static Computed<T> Computed<T>(Func<T> getter, Action<T> setter = null)
         {
             return new Computed<T>(getter, setter);
         }
 
+        /// <summary>
+        /// Watches a value produced by <paramref name="getter"/> and invokes <paramref name="callback"/>
+        /// when it changes, with configurable behavior via <paramref name="options"/>.
+        /// When <see cref="WatchOptions{T}.Immediate"/> is true, the callback is invoked on the first run.
+        /// When <see cref="WatchOptions{T}.Deep"/> is true, any returned <see cref="IReactive"/> value (or reactive items in an enumerable)
+        /// is tracked deeply and equality suppression is disabled.
+        /// </summary>
+        /// <typeparam name="T">The watched value type.</typeparam>
+        /// <param name="getter">Function that returns the value to watch.</param>
+        /// <param name="callback">Callback receiving the new and previous values.</param>
+        /// <param name="options">Optional watch options controlling immediate, deep, equality, and scheduling behavior.</param>
+        /// <returns>An <see cref="Effect"/> representing the watch; dispose to stop watching.</returns>
         public static Effect Watch<T>(Func<T> getter, Action<T, T> callback, WatchOptions<T> options = null)
         {
             if (options == null) options = WatchOptions<T>.Default;
@@ -126,6 +204,16 @@ namespace EffectSharp
             }, options.Scheduler);
         }
 
+        /// <summary>
+        /// Watches the value of the reactive reference <paramref name="source"/> and invokes <paramref name="callback"/>
+        /// when it changes. See <see cref="Watch{T}(Func{T}, Action{T, T}, WatchOptions{T})"/> for behavior details.
+        /// </summary>
+        /// <typeparam name="T">The referenced value type.</typeparam>
+        /// <param name="source">The reactive reference to observe.</param>
+        /// <param name="callback">Callback receiving the new and previous values.</param>
+        /// <param name="options">Optional watch options.</param>
+        /// <returns>An <see cref="Effect"/> representing the watch.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> is null.</exception>
         public static Effect Watch<T>(IRef<T> source, Action<T, T> callback, WatchOptions<T> options = null)
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
@@ -230,15 +318,42 @@ namespace EffectSharp
         }
     }
 
+    /// <summary>
+    /// Callback signature for watch operations.
+    /// </summary>
+    /// <typeparam name="T">The watched value type.</typeparam>
+    /// <param name="newValue">The current value produced by the getter or source.</param>
+    /// <param name="oldValue">The previous value from the last callback.</param>
     public delegate void WatchCallback<T>(T newValue, T oldValue);
 
+    /// <summary>
+    /// Options that control the behavior of <see cref="Reactive.Watch{T}(Func{T}, Action{T, T}, WatchOptions{T})"/>.
+    /// </summary>
+    /// <typeparam name="T">The watched value type.</typeparam>
     public class WatchOptions<T>
     {
+        /// <summary>
+        /// When true, the callback is invoked during the first evaluation. Default is <c>false</c>.
+        /// </summary>
         public bool Immediate { get; set; } = false;
+        /// <summary>
+        /// When true, performs deep tracking: if the getter returns an <see cref="IReactive"/> value (or an enumerable of reactive items),
+        /// their nested dependencies are tracked, and the equality short-circuit is disabled. Default is <c>false</c>.
+        /// </summary>
         public bool Deep { get; set; } = false;
+        /// <summary>
+        /// Equality comparer used to suppress callbacks when the produced value has not changed. Default is <see cref="EqualityComparer{T}.Default"/>.
+        /// Ignored when <see cref="Deep"/> is true.
+        /// </summary>
         public IEqualityComparer<T> EqualityComparer { get; set; } = EqualityComparer<T>.Default;
+        /// <summary>
+        /// Optional scheduler for the underlying effect; if provided, it receives the created <see cref="Effect"/> instance.
+        /// </summary>
         public Action<Effect> Scheduler { get; set; } = null;
 
+        /// <summary>
+        /// A reusable default options instance.
+        /// </summary>
         public static readonly WatchOptions<T> Default = new WatchOptions<T>();
     }
 }

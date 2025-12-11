@@ -15,8 +15,17 @@ namespace EffectSharp
     /// <typeparam name="T">Type of the element. </typeparam>
     public class ReactiveCollection<T> : ObservableCollection<T>, IReactive, ICollection<T>, IEnumerable<T>, IEnumerable, IList<T>, IReadOnlyCollection<T>, IReadOnlyList<T>, ICollection, IList
     {
+        /// <summary>
+        /// Initializes an empty reactive collection.
+        /// </summary>
         public ReactiveCollection() : base() { }
+        /// <summary>
+        /// Initializes a reactive collection with the specified items.
+        /// </summary>
         public ReactiveCollection(IEnumerable<T> collection) : base(collection) { }
+        /// <summary>
+        /// Initializes a reactive collection with the specified list.
+        /// </summary>
         public ReactiveCollection(List<T> list) : base(list) { }
 
         private readonly List<Dependency> _indexDependencies = new List<Dependency>();
@@ -52,6 +61,9 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Gets or sets the item at the specified index, participating in index-level dependency tracking.
+        /// </summary>
         public new T this[int index]
         {
             get
@@ -67,6 +79,9 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Gets the number of elements in the collection and participates in dependency tracking.
+        /// </summary>
         public new int Count
         {
             get
@@ -76,6 +91,9 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Clears the collection and triggers all index dependencies and list dependency.
+        /// </summary>
         protected override void ClearItems()
         {
             base.ClearItems();
@@ -87,6 +105,9 @@ namespace EffectSharp
             _listDependency.Trigger();
         }
 
+        /// <summary>
+        /// Inserts an item and triggers affected index dependencies and list dependency.
+        /// </summary>
         protected override void InsertItem(int index, T item)
         {
             base.InsertItem(index, item);
@@ -99,6 +120,9 @@ namespace EffectSharp
             _listDependency.Trigger();
         }
 
+        /// <summary>
+        /// Moves an item and triggers affected index dependencies.
+        /// </summary>
         protected override void MoveItem(int oldIndex, int newIndex)
         {
             base.MoveItem(oldIndex, newIndex);
@@ -111,6 +135,9 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Removes an item and triggers affected index dependencies and list dependency.
+        /// </summary>
         protected override void RemoveItem(int index)
         {
             base.RemoveItem(index);
@@ -125,6 +152,9 @@ namespace EffectSharp
             _listDependency.Trigger();
         }
 
+        /// <summary>
+        /// Replaces an item and triggers the index dependency and list dependency.
+        /// </summary>
         protected override void SetItem(int index, T item)
         {
             base.SetItem(index, item);
@@ -132,6 +162,9 @@ namespace EffectSharp
             _listDependency.Trigger();
         }
 
+        /// <summary>
+        /// Determines whether the collection contains the specified item and tracks appropriate dependencies.
+        /// </summary>
         public new bool Contains(T item)
         {
             int index = base.IndexOf(item);
@@ -147,18 +180,27 @@ namespace EffectSharp
             }
         }
 
+        /// <summary>
+        /// Copies the elements to the specified array and tracks list dependency.
+        /// </summary>
         public new void CopyTo(T[] array, int index)
         {
             _listDependency.Track();
             base.CopyTo(array, index);
         }
 
+        /// <summary>
+        /// Returns an enumerator and tracks list dependency.
+        /// </summary>
         public new IEnumerator<T> GetEnumerator()
         {
             _listDependency.Track();
             return base.GetEnumerator();
 
         }
+        /// <summary>
+        /// Returns the index of the item and tracks affected index dependencies or list dependency if not found.
+        /// </summary>
         public new int IndexOf(T item)
         {
             int index = base.IndexOf(item);
@@ -176,6 +218,9 @@ namespace EffectSharp
             return index;
         }
 
+        /// <summary>
+        /// Recursively tracks nested reactive elements in the collection.
+        /// </summary>
         public void TrackDeep()
         {
             // _listDependency.Track(); // Tracked in foreach

@@ -33,6 +33,9 @@ namespace EffectSharp
         #endregion
 
         #region Events
+        /// <summary>
+        /// Raised when processing a batch fails with an exception.
+        /// </summary>
         public event EventHandler<BatchProcessingFailedEventArgs<T>> BatchProcessingFailed;
         #endregion
 

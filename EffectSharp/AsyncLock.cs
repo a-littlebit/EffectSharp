@@ -11,15 +11,18 @@ namespace EffectSharp
     {
         private readonly SemaphoreSlim _semaphore;
 
+        /// <summary>
+        /// Initializes a new instance of the asynchronous reentrant lock.
+        /// </summary>
         public AsyncLock()
         {
             _semaphore = new SemaphoreSlim(1, 1);
         }
 
         /// <summary>
-        /// Enter the lock.
-        /// If <paramref name="existingScope"/> is null -> acquire new lock and return a new Scope.
-        /// If <paramref name="existingScope"/> is non-null -> attempt to increment its refcount (reenter).
+        /// Asynchronously enters the lock or reenters an existing <see cref="Scope"/>.
+        /// If <paramref name="existingScope"/> is null, acquires and returns a new scope;
+        /// otherwise attempts a reentrant increment on the provided scope.
         /// </summary>
         public async Task<Scope> EnterAsync(
             Scope existingScope = null,
@@ -42,9 +45,8 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Synchronous enter.
-        /// If <paramref name="existingScope"/> is null, blocks until the lock is acquired.
-        /// If non-null, performs a reentrant increment.
+        /// Synchronously enters the lock or reenters an existing <see cref="Scope"/>.
+        /// If <paramref name="existingScope"/> is null, blocks until acquired; otherwise performs a reentrant increment.
         /// </summary>
         public Scope Enter(Scope existingScope = null)
         {
@@ -63,9 +65,8 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Attempts to synchronously enter the lock.  
-        /// If <paramref name="scope"/> is null, attempts a non-blocking acquisition.
-        /// If non-null, attempts a reentrant increment.
+        /// Attempts to synchronously enter the lock; returns whether acquisition or reentry succeeded.
+        /// If <paramref name="scope"/> is null, attempts non-blocking acquisition; otherwise attempts reentrant increment.
         /// </summary>
         /// <returns>true if lock/reentry succeeded; false if lock is taken by another thread.</returns>
         public bool TryEnter(ref Scope scope)
@@ -93,17 +94,8 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Attempts to synchronously acquire the lock without blocking.
-        /// This method does NOT support reentrancy and does not take an
-        /// existing Scope; it either acquires a brand-new ownership scope
-        /// or immediately returns <c>null</c>.
-        ///
-        /// Use this when you do not have (or do not want) an existing Scope,
-        /// and only want a quick "try-lock" check.
-        /// 
-        /// Returns:
-        ///   A new <see cref="Scope"/> instance if the lock was acquired;
-        ///   otherwise, <c>null</c>.
+        /// Attempts to synchronously acquire the lock without blocking, returning a new scope if successful.
+        /// This method does not support reentrancy and either returns a new ownership scope or null.
         /// </summary>
         public Scope TryEnter()
         {
@@ -141,7 +133,7 @@ namespace EffectSharp
             }
 
             /// <summary>
-            /// Returns true if scope currently holds the lock (refCount > 0).
+            /// Indicates whether the scope currently holds the lock (refCount &gt; 0).
             /// </summary>
             public bool IsHeld => Volatile.Read(ref _refCount) > 0;
 
@@ -172,7 +164,7 @@ namespace EffectSharp
             }
 
             /// <summary>
-            /// Dispose decrements the refcount. When it reaches zero, the lock is released.
+            /// Dispose decrements the refcount. When it reaches zero, releases the underlying lock.
             /// Multiple Dispose calls are safe (idempotent).
             /// </summary>
             public void Dispose()
