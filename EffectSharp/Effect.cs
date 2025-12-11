@@ -21,12 +21,12 @@ namespace EffectSharp
 
         private volatile bool _isDisposed = false;
 
-        private AsyncLock _lock = new AsyncLock();
+        private readonly AsyncLock _lock = new AsyncLock();
 
         public Action<Effect> Scheduler => _scheduler;
         public bool IsDisposed => _isDisposed;
 
-        private HashSet<Dependency> _dependencies = new HashSet<Dependency>();
+        private readonly HashSet<Dependency> _dependencies = new HashSet<Dependency>();
 
         public Effect(Action action, Action<Effect> scheduler = null, bool lazy = false)
         {
