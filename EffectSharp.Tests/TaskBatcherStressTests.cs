@@ -27,7 +27,8 @@ namespace EffectSharp.Tests
             return new TaskBatcher<int>(
                 processor,
                 int.MaxValue,
-                TaskScheduler.Default);
+                TaskScheduler.Default,
+                8);
         }
 
         /// <summary>

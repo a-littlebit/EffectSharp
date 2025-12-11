@@ -18,6 +18,7 @@ namespace EffectSharp
         private readonly Func<List<T>, Task> _batchProcessor; // Synchronous batch processing callback (must run sync)
         private int _intervalMs; // Execution interval in milliseconds (0 = merge tasks rapidly)
         private TaskScheduler _scheduler; // Task scheduler (supports dynamic switching with eventual consistency)
+        private readonly SemaphoreSlim _consumerSemaphore;
         private readonly ConcurrentQueue<(T Item, long Sequence)> _taskQueue = new ConcurrentQueue<(T Item, long Sequence)>(); // Task queue with sequence numbers for NextTick tracking
         private TaskCompletionSource<bool> _nextTickTcs
             = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously); // TCS for NextTick tracking
@@ -42,15 +43,17 @@ namespace EffectSharp
         /// <param name="batchProcessor">Asynchronous callback to process batches</param>
         /// <param name="intervalMs">Interval between batch executions (0 = no delay, merge tasks)</param>
         /// <param name="scheduler">Initial scheduler to execute batch processing tasks</param>
+        /// <param name="maxConsumers">Maximum number of concurrent batch processing tasks</param>
         /// <exception cref="ArgumentNullException">Thrown if any required parameter is null</exception>
         /// <exception cref="ArgumentOutOfRangeException">Thrown if interval is negative</exception>
-        public TaskBatcher(Func<List<T>, Task> batchProcessor, int intervalMs, TaskScheduler scheduler)
+        public TaskBatcher(Func<List<T>, Task> batchProcessor, int intervalMs, TaskScheduler scheduler, int maxConsumers = 1)
         {
             _batchProcessor = batchProcessor ?? throw new ArgumentNullException(nameof(batchProcessor));
             if (intervalMs < 0)
                 throw new ArgumentOutOfRangeException(nameof(intervalMs), "Execution interval cannot be negative");
             _intervalMs = intervalMs;
             _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
+            _consumerSemaphore = new SemaphoreSlim(maxConsumers, maxConsumers);
         }
 
         /// <summary>
@@ -59,12 +62,13 @@ namespace EffectSharp
         /// <param name="batchProcessor">Synchronous callback to process batches</param>
         /// <param name="intervalMs">Interval between batch executions (0 = no delay, merge tasks)</param>
         /// <param name="scheduler">Initial scheduler to execute batch processing tasks</param>
+        /// <param name="maxConsumers">Maximum number of concurrent batch processing tasks</param>
         /// <exception cref="ArgumentNullException">Thrown if any required parameter is null</exception>
-        public TaskBatcher(Action<List<T>> batchProcessor, int intervalMs, TaskScheduler scheduler)
+        public TaskBatcher(Action<List<T>> batchProcessor, int intervalMs, TaskScheduler scheduler, int maxConsumers = 1)
             : this(items => {
                 batchProcessor.Invoke(items);
                 return Task.CompletedTask;
-            }, intervalMs, scheduler)
+            }, intervalMs, scheduler, maxConsumers)
         {
             if (batchProcessor == null)
                 throw new ArgumentNullException(nameof(batchProcessor));
@@ -323,6 +327,9 @@ namespace EffectSharp
                 return;
             }
 
+            // Acquire semaphore to limit concurrent batch processing
+            await _consumerSemaphore.WaitAsync().ConfigureAwait(false);
+
             // Dequeue all tasks currently in the queue and ensure sequence continuity
             var batch = new List<T>(_taskQueue.Count);
             var dequeuedSeq = _dequeuedCounter;
@@ -362,6 +369,7 @@ namespace EffectSharp
             // Exit if no tasks to process (queue emptied between IsEmpty check and Dequeue)
             if (batch.Count == 0)
             {
+                _consumerSemaphore.Release();
                 return;
             }
 
@@ -388,6 +396,10 @@ namespace EffectSharp
 
         private async Task AfterBatchProcess(long beforeProcessSeq, long processedSeq, List<T> batch = null, Exception ex = null)
         {
+            // Release the semaphore to allow other batch processing tasks
+            _consumerSemaphore.Release();
+
+            // Ensure all prior batches are fully processed before updating the processed counter
             while (beforeProcessSeq != Volatile.Read(ref _processedCounter))
             {
                 try
@@ -399,6 +411,7 @@ namespace EffectSharp
                     // Ignore exceptions here; they may be handled in other NextTick calls
                 }
             }
+
             TaskCompletionSource<bool> oldNextTickTcs;
             var newNextTickTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             _nextTickLock.EnterWriteLock();
@@ -469,6 +482,9 @@ namespace EffectSharp
                     delayCts.Cancel();
                     delayCts.Dispose();
                 }
+
+                // Dispose the semaphore
+                _consumerSemaphore.Dispose();
             }
         }
 
