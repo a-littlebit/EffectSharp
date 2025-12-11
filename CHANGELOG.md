@@ -10,8 +10,9 @@ This project adheres to Keep a Changelog and uses Semantic Versioning (when vers
 - `AsyncLock`: a lightweight async-compatible lock for critical sections, with scopes for reentrancy.
 
 ### Changed
-- `TaskBatcher` now supports configuration for maximum consumer concurrency.
-- Effects are now executed globally in series, and each allows asynchronously acquring its lock for execution.
+- `TaskBatcher` now supports specifying maximum consumer count to control concurrency levels.
+- `TaskManager` updated to allow custom `TaskBatcher` initialization for more flexible task scheduling strategies.
+- `Effect` switched to use `AsyncLock` for improved concurrency handling.
 
 ## 1.2.0 - 2025-12-10
 
