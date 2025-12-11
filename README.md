@@ -7,7 +7,7 @@
 - [Key Features](#key-features)
 - [Quick Start](#quick-start)
 - [Core Concepts](#core-concepts)
-    - [`Ref<T>`]
+    - `Ref<T>`
     - Reactive Objects (`Reactive.Create`)
     - Computed Values (`Reactive.Computed`)
     - Effects (`Reactive.Effect`)
@@ -102,17 +102,17 @@ public class MyViewModel
 {
     public Ref<int> Counter { get; } = Reactive.Ref(0);
     public Computed<string> DisplayText { get; }
+    
+    public IFunctionCommand<object> IncrementCommand { get; }
+    public IFunctionCommand<object> DecrementCommand { get; }
 
     public MyViewModel()
     {
         DisplayText = Reactive.Computed(() => $"Counter: {Counter.Value}");
-    }
-    
-    public IFunctionCommand<object> IncrementCommand
-        => FunctionCommand.Create<object>(_ => Counter.Value++);
 
-    public IFunctionCommand<object> DecrementCommand
-        => FunctionCommand.Create<object>(_ => Counter.Value--);
+        IncrementCommand = FunctionCommand.Create<object>(_ => Counter.Value++);
+        DecrementCommand = FunctionCommand.Create<object>(_ => Counter.Value--);
+    }
 }
 ```
 
@@ -253,21 +253,35 @@ var effect = Reactive.Effect(() => DoWork(), eff => {
 });
 ```
 
-### Deep Watching
-`WatchOptions<T>.Deep = true` tracks nested reactive properties (including refs/collections/dictionaries). Per-property deep behavior for proxies is configured via `ReactivePropertyAttribute(deep: true)`.
-
 ### List Diff & Binding
 Bind a source list to an `ObservableCollection<T>` with diffing:
 ```csharp
 var source = Reactive.Collection<Item>();
 var target = Reactive.Collection<Item>();
 Reactive.Computed(() => {
-    source.Where(item => item.IsActive)
+    return source.Where(item => item.IsActive)
         .OrderBy(item => item.Name)
         .ToList()
 }).DiffAndBindTo(target, keySelector: item => item.Id);
 ```
 This minimizes updates to `target` based on the longest increasing subsequence (LIS) algorithm.
+
+### Concurrency Guarantees
+
+EffectSharp is designed to be **safe by default**.
+Most applications will use the **default single-threaded scheduling** to drive the reactive system **(not the whole application)**, and do not need to worry about concurrency at all.
+
+For advanced scenarios:
+
+* **Reactive values** (`Ref<T>`, `ReactiveProxy<T>`) use *atomic writes* and always propagate changes with an eventual-consistency guarantee.
+* **Effects** never run concurrently with themselves; each `Effect` uses an `AsyncLock` to protect dependency tracking. But try not to do any heavy work in an effect.
+* **Computed values** use atomic invalidation and 3-state machine to allow being invalidated at any time without returning stale results.
+* **Reactive collections** (`ReactiveCollection<T>`, `ReactiveDictionary<TKey,TValue>`) are *not thread-safe* and should be modified only from a single thread.
+* When configuring custom or parallel schedulers via `TaskManager`, EffectSharp remains stable, but **strict update ordering is no longer guaranteed**. This mode is intended for advanced users who understand the trade-offs between throughput and deterministic reactivity.
+
+In short:
+**Default mode provides strong, predictable consistency.
+Custom parallel execution provides flexibility with eventual consistency.**
 
 ## Comparison with Vue 3
 | Vue 3 Concept | EffectSharp Equivalent |
@@ -298,11 +312,9 @@ or your application requires specific threading contexts (e.g., specific UI thre
 Dispose the `Effect` returned by `Reactive.Effect()` or `Reactive.Watch()`.  
 If you want to perform side effects without tracking dependencies, use `Effect.Untracked(() => { ... })`.
 
-**Q: Is EffectSharp thread-safe?**  
-Effects/watchers are scheduled and guarded against concurrent execution.
-`Ref<T>` uses atomic storage implementations for primitive types (`AtomicIntRef`, `AtomicLongRef`) to reduce contention, but high-level thread safety depends on your usage pattern.
-Proxy thread safety depends on your underlying types. If no target instance is provided, the default proxy gets and sets properties atomically.
-For UI apps, configure `TaskManager` notification scheduler to the UI context (e.g., `TaskScheduler.FromCurrentSynchronizationContext()`).
+**Q: How does Deep Watch work?**
+Deep watching tracks changes on the selected value and all reactive values inside it, by invoking the outmost object's `TrackDeep` method (from the IReactive interface).  
+To use it safely, mark nested properties with `[ReactiveProperty(deep: true)]` so they become reactive objects — but avoid applying `deep: true` everywhere, as it increases proxy creation cost and may cause unnecessary recursion. Use it only when you truly need to watch an entire object graph.
 
 **Q: What is the difference between keyed and unkeyed diff-binding?**  
 Keyed binding is preferred when items have a unique identifier property, it is usually more efficient.
