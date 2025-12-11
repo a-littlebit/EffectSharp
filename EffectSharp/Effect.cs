@@ -17,9 +17,11 @@ namespace EffectSharp
 
         private readonly Action _action;
 
-        private Action<Effect> _scheduler;
+        private readonly Action<Effect> _scheduler;
 
         private volatile bool _isDisposed = false;
+
+        private AsyncLock _lock = new AsyncLock();
 
         public Action<Effect> Scheduler => _scheduler;
         public bool IsDisposed => _isDisposed;
@@ -36,13 +38,15 @@ namespace EffectSharp
             }
         }
 
-        public void Execute()
+        public AsyncLock Lock => _lock;
+
+        public void Execute(AsyncLock.Scope existingScope = null)
         {
-            lock (this)
+            using (var scope = _lock.Enter(existingScope))
             {
                 if (_isDisposed) return;
 
-                Stop();
+                Stop(scope);
 
                 var previousEffect = CurrentEffectContext.Value;
                 CurrentEffectContext.Value = this;
@@ -80,17 +84,14 @@ namespace EffectSharp
                 return getter();
             }
 
-            lock (previousEffect)
+            CurrentEffectContext.Value = null;
+            try
             {
-                CurrentEffectContext.Value = null;
-                try
-                {
-                    return getter();
-                }
-                finally
-                {
-                    CurrentEffectContext.Value = previousEffect;
-                }
+                return getter();
+            }
+            finally
+            {
+                CurrentEffectContext.Value = previousEffect;
             }
         }
 
@@ -103,9 +104,9 @@ namespace EffectSharp
             });
         }
 
-        public void Stop()
+        public void Stop(AsyncLock.Scope existingScope = null)
         {
-            lock (this)
+            using (var scope = _lock.Enter(existingScope))
             {
                 foreach (var dependency in _dependencies)
                 {
@@ -122,10 +123,10 @@ namespace EffectSharp
 
         public void Dispose()
         {
-            lock (this)
+            using (var scope = _lock.Enter())
             {
                 if (_isDisposed) return;
-                Stop();
+                Stop(scope);
                 _isDisposed = true;
             }
         }

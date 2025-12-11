@@ -49,11 +49,11 @@ namespace EffectSharp
 
                 if (Volatile.Read(ref _dirtyFlag) != 0)
                 {
-                    lock (_effect)
+                    using (var scope = _effect.Lock.Enter())
                     {
                         if (Volatile.Read(ref _dirtyFlag) != 0)
                         {
-                            _effect.Execute();
+                            _effect.Execute(scope);
                         }
                     }
                 }
