@@ -48,7 +48,7 @@ namespace EffectSharp
 
         /// <summary>
         /// Creates a new reactive proxy for the specified reference <paramref name="type"/> using reflection.
-        /// Equivalent to calling the generic <see cref="Create{T}()"/> with <paramref name="type"/> as <typeparamref name="T"/>.
+        /// Equivalent to calling the generic <see cref="Create{T}()"/> with <paramref name="type"/> as &lt;T&gt;.
         /// </summary>
         /// <param name="type">The reference type to proxy.</param>
         /// <returns>A reactive proxy instance implementing the specified type.</returns>
@@ -99,6 +99,43 @@ namespace EffectSharp
         public static ReactiveDictionary<TKey, TValue> Dictionary<TKey, TValue>()
         {
             return new ReactiveDictionary<TKey, TValue>();
+        }
+
+        /// <summary>
+        /// Creates an empty <see cref="ReactiveDictionary{TKey, TValue}"/> with a custom key comparer.
+        /// </summary>
+        /// <typeparam name="TKey">Key type.</typeparam>
+        /// <typeparam name="TValue">Value type.</typeparam>
+        /// <param name="comparer">The equality comparer used to compare keys.</param>
+        /// <returns>A new reactive dictionary using the specified comparer.</returns>
+        public static ReactiveDictionary<TKey, TValue> Dictionary<TKey, TValue>(IEqualityComparer<TKey> comparer)
+        {
+            return new ReactiveDictionary<TKey, TValue>(comparer);
+        }
+
+        /// <summary>
+        /// Creates an empty <see cref="ReactiveDictionary{TKey, TValue}"/> with an initial capacity.
+        /// </summary>
+        /// <typeparam name="TKey">Key type.</typeparam>
+        /// <typeparam name="TValue">Value type.</typeparam>
+        /// <param name="capacity">Initial capacity of the dictionary's internal storage.</param>
+        /// <returns>A new reactive dictionary with the given capacity.</returns>
+        public static ReactiveDictionary<TKey, TValue> Dictionary<TKey, TValue>(int capacity)
+        {
+            return new ReactiveDictionary<TKey, TValue>(capacity);
+        }
+
+        /// <summary>
+        /// Creates an empty <see cref="ReactiveDictionary{TKey, TValue}"/> with an initial capacity and custom comparer.
+        /// </summary>
+        /// <typeparam name="TKey">Key type.</typeparam>
+        /// <typeparam name="TValue">Value type.</typeparam>
+        /// <param name="capacity">Initial capacity of the dictionary's internal storage.</param>
+        /// <param name="comparer">The equality comparer used to compare keys.</param>
+        /// <returns>A new reactive dictionary configured with capacity and comparer.</returns>
+        public static ReactiveDictionary<TKey, TValue> Dictionary<TKey, TValue>(int capacity, IEqualityComparer<TKey> comparer)
+        {
+            return new ReactiveDictionary<TKey, TValue>(capacity, comparer);
         }
 
         /// <summary>
