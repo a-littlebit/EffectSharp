@@ -126,7 +126,14 @@ namespace EffectSharp.Tests
             await Task.Delay(20, cts.Token);
             batcher.Dispose();
 
-            await work; // Should not hang
+            try
+            {
+                await work; // Should not hang
+            }
+            catch (ObjectDisposedException)
+            {
+                // Expected if Enqueue is called after Dispose
+            }
         }
 
         /// <summary>
