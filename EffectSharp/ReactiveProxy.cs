@@ -40,7 +40,7 @@ namespace EffectSharp
         private object[] _values;
         private T _target;
 
-        private static readonly AsyncLocal<bool> _isInitializing = new AsyncLocal<bool>();
+        private static readonly ThreadLocal<bool> _isInitializing = new ThreadLocal<bool>();
 
         public event PropertyChangingEventHandler PropertyChanging;
         public event PropertyChangedEventHandler PropertyChanged;

@@ -12,7 +12,8 @@ namespace EffectSharp
     /// </summary>
     public class Effect : IDisposable
     {
-        internal static readonly AsyncLocal<Effect> CurrentEffectContext = new AsyncLocal<Effect>();
+        internal static readonly ThreadLocal<Effect> CurrentEffectContext = new ThreadLocal<Effect>();
+
         public static Effect CurrentEffect => CurrentEffectContext.Value;
 
         private readonly Action _action;
