@@ -17,13 +17,102 @@ namespace EffectSharp
     public static class TaskManager
     {
 
-        private static readonly TaskBatcher<Effect> _effectBatcher
-            = new TaskBatcher<Effect>(TriggerBatchEffects, 0, TaskScheduler.FromCurrentSynchronizationContext());
+        private static volatile TaskBatcher<Effect> _effectBatcher = null;
+        private static readonly object _effectBatcherLock = new object();
 
-        private static readonly TaskBatcher<NotificationTask> _notificationBatcher
-            = new TaskBatcher<NotificationTask>(NotifyBatch, 16, TaskScheduler.FromCurrentSynchronizationContext());
+        private static volatile TaskBatcher<NotificationTask> _notificationBatcher = null;
+        private static readonly object _notificationBatcherLock = new object();
 
         private static volatile bool _flushNotificationAfterEffectBatch = true;
+
+        public static TaskBatcher<Effect> EffectBatcher => _effectBatcher;
+        public static TaskBatcher<NotificationTask> NotificationBatcher => _notificationBatcher;
+
+        /// <summary>
+        /// Attempts to initialize the <see cref="TaskBatcher{Effect}"/> using the specified supplier function
+        /// if it has not already been created.
+        /// </summary>
+        /// <param name="supplier">
+        /// A function that supplies a new instance of a <see cref="TaskBatcher{Effect}"/>. This function is invoked only
+        /// if the effect batcher has not yet been initialized.
+        /// </param>
+        /// <returns>true if the effect batcher was successfully created; otherwise, false.</returns>
+        public static bool TryCreateEffectBatcher(Func<TaskBatcher<Effect>> supplier)
+        {
+            if (_effectBatcher == null)
+            {
+                lock (_effectBatcherLock)
+                {
+                    if (_effectBatcher == null)
+                    {
+                        _effectBatcher = supplier();
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the <see cref="TaskBatcher{Effect}"/> instance for processing effect tasks, creating a default one if it does not already exist.
+        /// </summary>
+        /// <returns>The singleton <see cref="TaskBatcher{Effect}"/> instance used for batching and processing effect tasks.</returns>
+        public static TaskBatcher<Effect> GetOrCreateDefaultEffectBatcher()
+        {
+            TryCreateEffectBatcher(() =>
+            {
+                var batcher = new TaskBatcher<Effect>(
+                    DefaultEffectBatchProcessor, 0, TaskScheduler.FromCurrentSynchronizationContext(), maxConsumers: 1);
+                batcher.BatchProcessingFailed += TraceEffectFailure;
+                return batcher;
+            });
+            return _effectBatcher;
+        }
+
+        /// <summary>
+        /// Attempts to initialize the <see cref="TaskBatcher{NotificationTask}"/> using the specified supplier function
+        /// if it has not already been created.
+        /// </summary>
+        /// <param name="supplier">
+        /// A function that supplies a new instance of a <see cref="TaskBatcher{NotificationTask}"/>. This function is invoked only
+        /// if the notification batcher has not yet been initialized.
+        /// </param>
+        /// <returns>true if the notification batcher was successfully created; otherwise, false.</returns>
+        public static bool TryCreateNotificationBatcher(Func<TaskBatcher<NotificationTask>> supplier)
+        {
+            if (_notificationBatcher == null)
+            {
+                lock (_notificationBatcherLock)
+                {
+                    if (_notificationBatcher == null)
+                    {
+                        _notificationBatcher = supplier();
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the <see cref="TaskBatcher{NotificationTask}"/> instance for processing notification tasks,
+        /// creating a default one if it does not already exist.
+        /// </summary>
+        /// <returns>
+        /// The singleton <see cref="TaskBatcher{NotificationTask}"/> instance
+        /// used for batching and processing notification tasks.
+        /// </returns>
+        public static TaskBatcher<NotificationTask> GetOrCreateDefaultNotificationBatcher()
+        {
+            TryCreateNotificationBatcher(() =>
+            {
+                var batcher = new TaskBatcher<NotificationTask>(
+                    DefaultNotificationBatchProcessor, 16, TaskScheduler.FromCurrentSynchronizationContext(), maxConsumers: 1);
+                batcher.BatchProcessingFailed += TraceNotificationFailure;
+                return batcher;
+            });
+            return _notificationBatcher;
+        }
 
         /// <summary>
         /// Gets or sets the interval, in milliseconds, between effect trigger batches.
@@ -35,8 +124,8 @@ namespace EffectSharp
         /// </remarks>
         public static int EffectIntervalMs
         {
-            get => _effectBatcher.IntervalMs;
-            set => _effectBatcher.IntervalMs = value;
+            get => GetOrCreateDefaultEffectBatcher().IntervalMs;
+            set => GetOrCreateDefaultEffectBatcher().IntervalMs = value;
         }
 
         /// <summary>
@@ -49,8 +138,8 @@ namespace EffectSharp
         /// </remarks>
         public static TaskScheduler EffectTaskScheduler
         {
-            get => _effectBatcher.Scheduler;
-            set => _effectBatcher.Scheduler = value;
+            get => GetOrCreateDefaultEffectBatcher().Scheduler;
+            set => GetOrCreateDefaultEffectBatcher().Scheduler = value;
         }
 
         /// <summary>
@@ -58,8 +147,8 @@ namespace EffectSharp
         /// </summary>
         public static event EventHandler<BatchProcessingFailedEventArgs<Effect>> EffectFailed
         {
-            add => _effectBatcher.BatchProcessingFailed += value;
-            remove => _effectBatcher.BatchProcessingFailed -= value;
+            add => GetOrCreateDefaultEffectBatcher().BatchProcessingFailed += value;
+            remove => GetOrCreateDefaultEffectBatcher().BatchProcessingFailed -= value;
         }
 
         public static void TraceEffectFailure(object sender, BatchProcessingFailedEventArgs<Effect> e)
@@ -77,8 +166,8 @@ namespace EffectSharp
         /// </remarks>
         public static int NotificationIntervalMs
         {
-            get => _notificationBatcher.IntervalMs;
-            set => _notificationBatcher.IntervalMs = value;
+            get => GetOrCreateDefaultNotificationBatcher().IntervalMs;
+            set => GetOrCreateDefaultNotificationBatcher().IntervalMs = value;
         }
 
         /// <summary>
@@ -91,8 +180,8 @@ namespace EffectSharp
         /// </remarks>
         public static TaskScheduler NotificationTaskScheduler
         {
-            get => _notificationBatcher.Scheduler;
-            set => _notificationBatcher.Scheduler = value;
+            get => GetOrCreateDefaultNotificationBatcher().Scheduler;
+            set => GetOrCreateDefaultNotificationBatcher().Scheduler = value;
         }
 
         /// <summary>
@@ -100,8 +189,8 @@ namespace EffectSharp
         /// </summary>
         public static event EventHandler<BatchProcessingFailedEventArgs<NotificationTask>> NotificationFailed
         {
-            add => _notificationBatcher.BatchProcessingFailed += value;
-            remove => _notificationBatcher.BatchProcessingFailed -= value;
+            add => GetOrCreateDefaultNotificationBatcher().BatchProcessingFailed += value;
+            remove => GetOrCreateDefaultNotificationBatcher().BatchProcessingFailed -= value;
         }
 
         public static void TraceNotificationFailure(object sender, BatchProcessingFailedEventArgs<NotificationTask> e)
@@ -124,28 +213,25 @@ namespace EffectSharp
             set => _flushNotificationAfterEffectBatch = value;
         }
 
-        static TaskManager()
-        {
-            EffectFailed += TraceEffectFailure;
-            NotificationFailed += TraceNotificationFailure;
-        }
-
         public static void EnqueueEffectTrigger(Effect effect)
         {
-            _effectBatcher.Enqueue(effect);
+            GetOrCreateDefaultEffectBatcher().Enqueue(effect);
         }
 
         public static async Task FlushEffectQueue()
         {
-            await _effectBatcher.FlushAsync().ConfigureAwait(false);
+            var effectBatcher = _effectBatcher;
+            if (effectBatcher != null)
+                await effectBatcher.FlushAsync().ConfigureAwait(false);
         }
 
         public static Task NextEffectTick()
         {
-            return _effectBatcher.NextTick();
+            var effectBatcher = _effectBatcher;
+            return effectBatcher != null ? effectBatcher.NextTick() : Task.CompletedTask;
         }
 
-        public static async Task TriggerBatchEffects(List<Effect> effects)
+        public static async Task DefaultEffectBatchProcessor(List<Effect> effects)
         {
             var uniqueEffects = new HashSet<Effect>(effects);
             foreach (var effect in uniqueEffects)
@@ -158,7 +244,8 @@ namespace EffectSharp
 
             if (FlushNotificationAfterEffectBatch)
             {
-                _ = _notificationBatcher.FlushAsync();
+                var notificationBatcher = _notificationBatcher;
+                _ = notificationBatcher?.FlushAsync();
             }
         }
 
@@ -170,20 +257,23 @@ namespace EffectSharp
                 PropertyName = propertyName,
                 Notifier = notifier
             };
-            _notificationBatcher.Enqueue(task);
+            GetOrCreateDefaultNotificationBatcher().Enqueue(task);
         }
 
         public static async Task FlushNotificationQueue()
         {
-            await _notificationBatcher.FlushAsync().ConfigureAwait(false);
+            var notificationBatcher = _notificationBatcher;
+            if (notificationBatcher != null)
+                await notificationBatcher.FlushAsync().ConfigureAwait(false);
         }
 
         public static Task NextNotificationTick()
         {
-            return _notificationBatcher.NextTick();
+            var notificationBatcher = _notificationBatcher;
+            return notificationBatcher != null ? notificationBatcher.NextTick() : Task.CompletedTask;
         }
 
-        private static void NotifyBatch(List<NotificationTask> tasks)
+        public static void DefaultNotificationBatchProcessor(List<NotificationTask> tasks)
         {
             var grouped = tasks.GroupBy(t => (t.Model, t.PropertyName));
             foreach (var group in grouped)
