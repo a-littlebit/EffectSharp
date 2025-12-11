@@ -145,13 +145,17 @@ namespace EffectSharp
             return _effectBatcher.NextTick();
         }
 
-        public static void TriggerBatchEffects(List<Effect> effects)
+        public static async Task TriggerBatchEffects(List<Effect> effects)
         {
             var uniqueEffects = new HashSet<Effect>(effects);
             foreach (var effect in uniqueEffects)
             {
-                effect.Execute();
+                using (var scope = await effect.Lock.EnterAsync())
+                {
+                    effect.Execute(scope);
+                }
             }
+
             if (FlushNotificationAfterEffectBatch)
             {
                 _ = _notificationBatcher.FlushAsync();
