@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Keep a Changelog and uses Semantic Versioning (when versions are published). For now, changes are grouped by version and date.
 
+## Unreleased
+
+### Added
+- `AsyncLock`: a lightweight async-compatible lock for critical sections, with scopes for reentrancy.
+
+### Changed
+- `TaskBatcher` now supports configuration for maximum consumer concurrency.
+- Effects are now executed globally in series, and each allows asynchronously acquring its lock for execution.
+
 ## 1.2.0 - 2025-12-10
 
 This release focuses on four main areas: LIS-based diff, command API, interface-based proxying, and atomic reactive references, plus targeted bug fixes.
