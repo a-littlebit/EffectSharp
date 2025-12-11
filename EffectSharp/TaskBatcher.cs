@@ -15,7 +15,7 @@ namespace EffectSharp
     public class TaskBatcher<T> : IDisposable
     {
         #region Private Fields
-        private readonly Action<List<T>> _batchProcessor; // Synchronous batch processing callback (must run sync)
+        private readonly Func<List<T>, Task> _batchProcessor; // Synchronous batch processing callback (must run sync)
         private int _intervalMs; // Execution interval in milliseconds (0 = merge tasks rapidly)
         private TaskScheduler _scheduler; // Task scheduler (supports dynamic switching with eventual consistency)
         private readonly ConcurrentQueue<(T Item, long Sequence)> _taskQueue = new ConcurrentQueue<(T Item, long Sequence)>(); // Task queue with sequence numbers for NextTick tracking
@@ -37,20 +37,37 @@ namespace EffectSharp
 
         #region Constructor
         /// <summary>
-        /// Initializes a new instance of the TaskBatcher&lt;T&gt; class.
+        /// Initializes a new instance of the <see cref="TaskBatcher{T}" /> class.
         /// </summary>
-        /// <param name="batchProcessor">Synchronous callback to process batches (must execute synchronously)</param>
+        /// <param name="batchProcessor">Asynchronous callback to process batches</param>
         /// <param name="intervalMs">Interval between batch executions (0 = no delay, merge tasks)</param>
         /// <param name="scheduler">Initial scheduler to execute batch processing tasks</param>
         /// <exception cref="ArgumentNullException">Thrown if any required parameter is null</exception>
         /// <exception cref="ArgumentOutOfRangeException">Thrown if interval is negative</exception>
-        public TaskBatcher(Action<List<T>> batchProcessor, int intervalMs, TaskScheduler scheduler)
+        public TaskBatcher(Func<List<T>, Task> batchProcessor, int intervalMs, TaskScheduler scheduler)
         {
             _batchProcessor = batchProcessor ?? throw new ArgumentNullException(nameof(batchProcessor));
             if (intervalMs < 0)
                 throw new ArgumentOutOfRangeException(nameof(intervalMs), "Execution interval cannot be negative");
             _intervalMs = intervalMs;
             _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TaskBatcher{T}" /> class with a synchronous batch processor.
+        /// </summary>
+        /// <param name="batchProcessor">Synchronous callback to process batches</param>
+        /// <param name="intervalMs">Interval between batch executions (0 = no delay, merge tasks)</param>
+        /// <param name="scheduler">Initial scheduler to execute batch processing tasks</param>
+        /// <exception cref="ArgumentNullException">Thrown if any required parameter is null</exception>
+        public TaskBatcher(Action<List<T>> batchProcessor, int intervalMs, TaskScheduler scheduler)
+            : this(items => {
+                batchProcessor.Invoke(items);
+                return Task.CompletedTask;
+            }, intervalMs, scheduler)
+        {
+            if (batchProcessor == null)
+                throw new ArgumentNullException(nameof(batchProcessor));
         }
         #endregion
 
