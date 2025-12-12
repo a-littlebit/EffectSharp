@@ -20,16 +20,26 @@ namespace EffectSharp
         private TaskScheduler _scheduler; // Task scheduler (supports dynamic switching with eventual consistency)
         private readonly SemaphoreSlim _consumerSemaphore;
         private readonly ConcurrentQueue<(T Item, long Sequence)> _taskQueue = new ConcurrentQueue<(T Item, long Sequence)>(); // Task queue with sequence numbers for NextTick tracking
-        private TaskCompletionSource<bool> _nextTickTcs
-            = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously); // TCS for NextTick tracking
-        private readonly ReaderWriterLockSlim _nextTickLock = new ReaderWriterLockSlim(); // Lock for NextTick TCS access
 
         private int _startLoopFlag; // Flag to ensure single batch processing loop
         private CancellationTokenSource _currentDelayCts; // Cancellation source for the current interval delay
         private long _enqueueCounter; // Atomic counter for generating unique task sequence numbers
         private long _dequeuedCounter; // Atomic counter for the highest dequeued sequence number
-        private long _processedCounter; // Atomic counter for the highest processed sequence number
+        private TickState _tickState = new TickState(); // State for NextTick tracking
         private int _disposed; // Flag to track disposal state
+        #endregion
+
+        #region Internal Types
+        private class TickState
+        {
+            internal readonly long ProcessedSequence;
+            internal readonly TaskCompletionSource<bool> NextTickTcs;
+            internal TickState(long processedSequence = 0)
+            {
+                ProcessedSequence = processedSequence;
+                NextTickTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+        }
         #endregion
 
         #region Events
@@ -154,7 +164,8 @@ namespace EffectSharp
 
             // Step 1: Take a snapshot of the maximum sequence number enqueued BEFORE this flush call
             long targetSequence = Volatile.Read(ref _enqueueCounter);
-            long processedSequence = Volatile.Read(ref _processedCounter);
+            var tickState = Volatile.Read(ref _tickState);
+            long processedSequence = tickState.ProcessedSequence;
 
             // If all pre-enqueued tasks are already processed, return immediately
             if (targetSequence <= processedSequence)
@@ -198,34 +209,13 @@ namespace EffectSharp
         private async Task NextTickInternal(long targetSequence, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            long processedSequence = Volatile.Read(ref _processedCounter);
+            var tickState = Volatile.Read(ref _tickState);
 
-            // All target tasks are already processed—return completed task
-            if (targetSequence <= processedSequence)
-            {
-                return;
-            }
-
-            Task nextTickTask;
-            while (true)
+            while (targetSequence > tickState.ProcessedSequence)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                _nextTickLock.EnterReadLock();
-                try
-                {
-                    processedSequence = _processedCounter;
-                    nextTickTask = _nextTickTcs.Task;
-                }
-                finally
-                {
-                    _nextTickLock.ExitReadLock();
-                }
-                cancellationToken.ThrowIfCancellationRequested();
-                if (targetSequence <= processedSequence)
-                {
-                    return;
-                }
-                await WithCancellationAsync(nextTickTask, cancellationToken).ConfigureAwait(false);
+                await WithCancellationAsync(tickState.NextTickTcs.Task, cancellationToken).ConfigureAwait(false);
+                tickState = Volatile.Read(ref _tickState);
             }
         }
 
@@ -403,7 +393,8 @@ namespace EffectSharp
             _consumerSemaphore.Release();
 
             // Ensure all prior batches are fully processed before updating the processed counter
-            while (beforeProcessSeq != Volatile.Read(ref _processedCounter))
+            var oldTickState = Volatile.Read(ref _tickState);
+            while (beforeProcessSeq != oldTickState.ProcessedSequence)
             {
                 try
                 {
@@ -413,30 +404,19 @@ namespace EffectSharp
                 {
                     // Ignore exceptions here; they may be handled in other NextTick calls
                 }
+                oldTickState = Volatile.Read(ref _tickState);
             }
 
-            TaskCompletionSource<bool> oldNextTickTcs;
-            var newNextTickTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            _nextTickLock.EnterWriteLock();
-            try
-            {
-                if (processedSeq <= _processedCounter) return;
-                _processedCounter = processedSeq;
-                oldNextTickTcs = _nextTickTcs;
-                _nextTickTcs = newNextTickTcs;
-            }
-            finally
-            {
-                _nextTickLock.ExitWriteLock();
-            }
+            var newTickState = new TickState(processedSeq);
+            oldTickState = Interlocked.Exchange(ref _tickState, newTickState);
             if (ex != null)
             {
-                oldNextTickTcs.TrySetException(ex);
+                oldTickState.NextTickTcs.TrySetException(ex);
                 BatchProcessingFailed?.Invoke(this, new BatchProcessingFailedEventArgs<T>(ex, batch));
             }
             else
             {
-                oldNextTickTcs.TrySetResult(true);
+                oldTickState.NextTickTcs.TrySetResult(true);
             }
         }
 
