@@ -347,11 +347,11 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Asynchronously waits until the next effect and notification ticks have been processed.
+        /// Returns a task that completes on the next reactive tick, after all scheduled effects and notifications have been processed.
         /// </summary>
-        public static async Task NextTick()
+        public static Task NextTick()
         {
-            await Task.WhenAll(TaskManager.NextEffectTick(), TaskManager.NextNotificationTick()).ConfigureAwait(false);
+            return Task.WhenAll(TaskManager.NextEffectTick(), TaskManager.NextNotificationTick());
         }
     }
 
