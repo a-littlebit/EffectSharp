@@ -8,11 +8,15 @@ This project adheres to Keep a Changelog and uses Semantic Versioning (when vers
 
 ### Added
 - `AsyncLock`: a lightweight async-compatible lock for critical sections, with scopes for reentrancy.
+- `ReactivePropertyAttribute` now supports `EqualityComparer` parameter for custom equality checks on property sets.
 
 ### Changed
 - `TaskBatcher` now supports specifying maximum consumer count to control concurrency levels.
 - `TaskManager` updated to allow custom `TaskBatcher` initialization for more flexible task scheduling strategies.
 - `Effect` switched to use `AsyncLock` for improved concurrency handling.
+
+### Fixed
+- `AtomicDouble`: fixed wrong initial value assignment issue.
 
 ## 1.2.0 - 2025-12-10
 
