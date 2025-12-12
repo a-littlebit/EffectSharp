@@ -144,8 +144,11 @@ namespace EffectSharp
             long sequence = Interlocked.Increment(ref _enqueueCounter);
             _taskQueue.Enqueue((item, sequence));
 
-            // Start the batch processing loop asynchronously (fire-and-forget)
-            _ = StartBatchProcessingLoopAsync();
+            if (Volatile.Read(ref _startLoopFlag) == 0)
+            {
+                // Start the batch processing loop asynchronously (fire-and-forget)
+                _ = StartBatchProcessingLoopAsync();
+            }
         }
 
         /// <summary>
@@ -266,7 +269,7 @@ namespace EffectSharp
             // Outermost loop: ensure continuous processing while there are tasks
             while (Volatile.Read(ref _disposed) == 0 && !_taskQueue.IsEmpty)
             {
-                if (Interlocked.CompareExchange(ref _startLoopFlag, 1, 0) == 1)
+                if (Interlocked.CompareExchange(ref _startLoopFlag, 1, 0) != 0)
                 {
                     // Another loop is already running—exit
                     return;
