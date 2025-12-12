@@ -365,7 +365,8 @@ namespace EffectSharp
             public bool Contains(TValue item)
             {
                 // accessing Values, track KeySet and each individual key
-                foreach (var data in _parent._innerDictionary.Values)
+                var values = _parent._innerDictionary.Values;
+                foreach (var data in values)
                 {
                     if (EqualityComparer<TValue>.Default.Equals(data.Item1, item))
                     {
@@ -374,7 +375,7 @@ namespace EffectSharp
                     }
                 }
                 _parent._keySetDependency.Track();
-                foreach (var data in _parent._innerDictionary.Values)
+                foreach (var data in values)
                 {
                     data.Item2.Track();
                 }
