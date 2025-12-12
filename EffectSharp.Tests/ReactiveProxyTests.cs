@@ -67,5 +67,58 @@ namespace EffectSharp.Tests
             await Reactive.NextTick();
             Assert.True(priceChanged);
         }
+
+        [Fact]
+        public async Task Reactive_WhenSetNonReactiveProperty_DoesNotTriggerOrNotifyChange()
+        {
+            var entity = Reactive.Create<IReactiveEntity>();
+            entity.Id = 1;
+            bool observedChange = false;
+            object? notifier = null;
+            Reactive.Watch(() => entity.Id, (_, _) =>
+            {
+                observedChange = true;
+            });
+            ((INotifyPropertyChanged)entity)!.PropertyChanged += (sender, e) =>
+            {
+                notifier = sender;
+            };
+            entity.Id = 2;
+            // Wait for the next tick to ensure all effects and notifications are processed
+            await Reactive.NextTick();
+            Assert.Null(notifier);
+            Assert.False(observedChange);
+            Assert.Equal(2, entity.Id);
+        }
+
+        [Fact]
+        public async Task Reactive_WhenSetPropertyWithCustomEqualityComparer_DetectsChangesCorrectly()
+        {
+            var entity = Reactive.Create<IReactiveEntity>();
+            entity.Name = "Initial Name";
+            entity.CreatedAt = DateTime.UtcNow;
+            int nameChangeCount = 0;
+            int createdAtChangeCount = 0;
+            ((INotifyPropertyChanged)entity).PropertyChanged += (sender, e) =>
+            {
+                if (e.PropertyName == nameof(entity.Name))
+                {
+                    nameChangeCount++;
+                }
+                else if (e.PropertyName == nameof(entity.CreatedAt))
+                {
+                    createdAtChangeCount++;
+                }
+            };
+            // Setting the same name should trigger change due to NeverEqualComparer
+            var sameName = entity.Name;
+            entity.Name = sameName;
+            await Reactive.NextTick();
+            Assert.Equal(1, nameChangeCount);
+            // Setting a different CreatedAt should not trigger change due to FixedResultComparer
+            entity.CreatedAt = entity.CreatedAt.AddMinutes(10);
+            await Reactive.NextTick();
+            Assert.Equal(0, createdAtChangeCount);
+        }
     }
 }
