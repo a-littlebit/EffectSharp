@@ -15,7 +15,7 @@ namespace EffectSharp.Tests
             var countRef = Reactive.Ref(0);
             int effectRunCount = 0;
             // Act
-            IDisposable sub = Reactive.Watch(countRef, (_, _) =>
+            var sub = Reactive.Watch(countRef, (_, _) =>
             {
                 _ = countRef.Value;
                 effectRunCount++;
@@ -47,7 +47,7 @@ namespace EffectSharp.Tests
             var refB = Reactive.Ref(10);
             int effectRunCount = 0;
             // Act
-            IDisposable sub = Reactive.Watch(() => (refA.Value, refB.Value), (_, _) =>
+            var sub = Reactive.Watch(() => (refA.Value, refB.Value), (_, _) =>
             {
                 effectRunCount++;
             });
@@ -73,7 +73,7 @@ namespace EffectSharp.Tests
             int observedNewValue = 0;
             int observedOldValue = 0;
             // Act
-            IDisposable sub = Reactive.Watch(countRef, (newValue, oldValue) =>
+            var sub = Reactive.Watch(countRef, (newValue, oldValue) =>
             {
                 observedNewValue = newValue;
                 observedOldValue = oldValue;
@@ -103,7 +103,7 @@ namespace EffectSharp.Tests
             int observedOldValue = 0;
             bool callbackCalled = false;
             // Act
-            IDisposable sub = Reactive.Watch(countRef, (newValue, oldValue) =>
+            var sub = Reactive.Watch(countRef, (newValue, oldValue) =>
             {
                 observedNewValue = newValue;
                 observedOldValue = oldValue;
@@ -113,7 +113,7 @@ namespace EffectSharp.Tests
             Assert.True(callbackCalled);
             // Assert the values passed to the callback
             Assert.Equal(5, observedNewValue);
-            Assert.Equal(5, observedOldValue);
+            Assert.Equal(default, observedOldValue);
             // Cleanup
             sub.Dispose();
         }
@@ -128,17 +128,19 @@ namespace EffectSharp.Tests
             order.Quantity = 1;
 
             int effectRunCount = 0;
+            int productPrice = 100;
             // Act
-            IDisposable sub = Reactive.Watch(() => order, (_, _) =>
+            var sub = Reactive.Watch(() => order, (_, _) =>
             {
-                _ = order.Product.Price;
                 effectRunCount++;
+                productPrice = order.Product.Price;
             }, new WatchOptions<IOrder> { Deep = true });
             // Change a nested property
             order.Product.Price = 150;
             // Assert
             await Reactive.NextTick();
             Assert.Equal(1, effectRunCount);
+            Assert.Equal(150, productPrice);
             // Cleanup
             sub.Dispose();
         }

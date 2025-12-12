@@ -197,10 +197,6 @@ namespace EffectSharp
             return Effect(() =>
             {
                 T newValue = getter();
-                if (firstRun)
-                {
-                    oldValue = newValue;
-                }
 
                 if (options.Deep)
                 {
@@ -219,18 +215,19 @@ namespace EffectSharp
                         }
                     }
                 }
-
-                else if (options.EqualityComparer.Equals(oldValue, newValue) && !(firstRun && options.Immediate))
+                else if (options.EqualityComparer != null && options.EqualityComparer.Equals(oldValue, newValue) && !firstRun)
                 {
-                    firstRun = false;
                     return;
                 }
 
                 if (firstRun)
                 {
                     firstRun = false;
-                    if (!options.Immediate) 
+                    if (!options.Immediate)
+                    {
+                        oldValue = newValue;
                         return;
+                    }
                 }
 
                 EffectSharp.Effect.Untracked(() =>
@@ -354,14 +351,6 @@ namespace EffectSharp
             return Task.WhenAll(TaskManager.NextEffectTick(), TaskManager.NextNotificationTick());
         }
     }
-
-    /// <summary>
-    /// Callback signature for watch operations.
-    /// </summary>
-    /// <typeparam name="T">The watched value type.</typeparam>
-    /// <param name="newValue">The current value produced by the getter or source.</param>
-    /// <param name="oldValue">The previous value from the last callback.</param>
-    public delegate void WatchCallback<T>(T newValue, T oldValue);
 
     /// <summary>
     /// Options that control the behavior of <see cref="Reactive.Watch{T}(Func{T}, Action{T, T}, WatchOptions{T})"/>.
