@@ -29,33 +29,36 @@ namespace EffectSharp
             {
                 var prop = _propertyCache[i];
                 _propertyOffset[prop.Name] = i;
-                var attr = prop.GetCustomAttribute<ReactivePropertyAttribute>();
-                if (attr == null)
-                {
-                    attr = new ReactivePropertyAttribute();
-                }
+                var attr = prop.GetCustomAttribute<ReactivePropertyAttribute>() ?? new ReactivePropertyAttribute();
                 if (attr.Default == null && prop.PropertyType.IsValueType)
-                {
                     attr.Default = Activator.CreateInstance(prop.PropertyType);
-                }
-                var comparerType = attr.EqualityComparer;
-                if (comparerType != null)
-                {
-                    var instance = Activator.CreateInstance(comparerType, attr.EqualityComparerConstructorArgs);
-                    if (instance is IEqualityComparer equalityComparer)
-                    {
-                        attr.EqualsFunc = (a, b) => equalityComparer.Equals(a, b);
-                    }
-                    else
-                    {
-                        var interfaceType = typeof(IEqualityComparer<>).MakeGenericType(prop.PropertyType);
-                        if (!interfaceType.IsAssignableFrom(comparerType))
-                            throw new ArgumentException($"Type '{comparerType.FullName}' does not implement IEqualityComparer<{prop.PropertyType.Name}>.");
-                        var equalsMethod = interfaceType.GetMethod(nameof(IEqualityComparer<object>.Equals));
-                        attr.EqualsFunc = (a, b) => (bool)equalsMethod.Invoke(instance, new object[] { a, b });
-                    }
-                }
+                attr.EqualsFunc = GetEqualsFunc(attr.EqualityComparer, attr.EqualityComparerConstructorArgs, prop.PropertyType);
                 _reactivePropertyCache[i] = attr;
+            }
+        }
+
+        private static Func<object, object, bool> GetEqualsFunc(Type comparerType, object[] constructorArgs, Type propertyType)
+        {
+            if (comparerType == null)
+            {
+                var defaultComparerType = typeof(EqualityComparer<>).MakeGenericType(propertyType);
+                var defaultComparerInstance = (IEqualityComparer)defaultComparerType
+                    .GetProperty(nameof(EqualityComparer<object>.Default)).GetValue(null);
+                return defaultComparerInstance.Equals;
+            }
+
+            var instance = Activator.CreateInstance(comparerType, constructorArgs);
+            if (instance is IEqualityComparer equalityComparer)
+            {
+                return equalityComparer.Equals;
+            }
+            else
+            {
+                var interfaceType = typeof(IEqualityComparer<>).MakeGenericType(propertyType);
+                if (!interfaceType.IsAssignableFrom(comparerType))
+                    throw new ArgumentException($"Type '{comparerType.FullName}' does not implement IEqualityComparer<{propertyType.Name}>.");
+                var equalsMethod = interfaceType.GetMethod(nameof(IEqualityComparer<object>.Equals));
+                return (a, b) => (bool)equalsMethod.Invoke(instance, new object[] { a, b });
             }
         }
 

@@ -34,7 +34,7 @@ namespace EffectSharp
         public bool Deep { get; }
 
         /// <summary>
-        /// Optional equality comparer for change detection; if omitted, any assignment is treated as a change.
+        /// Optional equality comparer for change detection; if omitted, <see cref="EqualityComparer{T}.Default"/> is used.
         /// </summary>
         public Type EqualityComparer { get; }
 
@@ -54,7 +54,7 @@ namespace EffectSharp
         /// <param name="defaultValue">Optional default value used only by value-storing proxies; for value types, the runtime default is used when omitted.</param>
         /// <param name="reactive">Whether the property participates in dependency tracking and notifications; defaults to <c>true</c>.</param>
         /// <param name="deep">Whether to create a nested reactive proxy for interface-typed properties during value initialization; defaults to <c>false</c>.</param>
-        /// <param name="equalityComparer">Optional equality comparer for change detection; if omitted, any assignment is treated as a change.</param>
+        /// <param name="equalityComparer">Optional equality comparer for change detection; if omitted, <see cref="EqualityComparer{T}.Default" /> is used.</param>
         /// <param name="equalityComparerConstructorArgs">Constructor arguments for the equality comparer.</param>
         public ReactivePropertyAttribute(object defaultValue = null, bool reactive = true, bool deep = false, Type equalityComparer = null, object[] equalityComparerConstructorArgs = null)
         {
