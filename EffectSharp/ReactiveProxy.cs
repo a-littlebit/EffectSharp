@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Reflection;
@@ -36,6 +37,23 @@ namespace EffectSharp
                 if (attr.Default == null && prop.PropertyType.IsValueType)
                 {
                     attr.Default = Activator.CreateInstance(prop.PropertyType);
+                }
+                var comparerType = attr.EqualityComparer;
+                if (comparerType != null)
+                {
+                    var instance = Activator.CreateInstance(comparerType, attr.EqualityComparerConstructorArgs);
+                    if (instance is IEqualityComparer equalityComparer)
+                    {
+                        attr.EqualsFunc = (a, b) => equalityComparer.Equals(a, b);
+                    }
+                    else
+                    {
+                        var interfaceType = typeof(IEqualityComparer<>).MakeGenericType(prop.PropertyType);
+                        if (!interfaceType.IsAssignableFrom(comparerType))
+                            throw new ArgumentException($"Type '{comparerType.FullName}' does not implement IEqualityComparer<{prop.PropertyType.Name}>.");
+                        var equalsMethod = interfaceType.GetMethod(nameof(IEqualityComparer<object>.Equals));
+                        attr.EqualsFunc = (a, b) => (bool)equalsMethod.Invoke(instance, new object[] { a, b });
+                    }
                 }
                 _reactivePropertyCache[i] = attr;
             }
@@ -204,6 +222,20 @@ namespace EffectSharp
                     return;
                 }
                 throw new ArgumentException($"Property '{propertyName}' not found.");
+            }
+
+            var reactiveAttr = _reactivePropertyCache[offset];
+            if (reactiveAttr.EqualsFunc != null)
+            {
+                object currentValue;
+                if (_target != null)
+                    currentValue = _propertyCache[offset].GetValue(_target);
+                else
+                    currentValue = Volatile.Read(ref _values[offset]);
+                if (reactiveAttr.EqualsFunc(currentValue, value))
+                {
+                    return;
+                }
             }
 
             Dependency dependency = _dependencies[offset];

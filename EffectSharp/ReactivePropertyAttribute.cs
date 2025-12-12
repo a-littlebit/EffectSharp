@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 
@@ -33,16 +34,35 @@ namespace EffectSharp
         public bool Deep { get; }
 
         /// <summary>
+        /// Optional equality comparer for change detection; if omitted, any assignment is treated as a change.
+        /// </summary>
+        public Type EqualityComparer { get; }
+
+        /// <summary>
+        /// Constructor arguments for the equality comparer.
+        /// </summary>
+        public object[] EqualityComparerConstructorArgs { get; }
+
+        /// <summary>
+        /// An equality function for change detection.
+        /// </summary>
+        public Func<object, object, bool> EqualsFunc { get; set; } = null;
+
+        /// <summary>
         /// Initializes a new instance of the attribute.
         /// </summary>
         /// <param name="defaultValue">Optional default value used only by value-storing proxies; for value types, the runtime default is used when omitted.</param>
         /// <param name="reactive">Whether the property participates in dependency tracking and notifications; defaults to <c>true</c>.</param>
         /// <param name="deep">Whether to create a nested reactive proxy for interface-typed properties during value initialization; defaults to <c>false</c>.</param>
-        public ReactivePropertyAttribute(object defaultValue = null, bool reactive = true, bool deep = false)
+        /// <param name="equalityComparer">Optional equality comparer for change detection; if omitted, any assignment is treated as a change.</param>
+        /// <param name="equalityComparerConstructorArgs">Constructor arguments for the equality comparer.</param>
+        public ReactivePropertyAttribute(object defaultValue = null, bool reactive = true, bool deep = false, Type equalityComparer = null, object[] equalityComparerConstructorArgs = null)
         {
             Default = defaultValue;
             Reactive = reactive;
             Deep = deep;
+            EqualityComparer = equalityComparer;
+            EqualityComparerConstructorArgs = equalityComparerConstructorArgs;
         }
     }
 }
