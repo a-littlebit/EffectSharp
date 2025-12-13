@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Example.Wpf
+namespace Example.Wpf.Todos
 {
     public interface ITodoItem
     {
@@ -21,7 +21,7 @@ namespace Example.Wpf
         bool IsCompleted { get; set; }
     }
 
-    public partial class MainWindowViewModel
+    public partial class MainViewModel
     {
         public Ref<string> NewTodoTitle { get; } = Reactive.Ref(string.Empty);
         public ReactiveCollection<ITodoItem> TodoItems { get; } = new();
@@ -32,7 +32,7 @@ namespace Example.Wpf
 
         public ObservableCollection<ITodoItem> FilteredTodoItems { get; } = new();
 
-        public MainWindowViewModel()
+        public MainViewModel()
         {
             Reactive.Computed(() =>
             {

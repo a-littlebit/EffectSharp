@@ -1,8 +1,4 @@
-﻿using EffectSharp;
-using System.Collections.Specialized;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.Text;
+﻿using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -13,7 +9,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace Example.Wpf
+namespace Example.Wpf.Counter
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -24,7 +20,7 @@ namespace Example.Wpf
         {
             InitializeComponent();
 
-            DataContext = new MainWindowViewModel();
+            DataContext = new MainViewModel();
         }
     }
 }

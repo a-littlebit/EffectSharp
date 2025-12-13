@@ -1,10 +1,12 @@
 <Solution>
   <Folder Name="/Examples/">
-    <Project Path="Examples/Example.Wpf/Example.Wpf.csproj" />
+    <Project Path="Examples/Example.Wpf.Counter/Example.Wpf.Counter.csproj" />
+    <Project Path="Examples/Example.Wpf.Todos/Example.Wpf.Todos.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path="CHANGELOG.md" />
   </Folder>
-  <Project Path="EffectSharp.Tests/EffectSharp.Tests.csproj" Id="03fe7542-a38b-45b0-a7ca-45b3cf58120d" />
+  <Project Path="EffectSharp.SourceGenerators/EffectSharp.SourceGenerators.csproj" />
+  <Project Path="EffectSharp.Tests/EffectSharp.Tests.csproj" />
   <Project Path="EffectSharp/EffectSharp.csproj" />
 </Solution>

@@ -2,7 +2,7 @@
 using System.Data;
 using System.Windows;
 
-namespace Example.Wpf
+namespace Example.Wpf.Counter
 {
     /// <summary>
     /// Interaction logic for App.xaml
