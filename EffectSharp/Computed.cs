@@ -14,7 +14,7 @@ namespace EffectSharp
     /// <typeparam name="T">The type of the computed value. </typeparam>
     public class Computed<T> : INotifyPropertyChanging, INotifyPropertyChanged, IReactive, IRef<T>, IReadOnlyRef<T>, IDisposable
     {
-        private volatile IAtomic<T> _value;
+        private readonly IAtomic<T> _value;
         private int _dirtyFlag = 2; // 0: clean, 1: computing, 2: dirty
         private readonly Action<T> _setter;
         private readonly Dependency _dependency = new Dependency();
