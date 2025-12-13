@@ -1,6 +1,7 @@
 ﻿using EffectSharp.SourceGenerators.Utils;
 using Microsoft.CodeAnalysis;
 using System.CodeDom.Compiler;
+using System.Linq;
 
 namespace EffectSharp.SourceGenerators.Emitters
 {
@@ -43,6 +44,18 @@ namespace EffectSharp.SourceGenerators.Emitters
                         NameHelper.RemoveLeadingUnderscore(fieldName));
                 var fieldType = field.Type.ToDisplayString();
 
+                string equalsMethod = null;
+                var attr = field.GetAttributes()
+                                .FirstOrDefault(a => a.AttributeClass?.Name == "ReactiveFieldAttribute");
+                if (attr != null && attr.ConstructorArguments.Length == 1)
+                {
+                    var arg = attr.ConstructorArguments[0];
+                    if (arg.Value is string s && !string.IsNullOrEmpty(s))
+                    {
+                        equalsMethod = s;
+                    }
+                }
+
                 iw.WriteLine("public " + fieldType + " " + propertyName);
                 iw.WriteLine("{");
                 iw.Indent++;
@@ -60,15 +73,20 @@ namespace EffectSharp.SourceGenerators.Emitters
                 iw.WriteLine("{");
                 iw.Indent++;
 
-                iw.WriteLine(
-                    "if (System.Collections.Generic.EqualityComparer<" +
-                    fieldType +
-                    ">.Default.Equals(" +
-                    fieldName +
-                    ", value))");
-                iw.Indent++;
-                iw.WriteLine("return;");
-                iw.Indent--;
+                if (string.IsNullOrEmpty(equalsMethod))
+                {
+                    iw.WriteLine($"if (System.Collections.Generic.EqualityComparer<{fieldType}>.Default.Equals({fieldName}, value))");
+                    iw.Indent++;
+                    iw.WriteLine("return;");
+                    iw.Indent--;
+                }
+                else if (equalsMethod != "noEqualityComparison")
+                {
+                    iw.WriteLine($"if ({equalsMethod}({fieldName}, value))");
+                    iw.Indent++;
+                    iw.WriteLine("return;");
+                    iw.Indent--;
+                }
 
                 iw.WriteLine();
                 iw.WriteLine(

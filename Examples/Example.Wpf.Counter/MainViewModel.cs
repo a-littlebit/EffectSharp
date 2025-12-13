@@ -12,9 +12,8 @@ namespace Example.Wpf.Counter
     [ReactiveModel]
     public partial class MainViewModel
     {
-        [ReactiveField]
+        [ReactiveField(equalsMethod: ReactiveFieldAttribute.NoEqualityComparison)]
         private int _count;
-
 
         public ICommand IncrementCommand { get; }
 
