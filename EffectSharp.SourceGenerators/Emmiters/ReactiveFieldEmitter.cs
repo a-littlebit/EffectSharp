@@ -1,6 +1,7 @@
 ﻿using EffectSharp.SourceGenerators.Utils;
 using Microsoft.CodeAnalysis;
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace EffectSharp.SourceGenerators.Emitters
@@ -8,36 +9,44 @@ namespace EffectSharp.SourceGenerators.Emitters
     internal sealed class ReactiveFieldEmitter : IReactiveModelEmitter
     {
         public void Emit(
-            ReactiveModelContext context,
+            INamedTypeSymbol model,
             IndentedTextWriter iw)
         {
-            EmitDependencyFields(context, iw);
+            var fieldInfos = model.GetMembers()
+                              .OfType<IFieldSymbol>()
+                              .Select(f => (f, f.GetAttributeData<AttributeData>("ReactiveFieldAttribute")))
+                              .Where(f => f.Item2 != null)
+                              .ToList();
+
+            EmitDependencyFields(fieldInfos, iw);
             iw.WriteLine();
-            EmitProperties(context, iw);
+            EmitProperties(fieldInfos, iw);
             iw.WriteLine();
-            EmitTrackDeep(context, iw);
+            EmitTrackDeep(fieldInfos, iw);
         }
 
         private static void EmitDependencyFields(
-            ReactiveModelContext context,
+            IReadOnlyList<(IFieldSymbol, AttributeData)> fieldInfos,
             IndentedTextWriter iw)
         {
-            foreach (var field in context.ReactiveFields)
+            foreach (var field in fieldInfos)
             {
+                var fieldName = field.Item1.Name;
                 iw.WriteLine(
                     "private readonly Dependency " +
-                    field.Name +
+                    fieldName +
                     "_dependency = new Dependency();"
                 );
             }
         }
 
         private static void EmitProperties(
-            ReactiveModelContext context,
+            IReadOnlyList<(IFieldSymbol, AttributeData)> fieldInfos,
             IndentedTextWriter iw)
         {
-            foreach (var field in context.ReactiveFields)
+            foreach (var fieldInfo in fieldInfos)
             {
+                var (field, attr) = fieldInfo;
                 var fieldName = field.Name;
                 var propertyName =
                     NameHelper.ToPascalCase(
@@ -45,8 +54,6 @@ namespace EffectSharp.SourceGenerators.Emitters
                 var fieldType = field.Type.ToDisplayString();
 
                 string equalsMethod = null;
-                var attr = field.GetAttributes()
-                                .FirstOrDefault(a => a.AttributeClass?.Name == "ReactiveFieldAttribute");
                 if (attr != null && attr.ConstructorArguments.Length == 1)
                 {
                     var arg = attr.ConstructorArguments[0];
@@ -119,15 +126,16 @@ namespace EffectSharp.SourceGenerators.Emitters
         }
 
         private static void EmitTrackDeep(
-            ReactiveModelContext context,
+            IReadOnlyList<(IFieldSymbol, AttributeData)> fieldInfos,
             IndentedTextWriter iw)
         {
             iw.WriteLine("public void TrackDeep()");
             iw.WriteLine("{");
             iw.Indent++;
 
-            foreach (var field in context.ReactiveFields)
+            foreach (var fieldInfo in fieldInfos)
             {
+                var field = fieldInfo.Item1;
                 iw.WriteLine(field.Name + "_dependency.Track();");
                 if (field.Type.IsValueType)
                 {

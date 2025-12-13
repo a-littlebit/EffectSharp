@@ -20,5 +20,22 @@ namespace EffectSharp.SourceGenerators.Utils
 
             return false;
         }
+
+        public static TAttributeData GetAttributeData<TAttributeData>(
+            this ISymbol symbol,
+            string attributeName)
+            where TAttributeData : AttributeData
+        {
+            foreach (var attr in symbol.GetAttributes())
+            {
+                var name = attr.AttributeClass.Name;
+                if (name == attributeName ||
+                    name == attributeName + "Attribute")
+                {
+                    return (TAttributeData)(object)attr;
+                }
+            }
+            return null;
+        }
     }
 }

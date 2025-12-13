@@ -36,23 +36,14 @@ public sealed class ReactiveModelGenerator : ISourceGenerator
                 if (!symbol.HasAttribute("ReactiveModelAttribute"))
                     continue;
 
-                var reactiveFields = symbol.GetMembers()
-                    .OfType<IFieldSymbol>()
-                    .Where(f => f.HasAttribute("ReactiveFieldAttribute"))
-                    .ToList();
-
-                if (reactiveFields.Count == 0)
-                    continue;
-
-                EmitModel(context, symbol, reactiveFields);
+                EmitModel(context, symbol);
             }
         }
     }
 
     private static void EmitModel(
         GeneratorExecutionContext context,
-        INamedTypeSymbol model,
-        List<IFieldSymbol> fields)
+        INamedTypeSymbol model)
     {
         var sw = new StringWriter();
         var iw = new IndentedTextWriter(sw, "    ");
@@ -81,10 +72,9 @@ public sealed class ReactiveModelGenerator : ISourceGenerator
             "public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;");
         iw.WriteLine();
 
-        var ctx = new ReactiveModelContext(model, fields);
         foreach (var emitter in _emitters)
         {
-            emitter.Emit(ctx, iw);
+            emitter.Emit(model, iw);
         }
 
         iw.Indent--;
