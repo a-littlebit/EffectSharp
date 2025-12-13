@@ -49,7 +49,7 @@ It focuses on:
 
 ## Quick Start
 
-### Create a new reactive object, ref, computed value, effect, and watch changes:
+### Create a new reactive object, ref, computed value, and watch changes:
 ```csharp
 using EffectSharp;
 
