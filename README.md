@@ -58,6 +58,7 @@ public interface IProduct
 {
     [ReactiveProperty(defaultValue: "")]
     string Name { get; set; }
+
     int Price { get; set; }
 }
 
@@ -66,31 +67,19 @@ product.Name = "Laptop";
 product.Price = 1000;
 
 // Ref primitive
-var count = Reactive.Ref(0);
+var count = Reactive.Ref(1);
 
 // Computed value
-var priceWithTax = Reactive.Computed(() => product.Price + (int)(product.Price * 0.1));
+var totalPrice = Reactive.Computed(() => product.Price * count.Value);
 
-// Effect (auto reruns when dependencies used inside change)
-var effect = Reactive.Effect(() => {
-    Console.WriteLine($"Total: {priceWithTax.Value}");
-});
+// Watch changes
+var watcher = Reactive.Watch(() => totalPrice.Value, (newVal, oldVal) => {
+    Console.WriteLine($"Total price changed from {oldVal} to {newVal}");
+}, new WatchOptions<int> { Immediate = true }); // Total price changed from 0 to 1000
+count.Value = 2;
+await Reactive.NextTick(); // Total price changed from 1000 to 2000
 
-product.Price = 1200; // Effect will re-run
-
-// Watch a ref (returns an Effect; dispose to stop)
-var subEffect = Reactive.Watch(count, (newVal, oldVal) => {
-    Console.WriteLine($"count changed {oldVal} -> {newVal}");
-});
-count.Value = 1;
-await Reactive.NextTick();
-subEffect.Dispose();
-
-// Reactive collection
-var numbers = Reactive.Collection<int>();
-var sum = Reactive.Computed(() => numbers.Sum());
-numbers.Add(5); // sum invalidated
-Console.WriteLine(sum.Value); // 5
+watcher.Dispose();
 ```
 
 ### Bind to UI (WPF example)
@@ -128,8 +117,11 @@ public class MyViewModel
 A lightweight holder for a single reactive value. Accessing `Value` from inside effects/computed getters tracks the dependency; assigning new values triggers subscribed effects.
 ```csharp
 var counter = Reactive.Ref(0);
-Reactive.Effect(() => Console.WriteLine(counter.Value));
-counter.Value++; // Effect prints updated value
+Reactive.Watch(() => counter.Value, (newVal, oldVal) => {
+    Console.WriteLine($"Counter changed from {oldVal} to {newVal}");
+});
+counter.Value++;
+await Reactive.NextTick(); // Counter changed from 0 to 1
 ```
 
 ### Reactive Objects (`Reactive.Create`)
@@ -138,16 +130,32 @@ Create proxies via `DispatchProxy` using interfaces. Use `ReactivePropertyAttrib
 - `deep: true|false` — whether nested objects are treated reactively.
 - `defaultValue` — optional default value for initial state.
 ```csharp
+public interface IOrder
+{
+    [ReactiveProperty(defaultValue: 1)]
+    int Quantity { get; set; }
+    [ReactiveProperty(deep: true)]
+    IProduct Product { get; set; }
+}
+
 var order = Reactive.Create<IOrder>();
-order.Quantity = 2; // default can be provided by attribute
-order.Product = Reactive.Create<IProduct>();
 order.Product.Name = "Phone";
 order.Product.Price = 500;
-Reactive.Effect(() => Console.WriteLine(order.Product.Price));
-order.Product.Price = 600; // Effect reruns
+Reactive.Watch(() => order.Product.Price, (newVal, oldVal) => {
+    Console.WriteLine($"Product price changed from {oldVal} to {newVal}");
+});
+order.Product.Price = 600;
+await Reactive.NextTick(); // Product price changed from 500 to 600
 
 // optional: specify target instance
+public class MyOrder : IOrder
+{
+    public int Quantity { get; set; } = 2;
+    public IProduct Product { get; set; } = Reactive.Create<IProduct>();
+}
+
 var myOrder = Reactive.Create<IOrder>(new MyOrder());
+console.WriteLine(myOrder.Quantity); // 2
 ```
 
 ### Computed Values (`Reactive.Computed`)
@@ -156,8 +164,8 @@ Lazy, cached derivations. Recomputed only when one of the dependencies accessed 
 var product = Reactive.Create<IProduct>();
 product.Name = "Tablet";
 product.Price = 300;
-var priceWithTax = Reactive.Computed(() => product.Price + (int)(product.Price * 0.1));
-Console.WriteLine(priceWithTax.Value); // 330
+var priceWithTax = Reactive.Computed(() => product.Price + (int)(product.Price * 0.1)); // nothing computed yet
+Console.WriteLine(priceWithTax.Value); // 330 (first computation)
 product.Price = 400;
 Console.WriteLine(priceWithTax.Value); // 440 (recomputed)
 ```
@@ -172,6 +180,9 @@ var effect = Reactive.Effect(() => {
         Console.WriteLine($"Updated at {updateTime.Value}");
     });
 });
+product.Price = 500; // triggers effect
+await Reactive.NextTick();
+updateTime.Value = DateTime.Now; // does not trigger effect
 // dispose to stop tracking
 effect.Dispose();
 ```
@@ -204,11 +215,9 @@ Console.WriteLine(first.Value); // 100
 
 ```csharp
 var dict = Reactive.Dictionary<string, int>();
-var hasFoo = Reactive.Computed(() => dict.ContainsKey("foo"));
-Console.WriteLine(hasFoo.Value); // false
-dict["foo"] = 2; // invalidates hasFoo via key-set dependency
-await Reactive.NextTick();
-Console.WriteLine(hasFoo.Value); // true
+var fooValue = Reactive.Computed(() => dict.ContainsKey("foo") ? dict["foo"] : 0);
+dict["foo"] = 42; // invalidates fooValue
+Console.WriteLine(fooValue.Value); // 42
 ```
 
 ### Commands (`FunctionCommand`)
