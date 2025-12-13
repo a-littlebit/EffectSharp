@@ -227,18 +227,14 @@ namespace EffectSharp
                 throw new ArgumentException($"Property '{propertyName}' not found.");
             }
 
-            var reactiveAttr = _reactivePropertyCache[offset];
-            if (reactiveAttr.EqualsFunc != null)
+            object currentValue;
+            if (_target != null)
+                currentValue = _propertyCache[offset].GetValue(_target);
+            else
+                currentValue = Volatile.Read(ref _values[offset]);
+            if (_reactivePropertyCache[offset].EqualsFunc(currentValue, value))
             {
-                object currentValue;
-                if (_target != null)
-                    currentValue = _propertyCache[offset].GetValue(_target);
-                else
-                    currentValue = Volatile.Read(ref _values[offset]);
-                if (reactiveAttr.EqualsFunc(currentValue, value))
-                {
-                    return;
-                }
+                return;
             }
 
             Dependency dependency = _dependencies[offset];
