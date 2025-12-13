@@ -111,8 +111,13 @@ namespace EffectSharp.SourceGenerators.Emitters
             foreach (var field in context.ReactiveFields)
             {
                 iw.WriteLine(field.Name + "_dependency.Track();");
+                if (field.Type.IsValueType)
+                {
+                    iw.WriteLine();
+                    continue;
+                }
                 iw.WriteLine(
-                    "if ((object)" + field.Name + " is IReactive r_" + field.Name + ")");
+                    "if (" + field.Name + " is IReactive r_" + field.Name + ")");
                 iw.WriteLine("{");
                 iw.Indent++;
                 iw.WriteLine("r_" + field.Name + ".TrackDeep();");
