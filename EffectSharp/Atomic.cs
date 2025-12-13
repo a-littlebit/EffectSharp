@@ -56,7 +56,7 @@ namespace EffectSharp
         /// </summary>
         public int Value
         {
-            get => Interlocked.CompareExchange(ref _value, 0, 0);
+            get => Volatile.Read(ref _value);
             set => Interlocked.Exchange(ref _value, value);
         }
 
@@ -141,7 +141,7 @@ namespace EffectSharp
         /// </summary>
         public long Value
         {
-            get => Interlocked.CompareExchange(ref _value, 0, 0);
+            get => Volatile.Read(ref _value);
             set => Interlocked.Exchange(ref _value, value);
         }
 
@@ -226,7 +226,7 @@ namespace EffectSharp
         /// </summary>
         public bool Value
         {
-            get => Interlocked.CompareExchange(ref _value, 0, 0) == 1;
+            get => Volatile.Read(ref _value) == 1;
             set => Interlocked.Exchange(ref _value, value ? 1 : 0);
         }
 
@@ -292,14 +292,8 @@ namespace EffectSharp
         /// </summary>
         public float Value
         {
-            get
-            {
-                return Interlocked.CompareExchange(ref _value, 0.0f, 0.0f);
-            }
-            set
-            {
-                Interlocked.Exchange(ref _value, value);
-            }
+            get => Volatile.Read(ref _value);
+            set => Interlocked.Exchange(ref _value, value);
         }
 
         /// <summary>
@@ -362,14 +356,8 @@ namespace EffectSharp
         /// </summary>
         public double Value
         {
-            get
-            {
-                return Interlocked.CompareExchange(ref _value, 0.0, 0.0);
-            }
-            set
-            {
-                Interlocked.Exchange(ref _value, value);
-            }
+            get => Volatile.Read(ref _value);
+            set => Interlocked.Exchange(ref _value, value);
         }
 
         /// <summary>
@@ -429,7 +417,7 @@ namespace EffectSharp
         /// </summary>
         public byte Value
         {
-            get => (byte)Interlocked.CompareExchange(ref _value, 0, 0);
+            get => (byte)Volatile.Read(ref _value);
             set => Interlocked.Exchange(ref _value, value);
         }
 
@@ -490,7 +478,7 @@ namespace EffectSharp
         /// </summary>
         public short Value
         {
-            get => (short)Interlocked.CompareExchange(ref _value, 0, 0);
+            get => (short)Volatile.Read(ref _value);
             set => Interlocked.Exchange(ref _value, value);
         }
 
@@ -551,7 +539,7 @@ namespace EffectSharp
         /// </summary>
         public uint Value
         {
-            get => unchecked((uint)Interlocked.CompareExchange(ref _value, 0, 0));
+            get => unchecked((uint)Volatile.Read(ref _value));
             set => Interlocked.Exchange(ref _value, unchecked((int)value));
         }
 
@@ -614,7 +602,7 @@ namespace EffectSharp
         /// </summary>
         public ulong Value
         {
-            get => unchecked((ulong)Interlocked.CompareExchange(ref _value, 0, 0));
+            get => unchecked((ulong)Volatile.Read(ref _value));
             set => Interlocked.Exchange(ref _value, unchecked((long)value));
         }
 
@@ -677,7 +665,7 @@ namespace EffectSharp
         /// </summary>
         public char Value
         {
-            get => (char)Interlocked.CompareExchange(ref _value, 0, 0);
+            get => (char)Volatile.Read(ref _value);
             set => Interlocked.Exchange(ref _value, value);
         }
 
@@ -738,7 +726,7 @@ namespace EffectSharp
         /// </summary>
         public DateTime Value
         {
-            get => new DateTime(Interlocked.CompareExchange(ref _ticks, 0, 0));
+            get => new DateTime(Volatile.Read(ref _ticks));
             set => Interlocked.Exchange(ref _ticks, value.Ticks);
         }
 
@@ -799,7 +787,7 @@ namespace EffectSharp
         /// </summary>
         public TimeSpan Value
         {
-            get => new TimeSpan(Interlocked.CompareExchange(ref _ticks, 0, 0));
+            get => new TimeSpan(Volatile.Read(ref _ticks));
             set => Interlocked.Exchange(ref _ticks, value.Ticks);
         }
 
@@ -866,10 +854,7 @@ namespace EffectSharp
         /// </summary>
         public T Value
         {
-            get
-            {
-                return (T)Interlocked.CompareExchange(ref _value, null, null);
-            }
+            get => (T)Volatile.Read(ref _value);
             set => Interlocked.Exchange(ref _value, value);
         }
 
