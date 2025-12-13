@@ -65,7 +65,10 @@ namespace EffectSharp
             TryCreateEffectBatcher(() =>
             {
                 var batcher = new TaskBatcher<Effect>(
-                    DefaultEffectBatchProcessor, 0, TaskScheduler.FromCurrentSynchronizationContext(), maxConsumers: 1);
+                    batchProcessor: DefaultEffectBatchProcessor,
+                    intervalMs: 0,
+                    scheduler: SynchronizationContext.Current == null ? TaskScheduler.Default : TaskScheduler.FromCurrentSynchronizationContext(),
+                    maxConsumers: 1);
                 batcher.BatchProcessingFailed += TraceEffectFailure;
                 return batcher;
             });
@@ -104,7 +107,10 @@ namespace EffectSharp
             TryCreateNotificationBatcher(() =>
             {
                 var batcher = new TaskBatcher<NotificationTask>(
-                    DefaultNotificationBatchProcessor, 16, TaskScheduler.FromCurrentSynchronizationContext(), maxConsumers: 1);
+                    batchProcessor: DefaultNotificationBatchProcessor,
+                    intervalMs: 16,
+                    scheduler: SynchronizationContext.Current == null ? TaskScheduler.Default : TaskScheduler.FromCurrentSynchronizationContext(),
+                    maxConsumers: 1);
                 batcher.BatchProcessingFailed += TraceNotificationFailure;
                 return batcher;
             });
