@@ -23,7 +23,7 @@ namespace EffectSharp
         /// Defaults to <c>true</c>. When <c>false</c>, reads do not track and writes do not trigger notifications.
         /// Applies to both value-storing and target-delegating initialization modes.
         /// </summary>
-        public bool Reactive { get; }
+        public bool Reactive { get; set; }
 
         /// <summary>
         /// Enables deep initialization for interface-typed properties when storing values internally.
@@ -31,22 +31,22 @@ namespace EffectSharp
         /// during <see cref="ReactiveProxy{T}.InitializeForValues"/>. This does not automatically proxy values
         /// when delegating to an existing target via <see cref="ReactiveProxy{T}.InitializeForTarget(T)"/>.
         /// </summary>
-        public bool Deep { get; }
+        public bool Deep { get; set; }
 
         /// <summary>
         /// Optional equality comparer for change detection; if omitted, <see cref="EqualityComparer{T}.Default"/> is used.
         /// </summary>
-        public Type EqualityComparer { get; }
+        public Type EqualityComparer { get; set; }
 
         /// <summary>
         /// Constructor arguments for the equality comparer.
         /// </summary>
-        public object[] EqualityComparerConstructorArgs { get; }
+        public object[] EqualityComparerConstructorArgs { get; set; }
 
         /// <summary>
         /// An equality function for change detection.
         /// </summary>
-        public Func<object, object, bool> EqualsFunc { get; set; } = null;
+        public Func<object, object, bool> EqualsFunc { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the attribute.

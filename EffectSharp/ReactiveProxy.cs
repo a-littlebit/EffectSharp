@@ -250,11 +250,13 @@ namespace EffectSharp
             if (dependency != null)
             {
                 dependency.Trigger();
-
-                TaskManager.QueueNotification(this, propertyName, (args) =>
+                if (PropertyChanged != null)
                 {
-                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-                });
+                    TaskManager.QueueNotification(this, propertyName, (args) =>
+                    {
+                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                    });
+                }
             }
         }
 
