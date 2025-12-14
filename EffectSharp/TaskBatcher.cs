@@ -174,6 +174,9 @@ namespace EffectSharp
             long sequence = Interlocked.Increment(ref _enqueueCounter);
             _taskQueue.Enqueue((item, sequence));
 
+            // Ensure cancellation source exists for the current task
+            EnsureDelayCancellationSource();
+
             if (Volatile.Read(ref _startLoopFlag) == 0)
             {
                 // Start the batch processing loop asynchronously (fire-and-forget)
@@ -295,7 +298,7 @@ namespace EffectSharp
         private async Task RunProcessingLoopAsync()
         {
             // Ensure only one consumer is dequeuing tasks at a time
-            Task lasStartTask = null;
+            Task lasStartTask = Task.CompletedTask;
             // Outermost loop: ensure continuous processing while there are tasks
             while (Volatile.Read(ref _disposed) == 0 && !_taskQueue.IsEmpty)
             {
@@ -310,31 +313,23 @@ namespace EffectSharp
                     while (Volatile.Read(ref _disposed) == 0 && !_taskQueue.IsEmpty)
                     {
                         // Create a new cancellation source for the current interval delay
-                        using (var delayCts = new CancellationTokenSource())
+                        var delayCts = EnsureDelayCancellationSource();
+                        try
                         {
-                            _currentDelayCts = delayCts;
-                            try
-                            {
-                                if (lasStartTask != null)
-                                {
-                                    // Wait for both the last dequeue and the delay to complete
-                                    await Task.WhenAll(lasStartTask, _throttler(delayCts.Token)).ConfigureAwait(false);
-                                }
-                                else
-                                {
-                                    // Wait for the delay to complete
-                                    await _throttler(delayCts.Token).ConfigureAwait(false);
-                                }
-                            }
-                            catch (OperationCanceledException)
-                            {
-                                // Cancellation triggered by FlushAsync—proceed to process immediately
-                            }
-                            finally
-                            {
-                                // Clear the reference to the delay cancellation source
-                                _currentDelayCts = null;
-                            }
+                            // Check for cancellation before starting the delay
+                            delayCts.Token.ThrowIfCancellationRequested();
+                            // Wait for both the delay and the last batch dequeuing to complete
+                            await Task.WhenAll(_throttler(delayCts.Token), lasStartTask).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // Cancellation triggered by FlushAsync—proceed to process immediately
+                        }
+                        finally
+                        {
+                            // Clear the reference to the delay cancellation source
+                            Interlocked.Exchange(ref _currentDelayCts, null);
+                            delayCts.Dispose();
                         }
 
                         // Exit loop if disposed during the delay
@@ -381,7 +376,7 @@ namespace EffectSharp
         {
             if (_taskQueue.IsEmpty)
             {
-                dequeuedTcs.SetResult(true);
+                dequeuedTcs.TrySetResult(true);
                 _consumerSemaphore.Release();
                 return;
             }
@@ -421,7 +416,7 @@ namespace EffectSharp
             }
             var lastDequeuedSeq = _dequeuedCounter;
             _dequeuedCounter = dequeuedSeq;
-            dequeuedTcs.SetResult(true);
+            dequeuedTcs.TrySetResult(true);
 
             // Exit if no tasks to process (queue emptied between IsEmpty check and Dequeue)
             if (batch.Count == 0)
@@ -476,16 +471,32 @@ namespace EffectSharp
             }
         }
 
+        private CancellationTokenSource EnsureDelayCancellationSource()
+        {
+            var existingDelayCts = Volatile.Read(ref _currentDelayCts);
+            if (existingDelayCts != null)
+                return existingDelayCts;
+
+            // Create a new cancellation source for the current interval delay
+            var newDelayTcs = new CancellationTokenSource();
+            // Attempt to set it
+            var oldDelayTcs = Interlocked.CompareExchange(ref _currentDelayCts, newDelayTcs, null);
+            if (oldDelayTcs != null)
+            {
+                // Another thread already set it—dispose the new one and return the existing
+                newDelayTcs.Dispose();
+                return oldDelayTcs;
+            }
+            return newDelayTcs;
+        }
+
         /// <summary>
         /// Cancels the current interval delay (if active).
-        /// Used by FlushAsync to trigger immediate processing.
         /// </summary>
         private void CancelCurrentDelay()
         {
-            // Safely retrieve and clear the current delay cancellation source
-            var delayCts = Interlocked.Exchange(ref _currentDelayCts, null);
+            var delayCts = Volatile.Read(ref _currentDelayCts);
 
-            // Cancel the delay if it's active (avoid redundant calls)
             if (delayCts != null && !delayCts.IsCancellationRequested)
             {
                 delayCts.Cancel();
@@ -514,13 +525,8 @@ namespace EffectSharp
 
             if (disposed == 0 && disposing)
             {
-                // Cancel all pending delays and clean up
-                var delayCts = Interlocked.Exchange(ref _currentDelayCts, null);
-                if (delayCts != null)
-                {
-                    delayCts.Cancel();
-                    delayCts.Dispose();
-                }
+                // Speed cleanup
+                CancelCurrentDelay();
 
                 // Dispose the semaphore
                 _consumerSemaphore.Dispose();

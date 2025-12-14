@@ -91,14 +91,14 @@ namespace EffectSharp.Tests
             using var batcher = CreateBatcher(batch =>
             {
                 // Simulate slow batch processing
-                Thread.SpinWait(50_000);
+                Thread.Sleep(200);
             });
 
             for (int i = 0; i < 200; i++)
                 batcher.Enqueue(i);
 
             await Assert.ThrowsAnyAsync<OperationCanceledException>(
-                () => batcher.NextTick(cts.Token));
+                () => batcher.FlushAsync(cts.Token));
         }
 
         /// <summary>
