@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using EffectSharp.SourceGenerators.Context;
+using Microsoft.CodeAnalysis;
 using System.CodeDom.Compiler;
 
 namespace EffectSharp.SourceGenerators.Emitters
@@ -6,7 +7,7 @@ namespace EffectSharp.SourceGenerators.Emitters
     internal interface IReactiveModelEmitter
     {
         void Emit(
-            INamedTypeSymbol model,
+            ReactiveModelContext context,
             IndentedTextWriter writer);
     }
 }

@@ -1,4 +1,5 @@
 ﻿using EffectSharp.SourceGenerators;
+using EffectSharp.SourceGenerators.Context;
 using EffectSharp.SourceGenerators.Emitters;
 using EffectSharp.SourceGenerators.Utils;
 using Microsoft.CodeAnalysis;
@@ -72,9 +73,10 @@ public sealed class ReactiveModelGenerator : ISourceGenerator
             "public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;");
         iw.WriteLine();
 
+        var contextModel = new ReactiveModelContext(context, model);
         foreach (var emitter in _emitters)
         {
-            emitter.Emit(model, iw);
+            emitter.Emit(contextModel, iw);
         }
 
         iw.Indent--;

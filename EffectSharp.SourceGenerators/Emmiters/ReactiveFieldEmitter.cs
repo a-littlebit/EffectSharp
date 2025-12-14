@@ -1,4 +1,5 @@
-﻿using EffectSharp.SourceGenerators.Utils;
+﻿using EffectSharp.SourceGenerators.Context;
+using EffectSharp.SourceGenerators.Utils;
 using Microsoft.CodeAnalysis;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
@@ -9,29 +10,29 @@ namespace EffectSharp.SourceGenerators.Emitters
     internal sealed class ReactiveFieldEmitter : IReactiveModelEmitter
     {
         public void Emit(
-            INamedTypeSymbol model,
+            ReactiveModelContext context,
             IndentedTextWriter iw)
         {
-            var fieldInfos = model.GetMembers()
+            context.ReactiveFields = context.ModelSymbol.GetMembers()
                               .OfType<IFieldSymbol>()
-                              .Select(f => (f, f.GetAttributeData<AttributeData>("ReactiveFieldAttribute")))
-                              .Where(f => f.Item2 != null)
+                              .Select(f => new ReactiveFieldContext(f, context))
+                              .Where(f => f.ReactiveFieldAttribute != null)
                               .ToList();
 
-            EmitDependencyFields(fieldInfos, iw);
+            EmitDependencyFields(context, iw);
             iw.WriteLine();
-            EmitProperties(fieldInfos, iw);
+            EmitProperties(context, iw);
             iw.WriteLine();
-            EmitTrackDeep(fieldInfos, iw);
+            EmitTrackDeep(context, iw);
         }
 
         private static void EmitDependencyFields(
-            IReadOnlyList<(IFieldSymbol, AttributeData)> fieldInfos,
+            ReactiveModelContext context,
             IndentedTextWriter iw)
         {
-            foreach (var field in fieldInfos)
+            foreach (var field in context.ReactiveFields)
             {
-                var fieldName = field.Item1.Name;
+                var fieldName = field.FieldSymbol.Name;
                 iw.WriteLine(
                     "private readonly Dependency " +
                     fieldName +
@@ -41,17 +42,19 @@ namespace EffectSharp.SourceGenerators.Emitters
         }
 
         private static void EmitProperties(
-            IReadOnlyList<(IFieldSymbol, AttributeData)> fieldInfos,
+            ReactiveModelContext context,
             IndentedTextWriter iw)
         {
-            foreach (var fieldInfo in fieldInfos)
+            foreach (var fieldContext in context.ReactiveFields)
             {
-                var (field, attr) = fieldInfo;
+                var field = fieldContext.FieldSymbol;
+                var attr = fieldContext.ReactiveFieldAttribute;
                 var fieldName = field.Name;
                 var propertyName =
                     NameHelper.ToPascalCase(
                         NameHelper.RemoveLeadingUnderscore(fieldName));
-                var fieldType = field.Type.ToDisplayString();
+                var fieldType = fieldContext.UnderlyingType.ToDisplayString();
+                var readExpression = fieldContext.GetReadExpression();
 
                 string equalsMethod = null;
                 if (attr != null && attr.ConstructorArguments.Length == 1)
@@ -71,7 +74,7 @@ namespace EffectSharp.SourceGenerators.Emitters
                 iw.WriteLine("{");
                 iw.Indent++;
                 iw.WriteLine(fieldName + "_dependency.Track();");
-                iw.WriteLine("return " + fieldName + ";");
+                iw.WriteLine("return " + readExpression + ";");
                 iw.Indent--;
                 iw.WriteLine("}");
                 iw.WriteLine();
@@ -82,14 +85,14 @@ namespace EffectSharp.SourceGenerators.Emitters
 
                 if (string.IsNullOrEmpty(equalsMethod))
                 {
-                    iw.WriteLine($"if (System.Collections.Generic.EqualityComparer<{fieldType}>.Default.Equals({fieldName}, value))");
+                    iw.WriteLine($"if (System.Collections.Generic.EqualityComparer<{fieldType}>.Default.Equals({readExpression}, value))");
                     iw.Indent++;
                     iw.WriteLine("return;");
                     iw.Indent--;
                 }
                 else if (equalsMethod != "noEqualityComparison")
                 {
-                    iw.WriteLine($"if ({equalsMethod}({fieldName}, value))");
+                    iw.WriteLine($"if ({equalsMethod}({readExpression}, value))");
                     iw.Indent++;
                     iw.WriteLine("return;");
                     iw.Indent--;
@@ -102,7 +105,7 @@ namespace EffectSharp.SourceGenerators.Emitters
                     propertyName + ")));");
 
                 iw.WriteLine();
-                iw.WriteLine(fieldName + " = value;");
+                iw.WriteLine(fieldContext.GetWriteExpression("value") + ";");
                 iw.WriteLine();
                 iw.WriteLine(fieldName + "_dependency.Trigger();");
                 iw.WriteLine();
@@ -126,24 +129,25 @@ namespace EffectSharp.SourceGenerators.Emitters
         }
 
         private static void EmitTrackDeep(
-            IReadOnlyList<(IFieldSymbol, AttributeData)> fieldInfos,
+            ReactiveModelContext context,
             IndentedTextWriter iw)
         {
             iw.WriteLine("public void TrackDeep()");
             iw.WriteLine("{");
             iw.Indent++;
 
-            foreach (var fieldInfo in fieldInfos)
+            foreach (var fieldContext in context.ReactiveFields)
             {
-                var field = fieldInfo.Item1;
+                var field = fieldContext.FieldSymbol;
+                var readExpression = fieldContext.GetReadExpression();
                 iw.WriteLine(field.Name + "_dependency.Track();");
-                if (field.Type.IsValueType)
+                if (fieldContext.UnderlyingType.IsValueType)
                 {
                     iw.WriteLine();
                     continue;
                 }
                 iw.WriteLine(
-                    "if (" + field.Name + " is IReactive r_" + field.Name + ")");
+                    "if (" + readExpression + " is IReactive r_" + field.Name + ")");
                 iw.WriteLine("{");
                 iw.Indent++;
                 iw.WriteLine("r_" + field.Name + ".TrackDeep();");
