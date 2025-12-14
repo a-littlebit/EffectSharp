@@ -4,7 +4,15 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Keep a Changelog and uses Semantic Versioning (when versions are published). For now, changes are grouped by version and date.
 
-## Unreleased
+## 1.2.2 - 2025-12-14
+
+### Changed
+
+- `TaskManager` now creates default `TaskBatcher`s on `TaskScheduler.Default` if `SynchronizationContext.Current` is null, improving compatibility in non-UI contexts.
+- `TaskBatcher` now dequeue tasks on the specified `TaskScheduler` to increase merging granularity when the specified scheduler is busy.
+- `Reactive.NextTick(...)` now supports cancellation tokens.
+
+## 1.2.1 - 2025-12-12
 
 ### Added
 - `AsyncLock`: a lightweight async-compatible lock for critical sections, with scopes for reentrancy.
