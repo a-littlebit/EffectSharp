@@ -274,41 +274,47 @@ namespace EffectSharp
                     // Another loop is already running—exit
                     return;
                 }
-                // Inner loop: process batches until the queue is empty
-                while (Volatile.Read(ref _disposed) == 0 && !_taskQueue.IsEmpty)
+                try
                 {
-                    // Create a new cancellation source for the current interval delay
-                    using (var delayCts = new CancellationTokenSource())
+                    // Inner loop: process batches until the queue is empty
+                    while (Volatile.Read(ref _disposed) == 0 && !_taskQueue.IsEmpty)
                     {
-                        _currentDelayCts = delayCts;
-                        try
+                        // Create a new cancellation source for the current interval delay
+                        using (var delayCts = new CancellationTokenSource())
                         {
-                            // Wait for the specified interval (first task waits unless flushed; 0ms = immediate)
-                            var intervalMs = Volatile.Read(ref _intervalMs);
-                            var delayMs = Math.Max(0, intervalMs - lastTimeCostMs);
-                            await Task.Delay(delayMs, delayCts.Token).ConfigureAwait(false);
+                            _currentDelayCts = delayCts;
+                            try
+                            {
+                                // Wait for the specified interval (first task waits unless flushed; 0ms = immediate)
+                                var intervalMs = Volatile.Read(ref _intervalMs);
+                                var delayMs = Math.Max(0, intervalMs - lastTimeCostMs);
+                                await Task.Delay(delayMs, delayCts.Token).ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                // Cancellation triggered by FlushAsync—proceed to process immediately
+                            }
+                            finally
+                            {
+                                // Clear the reference to the delay cancellation source
+                                _currentDelayCts = null;
+                            }
                         }
-                        catch (OperationCanceledException)
-                        {
-                            // Cancellation triggered by FlushAsync—proceed to process immediately
-                        }
-                        finally
-                        {
-                            // Clear the reference to the delay cancellation source
-                            _currentDelayCts = null;
-                        }
+
+                        // Exit loop if disposed during the delay
+                        if (Volatile.Read(ref _disposed) == 1) break;
+
+                        // Measure time cost of batch processing for next delay calculation
+                        var startTime = Environment.TickCount;
+                        await StartBatchProcessingAsync().ConfigureAwait(false);
+                        var endTime = Environment.TickCount;
+                        lastTimeCostMs = endTime - startTime;
                     }
-
-                    // Exit loop if disposed during the delay
-                    if (Volatile.Read(ref _disposed) == 1) break;
-
-                    // Measure time cost of batch processing for next delay calculation
-                    var startTime = Environment.TickCount;
-                    await StartBatchProcessingAsync().ConfigureAwait(false);
-                    var endTime = Environment.TickCount;
-                    lastTimeCostMs = endTime - startTime;
                 }
-                Interlocked.Exchange(ref _startLoopFlag, 0); // Reset loop flag
+                finally
+                {
+                    Interlocked.Exchange(ref _startLoopFlag, 0); // Reset loop flag
+                }
             }
         }
 
