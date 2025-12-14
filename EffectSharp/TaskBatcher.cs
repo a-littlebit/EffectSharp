@@ -147,7 +147,7 @@ namespace EffectSharp
             if (Volatile.Read(ref _startLoopFlag) == 0)
             {
                 // Start the batch processing loop asynchronously (fire-and-forget)
-                _ = StartBatchProcessingLoopAsync();
+                _ = RunProcessingLoopAsync();
             }
         }
 
@@ -262,7 +262,7 @@ namespace EffectSharp
         /// Background loop that handles periodic batch processing.
         /// Runs until the queue is empty or the batcher is disposed.
         /// </summary>
-        private async Task StartBatchProcessingLoopAsync()
+        private async Task RunProcessingLoopAsync()
         {
             // Track time cost of last batch processing and subcontract the next delay accordingly
             var lastTimeCostMs = 0;
@@ -302,9 +302,9 @@ namespace EffectSharp
                     // Exit loop if disposed during the delay
                     if (Volatile.Read(ref _disposed) == 1) break;
 
-                    // Process one batch of tasks and record the time cost in milliseconds
+                    // Measure time cost of batch processing for next delay calculation
                     var startTime = Environment.TickCount;
-                    await ProcessBatchAsync().ConfigureAwait(false);
+                    await StartBatchProcessingAsync().ConfigureAwait(false);
                     var endTime = Environment.TickCount;
                     lastTimeCostMs = endTime - startTime;
                 }
@@ -312,19 +312,40 @@ namespace EffectSharp
             }
         }
 
+        public async Task StartBatchProcessingAsync()
+        {
+            // Acquire semaphore to limit concurrent batch processing
+            await _consumerSemaphore.WaitAsync().ConfigureAwait(false);
+
+            // Capture the current scheduler for this batch
+            var scheduler = Volatile.Read(ref _scheduler);
+            // Create a TaskCompletionSource to signal when dequeuing is done
+            var dequeuedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // Schedule batch processing on the specified scheduler
+            _ = Task.Factory.StartNew(async () =>
+            {
+                await ProcessBatchAsync(dequeuedTcs).ConfigureAwait(false);
+            },
+            CancellationToken.None,
+            TaskCreationOptions.DenyChildAttach | TaskCreationOptions.RunContinuationsAsynchronously,
+            scheduler).Unwrap();
+
+            // Wait for the batch to be dequeued before next batch dequeuing
+            await dequeuedTcs.Task.ConfigureAwait(false);
+        }
+
         /// <summary>
         /// Processes a single batch of tasks from the queue.
         /// </summary>
-        private async Task ProcessBatchAsync()
+        private async Task ProcessBatchAsync(TaskCompletionSource<bool> dequeuedTcs)
         {
-            // Optimize: Skip List creation if queue is empty (ConcurrentQueue.IsEmpty is snapshot, but reduces empty List overhead)
             if (_taskQueue.IsEmpty)
             {
+                dequeuedTcs.SetResult(true);
+                _consumerSemaphore.Release();
                 return;
             }
-
-            // Acquire semaphore to limit concurrent batch processing
-            await _consumerSemaphore.WaitAsync().ConfigureAwait(false);
 
             // Dequeue all tasks currently in the queue and ensure sequence continuity
             var batch = new List<T>(_taskQueue.Count);
@@ -361,6 +382,7 @@ namespace EffectSharp
             }
             var lastDequeuedSeq = _dequeuedCounter;
             _dequeuedCounter = dequeuedSeq;
+            dequeuedTcs.SetResult(true);
 
             // Exit if no tasks to process (queue emptied between IsEmpty check and Dequeue)
             if (batch.Count == 0)
@@ -369,25 +391,17 @@ namespace EffectSharp
                 return;
             }
 
-            // Extract task data and get the latest scheduler
-            var currentScheduler = Scheduler;
-
             // Run the synchronous batch processor on the specified scheduler
-            var processTask = Task.Factory.StartNew(
-                () => _batchProcessor(batch),
-                CancellationToken.None,
-                TaskCreationOptions.DenyChildAttach | TaskCreationOptions.RunContinuationsAsynchronously,
-                currentScheduler);
-
-            _ = processTask.ContinueWith(async t =>
+            try
             {
-                var exception = t.Exception?.InnerException ?? t.Exception;
-                await AfterBatchProcess(lastDequeuedSeq, dequeuedSeq, batch, exception).ConfigureAwait(false);
-            },
-            CancellationToken.None,
-            TaskContinuationOptions.RunContinuationsAsynchronously,
-            TaskScheduler.Default).Unwrap();
-            return;
+                await _batchProcessor(batch).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                await AfterBatchProcess(lastDequeuedSeq, dequeuedSeq, batch, ex).ConfigureAwait(false);
+                return;
+            }
+            await AfterBatchProcess(lastDequeuedSeq, dequeuedSeq, batch).ConfigureAwait(false);
         }
 
         private async Task AfterBatchProcess(long beforeProcessSeq, long processedSeq, List<T> batch = null, Exception ex = null)
