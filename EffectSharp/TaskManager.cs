@@ -243,10 +243,11 @@ namespace EffectSharp
         /// <summary>
         /// Returns a task that completes when all currently enqueued effects are processed.
         /// </summary>
-        public static Task NextEffectTick()
+        public static Task NextEffectTick(CancellationToken cancellationToken = default)
         {
             var effectBatcher = _effectBatcher;
-            return effectBatcher != null ? effectBatcher.NextTick() : Task.CompletedTask;
+            cancellationToken.ThrowIfCancellationRequested();
+            return effectBatcher != null ? effectBatcher.NextTick(cancellationToken) : Task.CompletedTask;
         }
 
         /// <summary>
@@ -297,9 +298,10 @@ namespace EffectSharp
         /// <summary>
         /// Returns a task that completes when all currently enqueued notifications are processed.
         /// </summary>
-        public static Task NextNotificationTick()
+        public static Task NextNotificationTick(CancellationToken cancellationToken = default)
         {
             var notificationBatcher = _notificationBatcher;
+            cancellationToken.ThrowIfCancellationRequested();
             return notificationBatcher != null ? notificationBatcher.NextTick() : Task.CompletedTask;
         }
 

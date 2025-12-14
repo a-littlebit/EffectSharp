@@ -346,9 +346,9 @@ namespace EffectSharp
         /// <summary>
         /// Returns a task that completes on the next reactive tick, after all scheduled effects and notifications have been processed.
         /// </summary>
-        public static Task NextTick()
+        public static Task NextTick(CancellationToken cancellationToken = default)
         {
-            return Task.WhenAll(TaskManager.NextEffectTick(), TaskManager.NextNotificationTick());
+            return Task.WhenAll(TaskManager.NextEffectTick(cancellationToken), TaskManager.NextNotificationTick(cancellationToken));
         }
     }
 
