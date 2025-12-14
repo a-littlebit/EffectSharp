@@ -251,7 +251,7 @@ namespace EffectSharp
             {
                 dependency.Trigger();
 
-                TaskManager.EnqueueNotification(this, propertyName, (args) =>
+                TaskManager.QueueNotification(this, propertyName, (args) =>
                 {
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
                 });

@@ -117,7 +117,7 @@ namespace EffectSharp
         {
             if (CanExecuteChanged != null)
             {
-                TaskManager.EnqueueNotification(this, nameof(CanExecuteChanged), (args) =>
+                TaskManager.QueueNotification(this, nameof(CanExecuteChanged), (args) =>
                 {
                     CanExecuteChanged?.Invoke(this, EventArgs.Empty);
                 });

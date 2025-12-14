@@ -98,7 +98,7 @@ namespace EffectSharp
             }
             else
             {
-                TaskManager.EnqueueEffectTrigger(this);
+                TaskManager.QueueEffectExecution(this);
             }
         }
 
