@@ -1,0 +1,24 @@
+﻿using EffectSharp.SourceGenerators.Context;
+using EffectSharp.SourceGenerators.Emitters;
+using System;
+using System.CodeDom.Compiler;
+using System.Collections.Generic;
+using System.Text;
+
+namespace EffectSharp.SourceGenerators.Emmiters
+{
+    internal sealed class InitializerEmitter : IReactiveModelEmitter
+    {
+        public void Emit(ReactiveModelContext context, IndentedTextWriter writer)
+        {
+            writer.WriteLine("public void InitializeReactiveModel()");
+            writer.WriteLine("{");
+            writer.Indent++;
+
+            context.EmitInitializers(writer);
+
+            writer.Indent--;
+            writer.WriteLine("}");
+        }
+    }
+}

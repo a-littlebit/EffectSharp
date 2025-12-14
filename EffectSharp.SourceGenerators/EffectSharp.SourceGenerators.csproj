@@ -5,6 +5,7 @@
     <LangVersion>latest</LangVersion>
     <IsRoslynAnalyzer>true</IsRoslynAnalyzer>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <EnableAnalyzerReleaseTracking>false</EnableAnalyzerReleaseTracking>
   </PropertyGroup>
 
   <ItemGroup>

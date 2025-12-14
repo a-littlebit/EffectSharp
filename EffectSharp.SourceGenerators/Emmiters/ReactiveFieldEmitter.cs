@@ -56,15 +56,7 @@ namespace EffectSharp.SourceGenerators.Emitters
                 var fieldType = fieldContext.UnderlyingType.ToDisplayString();
                 var readExpression = fieldContext.GetReadExpression();
 
-                string equalsMethod = null;
-                if (attr != null && attr.ConstructorArguments.Length == 1)
-                {
-                    var arg = attr.ConstructorArguments[0];
-                    if (arg.Value is string s && !string.IsNullOrEmpty(s))
-                    {
-                        equalsMethod = s;
-                    }
-                }
+                var equalsMethod = attr.GetNamedArgument<string>("EqualsMethod");
 
                 iw.WriteLine("public " + fieldType + " " + propertyName);
                 iw.WriteLine("{");

@@ -8,7 +8,7 @@ using System.Text;
 
 namespace EffectSharp.SourceGenerators.Context
 {
-    public class ReactiveFieldContext
+    internal class ReactiveFieldContext
     {
         public IFieldSymbol FieldSymbol { get; }
 

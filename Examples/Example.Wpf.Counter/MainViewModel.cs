@@ -12,14 +12,23 @@ namespace Example.Wpf.Counter
     [ReactiveModel]
     public partial class MainViewModel
     {
-        [ReactiveField(equalsMethod: ReactiveFieldAttribute.NoEqualityComparison)]
+        [ReactiveField(EqualsMethod = ReactiveFieldAttribute.NoEqualityComparison)]
         private AtomicInt _count = new AtomicInt(0);
 
-        public ICommand IncrementCommand { get; }
+        [FunctionCommand(CanExecute = nameof(CanIncrement))]
+        public void Increment()
+        {
+            Count++;
+        }
+
+        public bool CanIncrement()
+        {
+            return Count < 10;
+        }
 
         public MainViewModel()
         {
-            IncrementCommand = FunctionCommand.Create<object>(_ => Count++);
+            InitializeReactiveModel();
         }
     }
 }

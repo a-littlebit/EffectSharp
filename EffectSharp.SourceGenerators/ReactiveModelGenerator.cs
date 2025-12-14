@@ -1,12 +1,14 @@
 ﻿using EffectSharp.SourceGenerators;
 using EffectSharp.SourceGenerators.Context;
 using EffectSharp.SourceGenerators.Emitters;
+using EffectSharp.SourceGenerators.Emmiters;
 using EffectSharp.SourceGenerators.Utils;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -16,10 +18,17 @@ public sealed class ReactiveModelGenerator : ISourceGenerator
 {
     private static readonly IReactiveModelEmitter[] _emitters =
     {
-        new ReactiveFieldEmitter()
+        new ReactiveFieldEmitter(),
+        new FunctionCommandEmitter(),
+        new InitializerEmitter()
     };
 
-    public void Initialize(GeneratorInitializationContext context) { }
+    public void Initialize(GeneratorInitializationContext context)
+    {
+#if DEBUG
+        Debugger.Launch();
+#endif
+    }
 
     public void Execute(GeneratorExecutionContext context)
     {
@@ -77,6 +86,7 @@ public sealed class ReactiveModelGenerator : ISourceGenerator
         foreach (var emitter in _emitters)
         {
             emitter.Emit(contextModel, iw);
+            iw.WriteLine();
         }
 
         iw.Indent--;

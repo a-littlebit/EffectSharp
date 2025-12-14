@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace EffectSharp
+namespace EffectSharp.SourceGenerators
 {
     [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
     public sealed class ReactiveFieldAttribute : Attribute
@@ -18,16 +18,11 @@ namespace EffectSharp
         /// - "MyComparer.AreEqual"
         /// - "global::MyNamespace.MyComparer.AreEqual"
         /// </summary>
-        public string EqualsMethod { get; }
+        public string EqualsMethod { get; set; }
 
         /// <summary>
         /// Used in <see cref="EqualsMethod"/> to indicate that no equality comparison should be performed.
         /// </summary>
         public const string NoEqualityComparison = "noEqualityComparison";
-
-        public ReactiveFieldAttribute(string equalsMethod = null)
-        {
-            EqualsMethod = equalsMethod;
-        }
     }
 }
