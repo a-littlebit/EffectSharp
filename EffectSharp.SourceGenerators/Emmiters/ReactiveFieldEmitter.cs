@@ -114,7 +114,7 @@ namespace EffectSharp.SourceGenerators.Emitters
                 iw.WriteLine("{");
                 iw.Indent++;
                 iw.WriteLine(
-                    "TaskManager.EnqueueNotification(" +
+                    "TaskManager.QueueNotification(" +
                     "this, nameof(" + propertyName + "), " +
                     "e => PropertyChanged?.Invoke(this, e));");
                 iw.Indent--;
