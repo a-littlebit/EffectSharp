@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,8 +20,6 @@ namespace EffectSharp
         private static volatile TaskBatcher<NotificationTask> _notificationBatcher = null;
         private static readonly object _notificationBatcherLock = new object();
 
-        private static volatile bool _flushNotificationAfterEffectBatch = true;
-
         /// <summary>
         /// Gets the batcher responsible for processing queued <see cref="Effect"/> triggers.
         /// </summary>
@@ -35,12 +30,12 @@ namespace EffectSharp
         public static TaskBatcher<NotificationTask> NotificationBatcher => _notificationBatcher;
 
         /// <summary>
-        /// Attempts to initialize the <see cref="TaskBatcher{Effect}"/> using the specified supplier function
-        /// if it has not already been created.
+        /// Create a <see cref="TaskBatcher{Effect}"/> for effect execution scheduling using the specified supplier function
+        /// if it had not been created.
         /// </summary>
         /// <param name="supplier">Supplier invoked to create the batcher if not yet initialized.</param>
-        /// <returns>true if the effect batcher was successfully created; otherwise, false.</returns>
-        public static bool TryCreateEffectBatcher(Func<TaskBatcher<Effect>> supplier)
+        /// <returns>true if a new effect batcher was created; otherwise, false.</returns>
+        public static bool CreateEffectBatcherIfAbsent(Func<TaskBatcher<Effect>> supplier)
         {
             if (_effectBatcher == null)
             {
@@ -62,7 +57,7 @@ namespace EffectSharp
         /// <returns>The singleton <see cref="TaskBatcher{Effect}"/> instance used for batching and processing effect tasks.</returns>
         public static TaskBatcher<Effect> GetOrCreateDefaultEffectBatcher()
         {
-            TryCreateEffectBatcher(() =>
+            CreateEffectBatcherIfAbsent(() =>
             {
                 var batcher = new TaskBatcher<Effect>(
                     batchProcessor: DefaultEffectBatchProcessor,
@@ -76,12 +71,20 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Attempts to initialize the <see cref="TaskBatcher{NotificationTask}"/> using the specified supplier function
+        /// Default tracer for effect batch processing failures.
+        /// </summary>
+        public static void TraceEffectFailure(object sender, BatchProcessingFailedEventArgs<Effect> e)
+        {
+            System.Diagnostics.Trace.TraceError($"Effect batch processing failed: {e.Exception}");
+        }
+
+        /// <summary>
+        /// Create a <see cref="TaskBatcher{Effect}"/> for notification batching using the specified supplier function
         /// if it has not already been created.
         /// </summary>
         /// <param name="supplier">Supplier invoked to create the batcher if not yet initialized.</param>
         /// <returns>true if the notification batcher was successfully created; otherwise, false.</returns>
-        public static bool TryCreateNotificationBatcher(Func<TaskBatcher<NotificationTask>> supplier)
+        public static bool CreateNotificationBatcherIfAbsent(Func<TaskBatcher<NotificationTask>> supplier)
         {
             if (_notificationBatcher == null)
             {
@@ -104,99 +107,18 @@ namespace EffectSharp
         /// <returns>The singleton <see cref="TaskBatcher{NotificationTask}"/> used for batching notifications.</returns>
         public static TaskBatcher<NotificationTask> GetOrCreateDefaultNotificationBatcher()
         {
-            TryCreateNotificationBatcher(() =>
+            CreateNotificationBatcherIfAbsent(() =>
             {
+                var effectBatcher = GetOrCreateDefaultEffectBatcher();
                 var batcher = new TaskBatcher<NotificationTask>(
                     batchProcessor: DefaultNotificationBatchProcessor,
-                    intervalMs: 16,
+                    throttler: effectBatcher.NextTick,
                     scheduler: SynchronizationContext.Current == null ? TaskScheduler.Default : TaskScheduler.FromCurrentSynchronizationContext(),
                     maxConsumers: 1);
                 batcher.BatchProcessingFailed += TraceNotificationFailure;
                 return batcher;
             });
             return _notificationBatcher;
-        }
-
-        /// <summary>
-        /// Gets or sets the interval, in milliseconds, between effect trigger batches.
-        /// </summary>
-        /// <remarks>
-        /// Setting a lower value may increase responsiveness but can result in higher resource
-        /// usage. The interval must be a non-negative integer.
-        /// Default is 0 ms, meaning effects are processed as soon as possible.
-        /// </remarks>
-        public static int EffectIntervalMs
-        {
-            get => GetOrCreateDefaultEffectBatcher().IntervalMs;
-            set => GetOrCreateDefaultEffectBatcher().IntervalMs = value;
-        }
-
-        /// <summary>
-        /// Gets or sets the <see cref="TaskScheduler"/> used to schedule effect-related tasks.
-        /// </summary>
-        /// <remarks>
-        /// Changing this property affects how effect tasks are dispatched and may impact
-        /// concurrency or execution order. Ensure that the assigned <see cref="TaskScheduler"/> is appropriate for the
-        /// application's threading model.
-        /// </remarks>
-        public static TaskScheduler EffectTaskScheduler
-        {
-            get => GetOrCreateDefaultEffectBatcher().Scheduler;
-            set => GetOrCreateDefaultEffectBatcher().Scheduler = value;
-        }
-
-        /// <summary>
-        /// Occurs when a batch of effect processing fails.
-        /// </summary>
-        public static event EventHandler<BatchProcessingFailedEventArgs<Effect>> EffectFailed
-        {
-            add => GetOrCreateDefaultEffectBatcher().BatchProcessingFailed += value;
-            remove => GetOrCreateDefaultEffectBatcher().BatchProcessingFailed -= value;
-        }
-
-        /// <summary>
-        /// Default tracer for effect batch processing failures.
-        /// </summary>
-        public static void TraceEffectFailure(object sender, BatchProcessingFailedEventArgs<Effect> e)
-        {
-            System.Diagnostics.Trace.TraceError($"Effect batch processing failed: {e.Exception}");
-        }
-
-        /// <summary>
-        /// Gets or sets the interval, in milliseconds, between UI notification batches.
-        /// </summary>
-        /// <remarks>
-        /// Setting a lower value may increase UI responsiveness but can result in higher resource
-        /// usage. The interval must be a non-negative integer.
-        /// Default is 16 ms, aligning with a typical 60Hz UI refresh rate.
-        /// </remarks>
-        public static int NotificationIntervalMs
-        {
-            get => GetOrCreateDefaultNotificationBatcher().IntervalMs;
-            set => GetOrCreateDefaultNotificationBatcher().IntervalMs = value;
-        }
-
-        /// <summary>
-        /// Gets or sets the <see cref="TaskScheduler"/> used to schedule UI notification tasks.
-        /// </summary>
-        /// <remarks>
-        /// Changing this property affects how UI notification tasks are dispatched and may impact
-        /// concurrency or execution order. Ensure that the assigned <see cref="TaskScheduler"/> is appropriate for the
-        /// UI threading model.
-        /// </remarks>
-        public static TaskScheduler NotificationTaskScheduler
-        {
-            get => GetOrCreateDefaultNotificationBatcher().Scheduler;
-            set => GetOrCreateDefaultNotificationBatcher().Scheduler = value;
-        }
-
-        /// <summary>
-        /// Occurs when a batch of notification fails.
-        /// </summary>
-        public static event EventHandler<BatchProcessingFailedEventArgs<NotificationTask>> NotificationFailed
-        {
-            add => GetOrCreateDefaultNotificationBatcher().BatchProcessingFailed += value;
-            remove => GetOrCreateDefaultNotificationBatcher().BatchProcessingFailed -= value;
         }
 
         /// <summary>
@@ -208,24 +130,9 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Gets or sets a value indicating whether to automatically flush the notification queue
-        /// after each effect execution batch. Default is true.
-        /// </summary>
-        /// <remarks>
-        /// Enabling this option ensures that UI updates occur promptly after effects are executed,
-        /// but may increase the frequency of UI updates. Disable this option if you want to
-        /// manually control when the notification queue is flushed.
-        /// </remarks>
-        public static bool FlushNotificationAfterEffectBatch
-        {
-            get => _flushNotificationAfterEffectBatch;
-            set => _flushNotificationAfterEffectBatch = value;
-        }
-
-        /// <summary>
         /// Enqueues an effect for batched execution.
         /// </summary>
-        public static void EnqueueEffectTrigger(Effect effect)
+        public static void QueueEffectExecution(Effect effect)
         {
             GetOrCreateDefaultEffectBatcher().Enqueue(effect);
         }
@@ -262,18 +169,12 @@ namespace EffectSharp
                     effect.Execute(scope);
                 }
             }
-
-            if (FlushNotificationAfterEffectBatch)
-            {
-                var notificationBatcher = _notificationBatcher;
-                _ = notificationBatcher?.FlushAsync();
-            }
         }
 
         /// <summary>
         /// Enqueues a property change notification task.
         /// </summary>
-        public static void EnqueueNotification(object model, string propertyName, Action<PropertyChangedEventArgs> notifier)
+        public static void QueueNotification(object model, string propertyName, Action<PropertyChangedEventArgs> notifier)
         {
             var task = new NotificationTask
             {

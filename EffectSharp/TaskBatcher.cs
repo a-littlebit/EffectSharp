@@ -16,7 +16,7 @@ namespace EffectSharp
     {
         #region Private Fields
         private readonly Func<List<T>, Task> _batchProcessor; // Synchronous batch processing callback (must run sync)
-        private int _intervalMs; // Execution interval in milliseconds (0 = merge tasks rapidly)
+        private Func<CancellationToken, Task> _throttler; // Asynchronous delay function for interval waiting
         private TaskScheduler _scheduler; // Task scheduler (supports dynamic switching with eventual consistency)
         private readonly SemaphoreSlim _consumerSemaphore;
         private readonly ConcurrentQueue<(T Item, long Sequence)> _taskQueue = new ConcurrentQueue<(T Item, long Sequence)>(); // Task queue with sequence numbers for NextTick tracking
@@ -54,19 +54,55 @@ namespace EffectSharp
         /// Initializes a new instance of the <see cref="TaskBatcher{T}" /> class.
         /// </summary>
         /// <param name="batchProcessor">Asynchronous callback to process batches</param>
+        /// <param name="throttler">A function that returns a Task that completes when the next batch processing should occur</param>
+        /// <param name="scheduler">Initial scheduler to execute batch processing tasks</param>
+        /// <param name="maxConsumers">Maximum number of concurrent batch processing tasks</param>
+        /// <exception cref="ArgumentNullException">Thrown if any required parameter is null</exception>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown if interval is negative</exception>
+        public TaskBatcher(Func<List<T>, Task> batchProcessor, Func<CancellationToken, Task> throttler, TaskScheduler scheduler, int maxConsumers = 1)
+        {
+            _batchProcessor = batchProcessor ?? throw new ArgumentNullException(nameof(batchProcessor));
+            _throttler = throttler ?? throw new ArgumentNullException(nameof(throttler));
+            _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
+            _consumerSemaphore = new SemaphoreSlim(maxConsumers, maxConsumers);
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TaskBatcher{T}" /> class.
+        /// </summary>
+        /// <param name="batchProcessor">Synchronous callback to process batches</param>
+        /// <param name="throttler">A function that returns a Task that completes when the next batch processing should occur</param>
+        /// <param name="scheduler">Initial scheduler to execute batch processing tasks</param>
+        /// <param name="maxConsumers">Maximum number of concurrent batch processing tasks</param>
+        /// <exception cref="ArgumentNullException">Thrown if any required parameter is null</exception>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown if interval is negative</exception>
+        public TaskBatcher(Action<List<T>> batchProcessor, Func<CancellationToken, Task> throttler, TaskScheduler scheduler, int maxConsumers = 1)
+            : this(items => {
+                batchProcessor.Invoke(items);
+                return Task.CompletedTask;
+            }, throttler, scheduler, maxConsumers)
+        {
+            if (batchProcessor == null)
+                throw new ArgumentNullException(nameof(batchProcessor));
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TaskBatcher{T}" /> class.
+        /// </summary>
+        /// <param name="batchProcessor">Asynchronous callback to process batches</param>
         /// <param name="intervalMs">Interval between batch executions (0 = no delay, merge tasks)</param>
         /// <param name="scheduler">Initial scheduler to execute batch processing tasks</param>
         /// <param name="maxConsumers">Maximum number of concurrent batch processing tasks</param>
         /// <exception cref="ArgumentNullException">Thrown if any required parameter is null</exception>
         /// <exception cref="ArgumentOutOfRangeException">Thrown if interval is negative</exception>
         public TaskBatcher(Func<List<T>, Task> batchProcessor, int intervalMs, TaskScheduler scheduler, int maxConsumers = 1)
+            : this(batchProcessor,
+                  intervalMs <= 0
+                    ? new Func<CancellationToken, Task>(ct => Task.CompletedTask)
+                    : new Func<CancellationToken, Task>(ct => Task.Delay(intervalMs, ct)),
+                  scheduler,
+                  maxConsumers)
         {
-            _batchProcessor = batchProcessor ?? throw new ArgumentNullException(nameof(batchProcessor));
-            if (intervalMs < 0)
-                throw new ArgumentOutOfRangeException(nameof(intervalMs), "Execution interval cannot be negative");
-            _intervalMs = intervalMs;
-            _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
-            _consumerSemaphore = new SemaphoreSlim(maxConsumers, maxConsumers);
         }
 
         /// <summary>
@@ -90,27 +126,21 @@ namespace EffectSharp
 
         #region Public Properties
         /// <summary>
-        /// Interval between batch executions in milliseconds (0 = no delay, merge tasks rapidly).
-        /// Supports dynamic updating with eventual consistency:
-        /// - Current in-progress delays use the old interval
-        /// - Subsequent delays use the new interval
+        /// A function that returns a Task that completes when the next batch processing should occur.
+        /// When changed, the new function will be used for subsequent delays.
         /// </summary>
-        public int IntervalMs
+        public Func<CancellationToken, Task> Throttler
         {
-            get => Volatile.Read(ref _intervalMs); // Ensure latest value is read across threads
+            get => _throttler;
             set
             {
                 ThrowIfDisposed();
-                if (value < 0)
-                    throw new ArgumentOutOfRangeException(nameof(value), "Execution interval cannot be negative");
-                Interlocked.Exchange(ref _intervalMs, value);
+                _throttler = value ?? throw new ArgumentNullException(nameof(value), "Delay function cannot be null");
             }
         }
 
         /// <summary>
-        /// Task scheduler for batch execution. Supports dynamic switching with eventual consistency:
-        /// - Current in-progress batches use the old scheduler
-        /// - Subsequent batches use the new scheduler
+        /// Task scheduler for batch execution. When changed, the new scheduler will be used for subsequent batch processing tasks.
         /// </summary>
         public TaskScheduler Scheduler
         {
@@ -264,8 +294,8 @@ namespace EffectSharp
         /// </summary>
         private async Task RunProcessingLoopAsync()
         {
-            // Track time cost of last batch processing and subcontract the next delay accordingly
-            var lastTimeCostMs = 0;
+            // Ensure only one consumer is dequeuing tasks at a time
+            Task lasStartTask = null;
             // Outermost loop: ensure continuous processing while there are tasks
             while (Volatile.Read(ref _disposed) == 0 && !_taskQueue.IsEmpty)
             {
@@ -285,10 +315,16 @@ namespace EffectSharp
                             _currentDelayCts = delayCts;
                             try
                             {
-                                // Wait for the specified interval (first task waits unless flushed; 0ms = immediate)
-                                var intervalMs = Volatile.Read(ref _intervalMs);
-                                var delayMs = Math.Max(0, intervalMs - lastTimeCostMs);
-                                await Task.Delay(delayMs, delayCts.Token).ConfigureAwait(false);
+                                if (lasStartTask != null)
+                                {
+                                    // Wait for both the last dequeue and the delay to complete
+                                    await Task.WhenAll(lasStartTask, _throttler(delayCts.Token)).ConfigureAwait(false);
+                                }
+                                else
+                                {
+                                    // Wait for the delay to complete
+                                    await _throttler(delayCts.Token).ConfigureAwait(false);
+                                }
                             }
                             catch (OperationCanceledException)
                             {
@@ -304,11 +340,8 @@ namespace EffectSharp
                         // Exit loop if disposed during the delay
                         if (Volatile.Read(ref _disposed) == 1) break;
 
-                        // Measure time cost of batch processing for next delay calculation
-                        var startTime = Environment.TickCount;
-                        await StartBatchProcessingAsync().ConfigureAwait(false);
-                        var endTime = Environment.TickCount;
-                        lastTimeCostMs = endTime - startTime;
+                        // Start batch processing
+                        lasStartTask = StartBatchProcessingAsync();
                     }
                 }
                 finally
