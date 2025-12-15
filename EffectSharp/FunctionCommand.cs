@@ -111,6 +111,20 @@ namespace EffectSharp
         }
 
         /// <summary>
+        /// Casts and validates the command parameter.
+        /// </summary>
+        protected TParam CastParameter(object parameter)
+        {
+            if (parameter != null && !(parameter is TParam))
+                throw new ArgumentException($"Parameter must be of type {typeof(TParam).FullName}.", nameof(parameter));
+
+            if (parameter == null && typeof(TParam).IsValueType)
+                throw new ArgumentNullException(nameof(parameter), $"Parameter of type {typeof(TParam).FullName} cannot be null.");
+
+            return (TParam)parameter;
+        }
+
+        /// <summary>
         /// Notifies listeners that the result of <see cref="CanExecute(TParam)"/> may have changed.
         /// </summary>
         public virtual void RaiseCanExecuteChanged()
@@ -134,9 +148,7 @@ namespace EffectSharp
 
         public bool CanExecute(object parameter)
         {
-            if (parameter != null && !(parameter is TParam))
-                return false;
-            return CanExecute((TParam)parameter);
+            return CanExecute(CastParameter(parameter));
         }
 
         /// <summary>
@@ -227,11 +239,9 @@ namespace EffectSharp
 
         public override void Execute(object parameter)
         {
-            if (parameter != null && !(parameter is TParam))
-                throw new ArgumentException($"Parameter must be of type {typeof(TParam).FullName}.", nameof(parameter));
             try
             {
-                Execute((TParam)parameter);
+                Execute(CastParameter(parameter));
             }
             catch (Exception ex)
             {
@@ -289,11 +299,9 @@ namespace EffectSharp
         }
         public override async void Execute(object parameter)
         {
-            if (parameter != null && !(parameter is TParam))
-                throw new ArgumentException($"Parameter must be of type {typeof(TParam).FullName}.", nameof(parameter));
             try
             {
-                await Execute((TParam)parameter);
+                await Execute(CastParameter(parameter));
             }
             catch (Exception ex)
             {
