@@ -118,7 +118,7 @@ namespace EffectSharp
             if (parameter != null && !(parameter is TParam))
                 throw new ArgumentException($"Parameter must be of type {typeof(TParam).FullName}.", nameof(parameter));
 
-            if (parameter == null && typeof(TParam).IsValueType)
+            if (parameter == null && default(TParam) != null)
                 throw new ArgumentNullException(nameof(parameter), $"Parameter of type {typeof(TParam).FullName} cannot be null.");
 
             return (TParam)parameter;
