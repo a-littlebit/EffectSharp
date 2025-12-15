@@ -298,7 +298,7 @@ namespace EffectSharp
         private async Task RunProcessingLoopAsync()
         {
             // Ensure only one consumer is dequeuing tasks at a time
-            Task lasStartTask = Task.CompletedTask;
+            Task lasStartTask = null;
             // Outermost loop: ensure continuous processing while there are tasks
             while (Volatile.Read(ref _disposed) == 0 && !_taskQueue.IsEmpty)
             {
@@ -319,7 +319,7 @@ namespace EffectSharp
                             // Check for cancellation before starting the delay
                             delayCts.Token.ThrowIfCancellationRequested();
                             // Wait for both the delay and the last batch dequeuing to complete
-                            await Task.WhenAll(_throttler(delayCts.Token), lasStartTask).ConfigureAwait(false);
+                            await _throttler(delayCts.Token).ConfigureAwait(false);
                         }
                         catch (OperationCanceledException)
                         {
@@ -330,6 +330,13 @@ namespace EffectSharp
                             // Clear the reference to the delay cancellation source
                             Interlocked.Exchange(ref _currentDelayCts, null);
                             delayCts.Dispose();
+                        }
+
+                        if (lasStartTask != null)
+                        {
+                            // Ensure the last batch dequeuing is complete before starting a new one
+                            await lasStartTask.ConfigureAwait(false);
+                            lasStartTask = null;
                         }
 
                         // Exit loop if disposed during the delay
