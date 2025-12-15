@@ -5,13 +5,17 @@
     <LangVersion>latest</LangVersion>
     <IsRoslynAnalyzer>true</IsRoslynAnalyzer>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-    <EnableAnalyzerReleaseTracking>false</EnableAnalyzerReleaseTracking>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- Roslyn API -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
   </ItemGroup>
 
 </Project>

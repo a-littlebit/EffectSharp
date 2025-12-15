@@ -6,7 +6,7 @@ namespace EffectSharp.SourceGenerators.Utils
 {
     internal static class DiagnosticHelper
     {
-        public static void ReportError(
+        public static void Report(
             this GeneratorExecutionContext context,
             DiagnosticDescriptor descriptor,
             ISymbol symbol,
@@ -19,7 +19,7 @@ namespace EffectSharp.SourceGenerators.Utils
                     args));
         }
 
-        public static void ReportError(
+        public static void Report(
             this GeneratorExecutionContext context,
             DiagnosticException exception)
         {
@@ -65,7 +65,7 @@ namespace EffectSharp.SourceGenerators.Utils
             title: "FunctionCommand Scheduler is only valid for async methods",
             messageFormat: "Method '{0}' is marked with [FunctionCommand] and specifies a Scheduler, but is not an async method. Only async FunctionCommand methods can specify a Scheduler.",
             category: "EffectSharp.FunctionCommand",
-            defaultSeverity: DiagnosticSeverity.Error,
+            defaultSeverity: DiagnosticSeverity.Warning,
             isEnabledByDefault: true);
     }
 }

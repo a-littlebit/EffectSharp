@@ -66,7 +66,7 @@ namespace EffectSharp.SourceGenerators.Context
 
             if (paramCount > 2)
             {
-                ReportError(
+                Report(
                     modelContext,
                     DiagnosticDescriptors.FunctionCommandTooManyParameters);
                 return;
@@ -89,7 +89,7 @@ namespace EffectSharp.SourceGenerators.Context
 
             if (paramCount > 1)
             {
-                ReportError(
+                Report(
                     modelContext,
                     DiagnosticDescriptors.FunctionCommandTooManyParameters);
                 return;
@@ -113,10 +113,10 @@ namespace EffectSharp.SourceGenerators.Context
             if (!IsAsync && !string.IsNullOrWhiteSpace(scheduler))
             {
                 // Scheduler can only be specified for async commands
-                ReportError(
+                Report(
                     modelContext,
                     DiagnosticDescriptors.FunctionCommandSchedulerNonAsync);
-                return;
+                scheduler = "";
             }
 
             ExecutionScheduler = scheduler;
@@ -124,9 +124,9 @@ namespace EffectSharp.SourceGenerators.Context
             IsValid = true;
         }
 
-        private void ReportError(ReactiveModelContext context, DiagnosticDescriptor descriptor)
+        private void Report(ReactiveModelContext context, DiagnosticDescriptor descriptor)
         {
-            context.GeneratorContext.ReportError(
+            context.GeneratorContext.Report(
                 descriptor,
                 MethodSymbol,
                 MethodSymbol.Name);
