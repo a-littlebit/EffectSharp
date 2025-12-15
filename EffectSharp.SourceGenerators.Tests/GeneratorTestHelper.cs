@@ -114,6 +114,8 @@ namespace EffectSharp.SourceGenerators
     public class Dependency { public void Track() { } public void Trigger() { } }
     public static class TaskManager { public static void QueueNotification(object model, string name, System.Action<System.ComponentModel.PropertyChangedEventArgs> a) { } }
     public interface IAtomic<T> { T Value { get; set; } }
+    public class AtomicInt : IAtomic<int> { public int Value { get; set; } }
+    public class AtomicFactory<T> { public static IAtomic<T> Create() => default; }
     public class Computed<T> { public T Value { get; set; } public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged; public event System.ComponentModel.PropertyChangingEventHandler PropertyChanging; }
     public class Effect { }
     public static class Reactive { public static Computed<T> Computed<T>(System.Func<T> g, System.Action<T> s = null) => new Computed<T>(); public static Effect Watch<T>(System.Func<T> g, System.Action<T,T> c, object o = null) => new Effect(); }
