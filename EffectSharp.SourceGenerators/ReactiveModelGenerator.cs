@@ -20,6 +20,7 @@ public sealed class ReactiveModelGenerator : ISourceGenerator
     {
         new ReactiveFieldEmitter(),
         new FunctionCommandEmitter(),
+        new ComputedEmitter(),
         new InitializerEmitter()
     };
 

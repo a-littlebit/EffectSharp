@@ -12,8 +12,14 @@ namespace Example.Wpf.Counter
     [ReactiveModel]
     public partial class MainViewModel
     {
-        [ReactiveField(EqualsMethod = null)]
+        [ReactiveField]
         private AtomicInt _count = new AtomicInt(0);
+
+        [Computed]
+        public string ComputeDisplayCount()
+        {
+            return $"Current Count: {Count}";
+        }
 
         public int IncrementStep { get; } = 2;
 

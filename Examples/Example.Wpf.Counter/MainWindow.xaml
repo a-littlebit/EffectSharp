@@ -8,7 +8,7 @@
         Title="MainWindow" Height="450" Width="800">
     <Grid>
         <StackPanel Orientation="Vertical">
-            <TextBlock Text="{Binding Count}" />
+            <TextBlock Text="{Binding DisplayCount}" />
             <Button Content="Increment" Command="{Binding IncrementCommand}" CommandParameter="{Binding IncrementStep}" />
         </StackPanel>
     </Grid>
