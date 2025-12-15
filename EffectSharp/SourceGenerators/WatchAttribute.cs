@@ -5,8 +5,10 @@ using System.Text;
 namespace EffectSharp.SourceGenerators
 {
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
-    public class ComputedAttribute : Attribute
+    public class WatchAttribute : Attribute
     {
-        public string SetterMethod { get; set; }
+        public string[] Properties { get; set; }
+
+        public string Options { get; set; }
     }
 }

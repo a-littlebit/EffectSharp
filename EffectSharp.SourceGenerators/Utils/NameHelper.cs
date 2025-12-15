@@ -38,13 +38,12 @@ namespace EffectSharp.SourceGenerators.Utils
 
             for (int i = 0; i < chars.Length; i++)
             {
-                if (i == 0 || (i + 1 < chars.Length && char.IsUpper(chars[i + 1])))
+                if (i == 0 || i == chars.Length - 1 || (char.IsUpper(chars[i]) && char.IsUpper(chars[i + 1])))
                 {
                     chars[i] = char.ToLowerInvariant(chars[i]);
                 }
                 else
                 {
-                    chars[i] = char.ToLowerInvariant(chars[i]);
                     break;
                 }
             }

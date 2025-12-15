@@ -20,6 +20,8 @@ namespace EffectSharp.SourceGenerators.Context
 
         internal List<ComputedContext> ComputedContexts { get; set; }
 
+        internal List<WatchContext> WatchContexts { get; set; }
+
         public ReactiveModelContext(GeneratorExecutionContext generatorContext, INamedTypeSymbol reactiveModelSymbol)
         {
             GeneratorContext = generatorContext;

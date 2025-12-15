@@ -67,5 +67,13 @@ namespace EffectSharp.SourceGenerators.Utils
             category: "EffectSharp.FunctionCommand",
             defaultSeverity: DiagnosticSeverity.Warning,
             isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor WatchMethodTooManyParameters = new(
+            id: "ES2001",
+            title: "Watch method has too many parameters",
+            messageFormat: "Method '{0}' is marked with [Watch] but has more than two parameters. Watch methods can have at most two parameters.",
+            category: "EffectSharp.Watch",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
     }
 }

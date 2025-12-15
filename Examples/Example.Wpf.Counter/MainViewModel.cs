@@ -21,6 +21,17 @@ namespace Example.Wpf.Counter
             return $"Current Count: {Count}";
         }
 
+        [Watch(Properties = [nameof(DisplayCount)], Options = nameof(OnDisplayCountChangedOptions))]
+        public void OnDisplayCountChanged(string newCount, string oldCount)
+        {
+            Console.WriteLine($"DisplayCount changed from {oldCount} to {newCount}");
+        }
+
+        public WatchOptions<string> OnDisplayCountChangedOptions => new WatchOptions<string>
+        {
+            Immediate = true
+        };
+
         public int IncrementStep { get; } = 2;
 
         [FunctionCommand(CanExecute = nameof(CanIncrement), AllowConcurrentExecution = false, ExecutionScheduler = "TaskScheduler.Default")]

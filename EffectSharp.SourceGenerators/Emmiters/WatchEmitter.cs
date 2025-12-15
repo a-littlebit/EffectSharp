@@ -1,0 +1,54 @@
+﻿using EffectSharp.SourceGenerators.Context;
+using EffectSharp.SourceGenerators.Emitters;
+using Microsoft.CodeAnalysis;
+using System;
+using System.CodeDom.Compiler;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace EffectSharp.SourceGenerators.Emmiters
+{
+    internal class WatchEmitter : IReactiveModelEmitter
+    {
+        public void Emit(ReactiveModelContext context, IndentedTextWriter writer)
+        {
+            context.WatchContexts = context.ModelSymbol.GetMembers()
+                .OfType<IMethodSymbol>()
+                .Select(m => new WatchContext(m, context))
+                .Where(m => m.IsValid)
+                .ToList();
+
+            foreach (var watchContext in context.WatchContexts)
+            {
+                EmitDefinition(watchContext, writer);
+            }
+
+            context.RegisterInitializer(EmitInitializer);
+        }
+
+        static void EmitDefinition(WatchContext watchContext, IndentedTextWriter writer)
+        {
+            writer.WriteLine($"private Effect {watchContext.FieldName};");
+        }
+
+        static void EmitInitializer(ReactiveModelContext modelContext, IndentedTextWriter writer)
+        {
+            foreach (var watchContext in modelContext.WatchContexts)
+            {
+                var properties = string.Join(", ", watchContext.Properties);
+                if (watchContext.Properties.Count > 1)
+                    properties = "(" + properties + ")";
+                writer.WriteLine($"this.{watchContext.FieldName} = Reactive.Watch(() => {properties},");
+                writer.Indent++;
+                writer.Write($"(newValue, oldValue) => this.{watchContext.MethodSymbol.Name}(");
+                if (properties.Length > 0)
+                    writer.Write("newValue");
+                if (properties.Length > 1)
+                    writer.Write(", oldValue");
+                writer.WriteLine($"), {watchContext.Options});");
+                writer.Indent--;
+            }
+        }
+    }
+}

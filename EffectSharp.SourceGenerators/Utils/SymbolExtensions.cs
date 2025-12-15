@@ -1,4 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace EffectSharp.SourceGenerators.Utils
@@ -58,6 +59,26 @@ namespace EffectSharp.SourceGenerators.Utils
                 return value;
             }
             return defaultValue;
+        }
+
+        public static List<T> GetNamedArgumentList<T>(
+            this AttributeData attributeData,
+            string argumentName)
+        {
+            var result = new List<T>();
+            var namedArg = attributeData.NamedArguments
+                .FirstOrDefault(kv => kv.Key == argumentName);
+            if (namedArg.Value.Values != null)
+            {
+                foreach (var typedConstant in namedArg.Value.Values)
+                {
+                    if (typedConstant.Value is T value)
+                    {
+                        result.Add(value);
+                    }
+                }
+            }
+            return result;
         }
 
         public static bool ReturnsTaskLike(this IMethodSymbol method, Compilation compilation, out INamedTypeSymbol resultType)

@@ -16,3 +16,8 @@
   -	Category: EffectSharp.FunctionCommand
   - Severity: Warning
   - Description: The Scheduler property on [FunctionCommand] is only applicable to asynchronous methods returning Task or Task<T>.
+
+- ES1003: Watch method has too many parameters
+  - Category: EffectSharp.Watch
+  - Severity: Error
+  - Description: The Watch method should have at most two parameters.
