@@ -18,10 +18,14 @@ namespace EffectSharp.SourceGenerators.Context
 
         public ITypeSymbol UnderlyingType { get; }
 
+        public string PropertyName =>
+            NameHelper.ToPascalCase(
+                NameHelper.RemoveLeadingUnderscore(FieldSymbol.Name));
+
         public ReactiveFieldContext(IFieldSymbol field, ReactiveModelContext modelContext)
         {
             FieldSymbol = field;
-            ReactiveFieldAttribute = field.GetAttributeData<AttributeData>("ReactiveFieldAttribute");
+            ReactiveFieldAttribute = field.GetAttributeData("ReactiveField");
             IsAtomic = false;
             UnderlyingType = field.Type;
 

@@ -5,16 +5,19 @@ namespace EffectSharp.SourceGenerators.Utils
 {
     internal static class SymbolExtensions
     {
-        public static bool HasAttribute(this ISymbol symbol, string attributeName)
+        public static bool HasAttribute(
+            this ISymbol symbol,
+            string attributeName,
+            string containingNamespace = "EffectSharp.SourceGenerators")
         {
-            attributeName = "global::EffectSharp.SourceGenerators." + attributeName;
             foreach (var attr in symbol.GetAttributes())
             {
-                var fullname = attr.AttributeClass.ToDisplayString(
-                    SymbolDisplayFormat.FullyQualifiedFormat);
+                var className = attr.AttributeClass.Name;
+                var classNamespace = attr.AttributeClass.ContainingNamespace.ToDisplayString();
 
-                if (fullname == attributeName ||
-                    fullname == attributeName + "Attribute")
+                if (className == attributeName ||
+                    className == attributeName + "Attribute"
+                    && classNamespace == containingNamespace)
                 {
                     return true;
                 }
@@ -23,24 +26,38 @@ namespace EffectSharp.SourceGenerators.Utils
             return false;
         }
 
-        public static TAttributeData GetAttributeData<TAttributeData>(
+        public static AttributeData GetAttributeData(
             this ISymbol symbol,
-            string attributeName)
-            where TAttributeData : AttributeData
+            string attributeName,
+            string containingNamespace = "EffectSharp.SourceGenerators")
         {
-            attributeName = "global::EffectSharp.SourceGenerators." + attributeName;
             foreach (var attr in symbol.GetAttributes())
             {
-                var fullname = attr.AttributeClass.ToDisplayString(
-                    SymbolDisplayFormat.FullyQualifiedFormat);
+                var className = attr.AttributeClass.Name;
+                var classNamespace = attr.AttributeClass.ContainingNamespace.ToDisplayString();
 
-                if (fullname == attributeName ||
-                    fullname == attributeName + "Attribute")
+                if (className == attributeName ||
+                    className == attributeName + "Attribute"
+                    && classNamespace == containingNamespace)
                 {
-                    return (TAttributeData)(object)attr;
+                    return attr;
                 }
             }
             return null;
+        }
+
+        public static T GetNamedArgument<T>(
+            this AttributeData attributeData,
+            string argumentName,
+            T defaultValue = default)
+        {
+            var namedArg = attributeData.NamedArguments
+                .FirstOrDefault(kv => kv.Key == argumentName);
+            if (namedArg.Value.Value is T value)
+            {
+                return value;
+            }
+            return defaultValue;
         }
 
         public static bool ReturnsTaskLike(this IMethodSymbol method, Compilation compilation, out INamedTypeSymbol resultType)
@@ -69,28 +86,6 @@ namespace EffectSharp.SourceGenerators.Utils
             }
 
             return false;
-        }
-
-        public static bool IsCancellationToken(this ITypeSymbol typeSymbol, Compilation compilation)
-        {
-            var cancellationTokenType = compilation.GetTypeByMetadataName("System.Threading.CancellationToken");
-            if (cancellationTokenType == null)
-                return false;
-            return SymbolEqualityComparer.Default.Equals(typeSymbol, cancellationTokenType);
-        }
-
-        public static T GetNamedArgument<T>(
-            this AttributeData attributeData,
-            string argumentName,
-            T defaultValue = default)
-        {
-            var namedArg = attributeData.NamedArguments
-                .FirstOrDefault(kv => kv.Key == argumentName);
-            if (namedArg.Value.Value is T value)
-            {
-                return value;
-            }
-            return defaultValue;
         }
     }
 }

@@ -8,7 +8,7 @@ namespace EffectSharp.SourceGenerators
         /// <summary>
         /// Custom equality comparison method.
         /// 
-        /// If not null or empty, it must be <see cref="NoEqualityComparison"/> or refer to a callable method that:
+        /// If not null or empty (skip equality comparison), it must refer to a callable method that:
         /// - Returns bool
         /// - Accepts (oldValue, newValue)
         /// - Parameters are compatible with the field type
@@ -18,11 +18,12 @@ namespace EffectSharp.SourceGenerators
         /// - "MyComparer.AreEqual"
         /// - "global::MyNamespace.MyComparer.AreEqual"
         /// </summary>
-        public string EqualsMethod { get; set; }
+        public string EqualsMethod { get; set; } = DefaultEqualsMethod;
 
         /// <summary>
-        /// Used in <see cref="EqualsMethod"/> to indicate that no equality comparison should be performed.
+        /// Default equality comparison method used when no custom method is specified.
+        /// "&lt;T&gt;" will be replaced with the actual field type.
         /// </summary>
-        public const string NoEqualityComparison = "noEqualityComparison";
+        public const string DefaultEqualsMethod = "global::System.Collections.Generic.EqualityComparer<T>.Default";
     }
 }

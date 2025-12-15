@@ -50,9 +50,7 @@ namespace EffectSharp.SourceGenerators.Emitters
                 var field = fieldContext.FieldSymbol;
                 var attr = fieldContext.ReactiveFieldAttribute;
                 var fieldName = field.Name;
-                var propertyName =
-                    NameHelper.ToPascalCase(
-                        NameHelper.RemoveLeadingUnderscore(fieldName));
+                var propertyName = fieldContext.PropertyName;
                 var fieldType = fieldContext.UnderlyingType.ToDisplayString();
                 var readExpression = fieldContext.GetReadExpression();
 
@@ -75,14 +73,14 @@ namespace EffectSharp.SourceGenerators.Emitters
                 iw.WriteLine("{");
                 iw.Indent++;
 
-                if (string.IsNullOrEmpty(equalsMethod))
+                if (equalsMethod == "global::System.Collections.Generic.EqualityComparer<T>.Default")
                 {
                     iw.WriteLine($"if (System.Collections.Generic.EqualityComparer<{fieldType}>.Default.Equals({readExpression}, value))");
                     iw.Indent++;
                     iw.WriteLine("return;");
                     iw.Indent--;
                 }
-                else if (equalsMethod != "noEqualityComparison")
+                else if (!string.IsNullOrWhiteSpace(equalsMethod))
                 {
                     iw.WriteLine($"if ({equalsMethod}({readExpression}, value))");
                     iw.Indent++;
