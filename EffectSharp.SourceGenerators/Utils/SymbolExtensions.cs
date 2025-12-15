@@ -43,12 +43,14 @@ namespace EffectSharp.SourceGenerators.Utils
             return null;
         }
 
-        public static bool ReturnsTaskLike(this IMethodSymbol method, Compilation compilation)
+        public static bool ReturnsTaskLike(this IMethodSymbol method, Compilation compilation, out INamedTypeSymbol resultType)
         {
             var returnType = method.ReturnType;
 
             var taskType = compilation.GetTypeByMetadataName("System.Threading.Tasks.Task");
             var taskOfTType = compilation.GetTypeByMetadataName("System.Threading.Tasks.Task`1");
+
+            resultType = null;
 
             if (taskType == null)
                 return false;
@@ -61,9 +63,20 @@ namespace EffectSharp.SourceGenerators.Utils
             if (returnType is INamedTypeSymbol named &&
                 named.IsGenericType &&
                 SymbolEqualityComparer.Default.Equals(named.ConstructedFrom, taskOfTType))
-                return true;
+            {
+                resultType = named.TypeArguments[0] as INamedTypeSymbol;
+                return true; 
+            }
 
             return false;
+        }
+
+        public static bool IsCancellationToken(this ITypeSymbol typeSymbol, Compilation compilation)
+        {
+            var cancellationTokenType = compilation.GetTypeByMetadataName("System.Threading.CancellationToken");
+            if (cancellationTokenType == null)
+                return false;
+            return SymbolEqualityComparer.Default.Equals(typeSymbol, cancellationTokenType);
         }
 
         public static T GetNamedArgument<T>(

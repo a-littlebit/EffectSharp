@@ -9,7 +9,7 @@
     <Grid>
         <StackPanel Orientation="Vertical">
             <TextBlock Text="{Binding Count}" />
-            <Button Content="Increment" Command="{Binding IncrementCommand}" />
+            <Button Content="Increment" Command="{Binding IncrementCommand}" CommandParameter="{Binding IncrementStep}" />
         </StackPanel>
     </Grid>
 </Window>

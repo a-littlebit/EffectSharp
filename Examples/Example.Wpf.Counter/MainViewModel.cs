@@ -15,10 +15,20 @@ namespace Example.Wpf.Counter
         [ReactiveField(EqualsMethod = ReactiveFieldAttribute.NoEqualityComparison)]
         private AtomicInt _count = new AtomicInt(0);
 
-        [FunctionCommand(CanExecute = nameof(CanIncrement))]
-        public void Increment()
+        public int IncrementStep { get; } = 2;
+
+        [FunctionCommand(CanExecute = nameof(CanIncrement), AllowConcurrentExecution = false, ExecutionScheduler = "TaskScheduler.Default")]
+        public async Task<int> Increment(int? count = 1, CancellationToken cancellationToken = default)
         {
-            Count++;
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!count.HasValue) return Count;
+
+            var newCount = Count + count.Value;
+            Count = newCount;
+
+            await Task.Delay(500, cancellationToken);
+            return newCount;
         }
 
         public bool CanIncrement()

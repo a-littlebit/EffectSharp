@@ -29,5 +29,13 @@ namespace EffectSharp.SourceGenerators.Utils
             category: "EffectSharp.FunctionCommand",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor FunctionCommandSchedulerRequiresAsync = new(
+            id: "ES1002",
+            title: "FunctionCommand Scheduler requires async method",
+            messageFormat: "Method '{0}' is marked with [FunctionCommand] and specifies a Scheduler, but is not an async method. Only async FunctionCommand methods can specify a Scheduler.",
+            category: "EffectSharp.FunctionCommand",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
     }
 }

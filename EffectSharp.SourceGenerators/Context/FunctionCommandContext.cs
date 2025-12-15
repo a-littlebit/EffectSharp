@@ -10,11 +10,11 @@ namespace EffectSharp.SourceGenerators.Context
     {
         public IMethodSymbol Method { get; }
 
-        public string CommandPropertyName => Method.Name.EndsWith("Command") ?
+        public string PropertyName => Method.Name.EndsWith("Command") ?
             Method.Name.Substring(0, Method.Name.Length - "Command".Length) :
             Method.Name + "Command";
 
-        public string FieldName => "_" + NameHelper.ToCamelCase(CommandPropertyName);
+        public string FieldName => "_" + NameHelper.ToCamelCase(PropertyName);
 
         public string InterfaceName => IsAsync ? "IAsyncFunctionCommand" : "IFunctionCommand";
 
@@ -31,6 +31,14 @@ namespace EffectSharp.SourceGenerators.Context
         public string GenericTypeArguments { get; set; }
 
         public string CanExecuteMethodName { get; set; }
+
+        public int CommandParameterIndex { get; set; } = -1;
+
+        public int CancellationTokenParameterIndex { get; set; } = -1;
+
+        public bool AllowConcurrentExecution { get; set; } = true;
+
+        public string ExecutionScheduler { get; set; } = "";
 
         public FunctionCommandContext(IMethodSymbol method, AttributeData attributeData)
         {
