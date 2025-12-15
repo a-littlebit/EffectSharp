@@ -7,9 +7,10 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid>
-        <StackPanel Orientation="Vertical">
-            <TextBlock Text="{Binding DisplayCount}" />
-            <Button Content="Increment" Command="{Binding IncrementCommand}" CommandParameter="{Binding IncrementStep}" />
+        <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBlock Text="A counter with throttling who always tries to restore itself" HorizontalAlignment="Center" />
+            <TextBlock Text="{Binding DisplayCount}" FontSize="20" HorizontalAlignment="Center" Margin="20" />
+            <Button Content="Increment" Command="{Binding IncrementCommand}" CommandParameter="{Binding IncrementStep}" HorizontalAlignment="Stretch" Padding="10" />
         </StackPanel>
     </Grid>
 </Window>

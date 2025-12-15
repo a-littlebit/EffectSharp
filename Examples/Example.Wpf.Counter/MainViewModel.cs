@@ -13,39 +13,42 @@ namespace Example.Wpf.Counter
     public partial class MainViewModel
     {
         [ReactiveField]
-        private AtomicInt _count = new AtomicInt(0);
+        private int _count = 0;
+
+        [ReactiveField]
+        private int _restoreCount = 0;
+
+        private readonly SynchronizationContext sync = SynchronizationContext.Current!;
 
         [Computed]
         public string ComputeDisplayCount()
         {
-            return $"Current Count: {Count}";
+            return $"Current Count: {Count + RestoreCount}";
         }
 
-        [Watch(Properties = [nameof(DisplayCount)], Options = nameof(OnDisplayCountChangedOptions))]
-        public void OnDisplayCountChanged(string newCount, string oldCount)
+        [Watch(Properties = [nameof(Count)])]
+        public void OnDisplayCountChanged(int newCount, int oldCount)
         {
-            Console.WriteLine($"DisplayCount changed from {oldCount} to {newCount}");
+            _ = RestoreLater(2000, oldCount - newCount);
         }
 
-        public WatchOptions<string> OnDisplayCountChangedOptions => new WatchOptions<string>
+        public async Task RestoreLater(int delay, int setp)
         {
-            Immediate = true
-        };
+            await Task.Delay(delay).ConfigureAwait(false);
+            sync.Post(_ =>
+            {
+                RestoreCount += setp;
+            }, null);
+        }
 
-        public int IncrementStep { get; } = 2;
-
-        [FunctionCommand(CanExecute = nameof(CanIncrement), AllowConcurrentExecution = false, ExecutionScheduler = "TaskScheduler.Default")]
-        public async Task<int> Increment(int? count = 1, CancellationToken cancellationToken = default)
+        [FunctionCommand(CanExecute = nameof(CanIncrement), AllowConcurrentExecution = false)]
+        public async Task Increment()
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (!count.HasValue) return Count;
-
-            var newCount = Count + count.Value;
-            Count = newCount;
-
-            await Task.Delay(500, cancellationToken);
-            return newCount;
+            sync.Post(_ =>
+            {
+                Count++;
+            }, null);
+            await Task.Delay(200).ConfigureAwait(false);
         }
 
         public bool CanIncrement()
