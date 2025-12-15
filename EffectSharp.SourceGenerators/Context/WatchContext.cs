@@ -32,7 +32,7 @@ namespace EffectSharp.SourceGenerators.Context
 
             if (ParameterCount > 2)
             {
-                modelContext.GeneratorContext.Report(
+                modelContext.ProductionContext.Report(
                     DiagnosticDescriptors.WatchMethodTooManyParameters,
                     MethodSymbol,
                     MethodSymbol.Name);

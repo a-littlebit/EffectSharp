@@ -29,7 +29,7 @@ namespace EffectSharp.SourceGenerators.Context
             IsAtomic = false;
             UnderlyingType = field.Type;
 
-            var compilation = modelContext.GeneratorContext.Compilation;
+            var compilation = modelContext.Compilation;
             var iAtomicType = compilation.GetTypeByMetadataName("EffectSharp.IAtomic`1")!;
             for (var type = field.Type; type != null; type = type.BaseType)
             {

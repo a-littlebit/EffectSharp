@@ -21,9 +21,15 @@ namespace Example.Wpf.Counter
         private readonly SynchronizationContext sync = SynchronizationContext.Current!;
 
         [Computed]
+        public int CurrentCount()
+        {
+            return Count + RestoreCount;
+        }
+
+        [Computed]
         public string ComputeDisplayCount()
         {
-            return $"Current Count: {Count + RestoreCount}";
+            return $"Current Count: {ComputedCurrentCount}";
         }
 
         [Watch(Properties = [nameof(Count)])]

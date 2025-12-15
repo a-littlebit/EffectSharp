@@ -8,7 +8,9 @@ namespace EffectSharp.SourceGenerators.Context
 {
     public class ReactiveModelContext
     {
-        public GeneratorExecutionContext GeneratorContext { get; set; }
+        public Compilation Compilation { get; set; }
+
+        public SourceProductionContext ProductionContext { get; set; }
 
         public INamedTypeSymbol ModelSymbol { get; }
 
@@ -22,9 +24,13 @@ namespace EffectSharp.SourceGenerators.Context
 
         internal List<WatchContext> WatchContexts { get; set; }
 
-        public ReactiveModelContext(GeneratorExecutionContext generatorContext, INamedTypeSymbol reactiveModelSymbol)
+        public ReactiveModelContext(
+            Compilation compilation,
+            SourceProductionContext productionContext,
+            INamedTypeSymbol reactiveModelSymbol)
         {
-            GeneratorContext = generatorContext;
+            Compilation = compilation;
+            ProductionContext = productionContext;
             ModelSymbol = reactiveModelSymbol;
         }
 

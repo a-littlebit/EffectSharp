@@ -53,13 +53,13 @@ namespace EffectSharp.SourceGenerators.Context
             if (AttributeData == null)
                 return;
 
-            IsAsync = method.ReturnsTaskLike(modelContext.GeneratorContext.Compilation, out var taskResultType);
+            IsAsync = method.ReturnsTaskLike(modelContext.Compilation, out var taskResultType);
             ResultType = method.ReturnsVoid ? null :
                 IsAsync ?
                     taskResultType :
                     method.ReturnType as INamedTypeSymbol;
 
-            var cancellationTokenSymbol = modelContext.GeneratorContext.Compilation.GetTypeByMetadataName("System.Threading.CancellationToken");
+            var cancellationTokenSymbol = modelContext.Compilation.GetTypeByMetadataName("System.Threading.CancellationToken");
             var commandParameterIndex = -1;
             var cancellationTokenIndex = -1;
             var paramCount = method.Parameters.Length;
@@ -126,7 +126,7 @@ namespace EffectSharp.SourceGenerators.Context
 
         private void Report(ReactiveModelContext context, DiagnosticDescriptor descriptor)
         {
-            context.GeneratorContext.Report(
+            context.ProductionContext.Report(
                 descriptor,
                 MethodSymbol,
                 MethodSymbol.Name);
