@@ -53,7 +53,7 @@ namespace EffectSharp.SourceGenerators.Utils
     internal static class DiagnosticDescriptors
     {
         public static readonly DiagnosticDescriptor FunctionCommandTooManyParameters = new(
-            id: "ES1001",
+            id: "EFSP1001",
             title: "FunctionCommand method has too many parameters",
             messageFormat: "Method '{0}' is marked with [FunctionCommand] but has more than one parameter. FunctionCommand methods can have at most one parameter.",
             category: "EffectSharp.FunctionCommand",
@@ -61,7 +61,7 @@ namespace EffectSharp.SourceGenerators.Utils
             isEnabledByDefault: true);
 
         public static readonly DiagnosticDescriptor FunctionCommandSchedulerNonAsync = new(
-            id: "ES1002",
+            id: "EFSP1002",
             title: "FunctionCommand Scheduler is only valid for async methods",
             messageFormat: "Method '{0}' is marked with [FunctionCommand] and specifies a Scheduler, but is not an async method. Only async FunctionCommand methods can specify a Scheduler.",
             category: "EffectSharp.FunctionCommand",
@@ -69,7 +69,7 @@ namespace EffectSharp.SourceGenerators.Utils
             isEnabledByDefault: true);
 
         public static readonly DiagnosticDescriptor WatchMethodTooManyParameters = new(
-            id: "ES2001",
+            id: "EFSP2001",
             title: "Watch method has too many parameters",
             messageFormat: "Method '{0}' is marked with [Watch] but has more than two parameters. Watch methods can have at most two parameters.",
             category: "EffectSharp.Watch",

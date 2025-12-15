@@ -134,9 +134,9 @@ Supported method shapes:
 
 The generator ships analyzers that validate attribute usage. Unshipped diagnostics:
 
-- ES1001 (Error): FunctionCommand method has too many parameters
-- ES1002 (Warning): FunctionCommand Scheduler is only valid for async methods
-- ES2001 (Error): Watch method has too many parameters
+- EFSP1001 (Error): FunctionCommand method has too many parameters
+- EFSP1002 (Warning): FunctionCommand Scheduler is only valid for async methods
+- EFSP2001 (Error): Watch method has too many parameters
 
 See `AnalyzerReleases.Unshipped.md` and `AnalyzerReleases.Shipped.md` for release tracking.
 
