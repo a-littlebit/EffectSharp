@@ -283,7 +283,7 @@ namespace EffectSharp
         /// <exception cref="ArgumentNullException">
         /// Thrown if <paramref name="source"/>, <paramref name="observableCollection"/>, or <paramref name="keySelector"/> is null.
         /// </exception>
-        public static IDisposable DiffAndBindTo<T, TList, TKey>(
+        public static IDisposable BindTo<T, TList, TKey>(
             this IRef<TList> source,
             ObservableCollection<T> observableCollection,
             Func<T, TKey> keySelector,
@@ -326,7 +326,7 @@ namespace EffectSharp
         /// An <see cref="IDisposable"/> that, when disposed, stops synchronizing changes from the source list to the observable collection.
         /// </returns>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="source"/> or <paramref name="observableCollection"/> is null.</exception>
-        public static IDisposable DiffAndBindTo<T, TList>(
+        public static IDisposable BindTo<T, TList>(
             this IRef<TList> source,
             ObservableCollection<T> observableCollection,
             IEqualityComparer<T> equalityComparer = null,
