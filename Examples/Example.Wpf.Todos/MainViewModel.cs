@@ -41,7 +41,7 @@ namespace Example.Wpf.Todos
                     : TodoItems.Where(item => item.IsCompleted == ShowCompletedItems.Value);
 
                 return toShow.OrderBy(item => item.IsCompleted).ThenBy(item => item.Title).ToList();
-            }).DiffAndBindTo(FilteredTodoItems, item => item.Id);
+            }).BindTo(FilteredTodoItems, item => item.Id);
 
             AddTodoCommand = FunctionCommand.Create<object>(_ => AddTodo(), () => !string.IsNullOrWhiteSpace(NewTodoTitle.Value));
             SelectAllCommand = FunctionCommand.Create<object>(_ => SelectAll());

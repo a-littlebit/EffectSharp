@@ -20,7 +20,7 @@
     - Notification Batching & `TaskManager` configuration
     - Custom Effect Schedulers
     - Deep Watching
-    - List Diff & Binding (`DiffAndBindTo`)
+    - List Diff & Binding (`BindTo`)
 - [Comparison with Vue 3](#comparison-with-vue-3)
 - [Limitations](#limitations)
 - [FAQ](#faq)
@@ -271,7 +271,7 @@ Reactive.Computed(() => {
     return source.Where(item => item.IsActive)
         .OrderBy(item => item.Name)
         .ToList()
-}).DiffAndBindTo(target, keySelector: item => item.Id);
+}).BindTo(target, keySelector: item => item.Id);
 ```
 This minimizes updates to `target` based on the longest increasing subsequence (LIS) algorithm.
 
