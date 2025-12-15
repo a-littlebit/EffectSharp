@@ -6,6 +6,7 @@
   <Folder Name="/Solution Items/">
     <File Path="CHANGELOG.md" />
   </Folder>
+  <Project Path="EffectSharp.SourceGenerators.Tests/EffectSharp.SourceGenerators.Tests.csproj" />
   <Project Path="EffectSharp.SourceGenerators/EffectSharp.SourceGenerators.csproj" />
   <Project Path="EffectSharp.Tests/EffectSharp.Tests.csproj" />
   <Project Path="EffectSharp/EffectSharp.csproj" />
