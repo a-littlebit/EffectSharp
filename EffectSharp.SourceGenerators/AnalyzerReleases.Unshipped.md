@@ -12,6 +12,7 @@ ID | Category | Severity | Title
 EFSP1001 | EffectSharp.FunctionCommand | Error | FunctionCommand method has too many parameters
 EFSP1002 | EffectSharp.FunctionCommand | Warning | FunctionCommand Scheduler is only valid for async methods
 EFSP2001 | EffectSharp.Watch | Error | Watch method has too many parameters
+EFSP3001 | EffectSharp.Computed | Error | Computed method has too many parameters
 
 #### EFSP1001: FunctionCommand method has too many parameters
 - Category: EffectSharp.FunctionCommand
@@ -27,3 +28,8 @@ EFSP2001 | EffectSharp.Watch | Error | Watch method has too many parameters
 - Category: EffectSharp.Watch
 - Severity: Error
 - Description: Methods annotated with [Watch] can have at most two parameters: the new value and (optionally) the old value.
+
+#### EFSP3001: Computed method has too many parameters
+- Category: EffectSharp.Computed
+- Severity: Error
+- Description: Methods annotated with [Computed] cannot have any parameters.

@@ -137,6 +137,7 @@ The generator ships analyzers that validate attribute usage. Unshipped diagnosti
 - EFSP1001 (Error): FunctionCommand method has too many parameters
 - EFSP1002 (Warning): FunctionCommand Scheduler is only valid for async methods
 - EFSP2001 (Error): Watch method has too many parameters
+- EFSP3001 (Error): Computed method has too many parameters
 
 See `AnalyzerReleases.Unshipped.md` and `AnalyzerReleases.Shipped.md` for release tracking.
 

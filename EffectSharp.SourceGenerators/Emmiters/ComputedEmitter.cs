@@ -15,7 +15,7 @@ namespace EffectSharp.SourceGenerators.Emmiters
         {
             context.ComputedContexts = context.ModelSymbol.GetMembers()
                 .OfType<IMethodSymbol>()
-                .Select(m => new ComputedContext(m))
+                .Select(m => new ComputedContext(m, context))
                 .Where(m => m.AttributeData != null)
                 .ToList();
 

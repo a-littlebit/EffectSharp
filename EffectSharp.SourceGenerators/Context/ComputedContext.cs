@@ -20,13 +20,25 @@ namespace EffectSharp.SourceGenerators.Context
 
         public string FieldName => "_" + NameHelper.ToCamelCase(PropertyName);
 
-        public ComputedContext(IMethodSymbol method)
+        public ComputedContext(IMethodSymbol method, ReactiveModelContext modelContext)
         {
             MethodSymbol = method;
-            AttributeData = method.GetAttributeData("Computed");
-            if (AttributeData == null)
+            var attr = method.GetAttributeData("Computed");
+            if (attr == null)
                 return;
-            SetterMethod = AttributeData.GetNamedArgument<string>("SetterMethod");
+
+            if (method.Parameters.Length > 0)
+            {
+                modelContext.ProductionContext.Report(
+                    DiagnosticDescriptors.ComputedMethodTooManyParameters,
+                    method,
+                    method.Name);
+                return;
+            }
+
+            SetterMethod = attr.GetNamedArgument<string>("SetterMethod");
+
+            AttributeData = attr;
         }
     }
 }

@@ -75,5 +75,13 @@ namespace EffectSharp.SourceGenerators.Utils
             category: "EffectSharp.Watch",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor ComputedMethodTooManyParameters = new(
+            id: "EFSP3001",
+            title: "Computed method has parameters",
+            messageFormat: "Method '{0}' is marked with [Computed] but has one or more parameters. Computed methods cannot have parameters.",
+            category: "EffectSharp.Computed",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
     }
 }
