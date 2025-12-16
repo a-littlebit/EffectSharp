@@ -41,7 +41,7 @@ namespace EffectSharp
         /// <returns>The current effect or null if none.</returns>
         public Effect Track()
         {
-            var currentEffect = Effect.CurrentEffect;
+            var currentEffect = Effect.Current;
             if (currentEffect != null)
             {
                 if (AddSubscriber(currentEffect))
