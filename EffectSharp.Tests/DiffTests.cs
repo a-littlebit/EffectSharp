@@ -51,7 +51,7 @@ namespace EffectSharp.Tests
             var reactiveList = Reactive.Collection<(int, string)>();
             var sourceList = Reactive.Ref(GenerateRandomList(100, 200, 0, 200).Select(i => (i, i.ToString())).ToList());
             // Initial binding
-            Reactive.BindTo(sourceList, reactiveList, item => item.Item1);
+            reactiveList.BindTo(() => sourceList.Value, item => item.Item1);
             await Reactive.NextTick();
             Assert.Equal(sourceList.Value, reactiveList);
             // Update source list
@@ -72,7 +72,7 @@ namespace EffectSharp.Tests
             var reactiveList = Reactive.Collection<int>();
             var sourceList = Reactive.Ref(GenerateRandomList(100, 200, 0, 100, false));
             // Initial binding
-            Reactive.BindTo(sourceList, reactiveList);
+            reactiveList.BindTo(() => sourceList.Value);
             await Reactive.NextTick();
             Assert.Equal(sourceList.Value, reactiveList);
             // Update source list

@@ -30,18 +30,18 @@ namespace Example.Wpf
         public Ref<bool> ShowPendingItems { get; } = Reactive.Ref(false);
         public Ref<bool> ShowAllItems { get; } = Reactive.Ref(true);
 
-        public ObservableCollection<ITodoItem> FilteredTodoItems { get; } = new();
+        public ObservableCollection<ITodoItem> FilteredTodoItems { get; }
 
         public MainWindowViewModel()
         {
-            Reactive.Computed(() =>
+            FilteredTodoItems = Reactive.ComputedList<ITodoItem, List<ITodoItem>, Guid>(() =>
             {
                 var toShow = ShowAllItems.Value
-                    ? TodoItems.ToList()
+                    ? TodoItems
                     : TodoItems.Where(item => item.IsCompleted == ShowCompletedItems.Value);
 
                 return toShow.OrderBy(item => item.IsCompleted).ThenBy(item => item.Title).ToList();
-            }).BindTo(FilteredTodoItems, item => item.Id);
+            }, item => item.Id);
 
             AddTodoCommand = FunctionCommand.Create<object>(_ => AddTodo(), () => !string.IsNullOrWhiteSpace(NewTodoTitle.Value));
             SelectAllCommand = FunctionCommand.Create<object>(_ => SelectAll());
