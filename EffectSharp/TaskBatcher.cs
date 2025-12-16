@@ -460,21 +460,18 @@ namespace EffectSharp
                 }
                 catch
                 {
-                    // Ignore exceptions here; they may be handled in other NextTick calls
+                    // Ignore exceptions here
                 }
                 oldTickState = Volatile.Read(ref _tickState);
             }
 
             var newTickState = new TickState(processedSeq);
             oldTickState = Interlocked.Exchange(ref _tickState, newTickState);
+
+            oldTickState.NextTickTcs.TrySetResult(true);
             if (ex != null)
             {
-                oldTickState.NextTickTcs.TrySetException(ex);
                 BatchProcessingFailed?.Invoke(this, new BatchProcessingFailedEventArgs<T>(ex, batch));
-            }
-            else
-            {
-                oldTickState.NextTickTcs.TrySetResult(true);
             }
         }
 
