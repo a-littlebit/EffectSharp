@@ -47,6 +47,11 @@ namespace EffectSharp
         /// Raised when processing a batch fails with an exception.
         /// </summary>
         public event EventHandler<BatchProcessingFailedEventArgs<T>> BatchProcessingFailed;
+
+        /// <summary>
+        /// Raised when an exception occurs in the throttler function.
+        /// </summary>
+        public event EventHandler<ThrottlerExceptionEventArgs> ThrottlerExceptionOccurred;
         #endregion
 
         #region Constructor
@@ -325,6 +330,11 @@ namespace EffectSharp
                         {
                             // Cancellation triggered by FlushAsync—proceed to process immediately
                         }
+                        catch (Exception ex)
+                        {
+                            // Raise throttler exception event
+                            ThrottlerExceptionOccurred?.Invoke(this, new ThrottlerExceptionEventArgs(ex));
+                        }
                         finally
                         {
                             // Clear the reference to the delay cancellation source
@@ -557,6 +567,15 @@ namespace EffectSharp
         {
             Exception = exception;
             FailedItems = failedItems;
+        }
+    }
+
+    public class ThrottlerExceptionEventArgs : EventArgs
+    {
+        public Exception Exception { get; }
+        public ThrottlerExceptionEventArgs(Exception exception)
+        {
+            Exception = exception;
         }
     }
 }
