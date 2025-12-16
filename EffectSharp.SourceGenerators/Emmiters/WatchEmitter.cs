@@ -46,7 +46,24 @@ namespace EffectSharp.SourceGenerators.Emmiters
                     writer.Write("newValue");
                 if (properties.Length > 1)
                     writer.Write(", oldValue");
-                writer.WriteLine($"), {watchContext.Options});");
+                writer.Write(")");
+
+                void WriteOption(string name, string value)
+                {
+                    writer.WriteLine(",");
+                    writer.Write($"{name}: {value}");
+                }
+
+                if (watchContext.Immediate) WriteOption("Immediate", "true");
+                if (watchContext.Deep) WriteOption("deep", "true");
+                if (watchContext.Once) WriteOption("once", "true");
+                if (!string.IsNullOrWhiteSpace(watchContext.Scheduler)) WriteOption("scheduler", watchContext.Scheduler);
+                if (watchContext.SupressEquality)
+                    WriteOption("supressEquality", "true");
+                else if (!string.IsNullOrWhiteSpace(watchContext.EqualityComparer))
+                    WriteOption("equalityComparer", watchContext.EqualityComparer);
+
+                writer.WriteLine(");");
                 writer.Indent--;
             }
         }

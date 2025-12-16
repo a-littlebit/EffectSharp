@@ -17,7 +17,17 @@ namespace EffectSharp.SourceGenerators.Context
 
         public int ParameterCount => MethodSymbol.Parameters.Length;
 
-        public string Options { get; }
+        public bool Immediate { get; set; }
+
+        public bool Deep { get; set; }
+
+        public bool Once { get; set; }
+
+        public string Scheduler { get; set; }
+
+        public bool SupressEquality { get; set; }
+
+        public string EqualityComparer { get; set; }
 
         public WatchContext(IMethodSymbol methodSymbol, ReactiveModelContext modelContext)
         {
@@ -39,10 +49,12 @@ namespace EffectSharp.SourceGenerators.Context
                 return;
             }
 
-            var options = AttributeData.GetNamedArgument("Options", "null");
-            if (string.IsNullOrWhiteSpace(options))
-                options = "null";
-            Options = options;
+            Immediate = AttributeData.GetNamedArgument("Immediate", false);
+            Deep = AttributeData.GetNamedArgument("Deep", false);
+            Once = AttributeData.GetNamedArgument("Once", false);
+            Scheduler = AttributeData.GetNamedArgument<string>("Scheduler");
+            SupressEquality = AttributeData.GetNamedArgument("SupressEquality", false);
+            EqualityComparer = AttributeData.GetNamedArgument<string>("EqualityComparer");
 
             IsValid = true;
         }
