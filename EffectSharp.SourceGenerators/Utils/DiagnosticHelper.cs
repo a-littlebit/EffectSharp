@@ -83,5 +83,13 @@ namespace EffectSharp.SourceGenerators.Utils
             category: "EffectSharp.Computed",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor ComputedListInvalidReturnType = new(
+            id: "EFSP4001",
+            title: "ComputedList method must return IList<T>",
+            messageFormat: "Method '{0}' is marked with [ComputedList] but does not return a type implementing IList<T>",
+            category: "EffectSharp.ComputedList",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
     }
 }

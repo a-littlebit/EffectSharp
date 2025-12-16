@@ -30,34 +30,11 @@ namespace EffectSharp.SourceGenerators.Context
             UnderlyingType = field.Type;
 
             var compilation = modelContext.Compilation;
-            var iAtomicType = compilation.GetTypeByMetadataName("EffectSharp.IAtomic`1")!;
-            for (var type = field.Type; type != null; type = type.BaseType)
+            var iAtomicType = compilation.GetTypeByMetadataName("EffectSharp.IAtomic`1");
+            if (iAtomicType != null && field.Type.TryGetGenericArgument(iAtomicType, 0, out var atomicArg))
             {
-                if (!(type is INamedTypeSymbol namedType))
-                    continue;
-
-                if (namedType.IsGenericType &&
-                    SymbolEqualityComparer.Default.Equals(
-                        namedType.OriginalDefinition,
-                        iAtomicType))
-                {
-                    IsAtomic = true;
-                    UnderlyingType = namedType.TypeArguments[0];
-                    break;
-                }
-
-                foreach (var iface in namedType.Interfaces)
-                {
-                    if (iface.IsGenericType &&
-                        SymbolEqualityComparer.Default.Equals(
-                            iface.OriginalDefinition,
-                            iAtomicType))
-                    {
-                        IsAtomic = true;
-                        UnderlyingType = iface.TypeArguments[0];
-                        break;
-                    }
-                }
+                IsAtomic = true;
+                UnderlyingType = atomicArg ?? field.Type;
             }
         }
 

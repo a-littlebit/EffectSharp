@@ -23,6 +23,7 @@ public sealed class ReactiveModelGenerator : IIncrementalGenerator
         new ReactiveFieldEmitter(),
         new FunctionCommandEmitter(),
         new ComputedEmitter(),
+        new ComputedListEmitter(),
         new WatchEmitter(),
         new InitializerEmitter()
     };

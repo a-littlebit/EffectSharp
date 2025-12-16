@@ -6,6 +6,74 @@ namespace EffectSharp.SourceGenerators.Utils
 {
     internal static class SymbolExtensions
     {
+        public static bool IsAssignableTo(
+            this ITypeSymbol type,
+            INamedTypeSymbol targetType)
+        {
+            // Walk the inheritance chain
+            for (var current = type; current != null; current = current.BaseType)
+            {
+                if (SymbolEqualityComparer.Default.Equals(current, targetType))
+                {
+                    return true;
+                }
+                if (targetType.TypeKind == TypeKind.Interface && current is INamedTypeSymbol named)
+                {
+                    // Check implemented interfaces
+                    foreach (var iface in named.AllInterfaces)
+                    {
+                        if (SymbolEqualityComparer.Default.Equals(iface, targetType))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        public static bool TryGetGenericArgument(
+            this ITypeSymbol type,
+            INamedTypeSymbol genericDefinition,
+            int argumentIndex,
+            out INamedTypeSymbol typeArgument)
+        {
+            typeArgument = null;
+
+            // Walk the inheritance chain
+            for (var current = type; current != null; current = current.BaseType)
+            {
+                if (current is INamedTypeSymbol named)
+                {
+                    // Check self constructed from generic interface (rare, for interface types)
+                    if (named.IsGenericType &&
+                        SymbolEqualityComparer.Default.Equals(named.ConstructedFrom, genericDefinition) &&
+                        named.TypeArguments.Length > argumentIndex)
+                    {
+                        typeArgument = named.TypeArguments[argumentIndex] as INamedTypeSymbol;
+                        return typeArgument != null;
+                    }
+
+                    // Check implemented interfaces
+                    if (genericDefinition.TypeKind == TypeKind.Interface)
+                    {
+                        foreach (var iface in named.AllInterfaces)
+                        {
+                            if (iface.IsGenericType &&
+                                SymbolEqualityComparer.Default.Equals(iface.ConstructedFrom, genericDefinition) &&
+                                iface.TypeArguments.Length > argumentIndex)
+                            {
+                                typeArgument = iface.TypeArguments[argumentIndex] as INamedTypeSymbol;
+                                return typeArgument != null;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
         public static bool HasAttribute(
             this ISymbol symbol,
             string attributeName,
@@ -94,15 +162,13 @@ namespace EffectSharp.SourceGenerators.Utils
                 return false;
 
             // Task
-            if (SymbolEqualityComparer.Default.Equals(returnType, taskType))
+            if (returnType.IsAssignableTo(taskType))
                 return true;
 
             // Task<T>
             if (returnType is INamedTypeSymbol named &&
-                named.IsGenericType &&
-                SymbolEqualityComparer.Default.Equals(named.ConstructedFrom, taskOfTType))
+                named.TryGetGenericArgument(taskOfTType, 0, out resultType))
             {
-                resultType = named.TypeArguments[0] as INamedTypeSymbol;
                 return true; 
             }
 

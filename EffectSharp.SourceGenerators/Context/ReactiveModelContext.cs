@@ -22,6 +22,8 @@ namespace EffectSharp.SourceGenerators.Context
 
         internal List<ComputedContext> ComputedContexts { get; set; }
 
+        internal List<ComputedListContext> ComputedListContexts { get; set; }
+
         internal List<WatchContext> WatchContexts { get; set; }
 
         public ReactiveModelContext(
