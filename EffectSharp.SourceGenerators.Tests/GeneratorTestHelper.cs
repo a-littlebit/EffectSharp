@@ -110,7 +110,12 @@ namespace EffectSharp.SourceGenerators
     public sealed class WatchAttribute : Attribute
     {
         public string[] Properties { get; set; }
-        public string Options { get; set; }
+        public bool Immediate { get; set; } = false;
+        public bool Deep { get; set; } = false;
+        public bool Once { get; set; } = false;
+        public string Scheduler { get; set; } = ""null"";
+        public bool SupressEquality { get; set; } = false;
+        public string EqualityComparer { get; set; } = ""null"";
     }
 }
 ";

@@ -148,7 +148,7 @@ public partial class Sample
     [ReactiveField]
     private int _value;
 
-    [Watch(Properties = new[] { nameof(Value) }, Options = ""new WatchOptions<int> { Immediate = true }"")]
+    [Watch(Properties = new[] { nameof(Value) }, Immediate = true, Scheduler = ""TaskScheduler.Default"", SupressEquality = true)]
     public void OnChanged(int n, int o) { }
 }
 ";
@@ -160,7 +160,41 @@ public partial class Sample
             var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
-            Assert.Contains("new WatchOptions<int> { Immediate = true }", text);
+            Assert.Contains("Reactive.Watch(() => Value,", text);
+            Assert.Contains("Immediate: true", text);
+            Assert.Contains("scheduler: TaskScheduler.Default", text);
+            Assert.Contains("supressEquality: true", text);
+        }
+
+        [Fact]
+        public void Generates_Watch_For_Multiple_Properties_And_Maps_Params()
+        {
+            var src = @"
+using EffectSharp.SourceGenerators;
+
+[ReactiveModel]
+public partial class Sample
+{
+    [ReactiveField] private int _a;
+    [ReactiveField] private int _b;
+
+    [Watch(Properties = new[] { nameof(A), nameof(B) })]
+    public void OnAB(int n, int o) { }
+}
+";
+            var (comp, result, driver) = GeneratorTestHelper.RunGenerator(
+                GeneratorTestHelper.EffectSharpAttributeStubs,
+                GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
+                src);
+
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            Assert.NotNull(gen);
+            var text = gen.GetText()!.ToString();
+
+            // Getter creates a tuple when multiple properties
+            Assert.Contains("Reactive.Watch(() => (A, B),", text);
+            // Callback maps newValue and oldValue into method parameters
+            Assert.Contains("(newValue, oldValue) => this.OnAB(newValue, oldValue)", text);
         }
 
         [Fact]
