@@ -157,8 +157,12 @@ namespace EffectSharp.Tests
                     processed.Add(item);
             });
 
+            Exception? exception = null;
+            batcher.BatchProcessingFailed += (s, e) => exception = e.Exception;
+
             batcher.Enqueue(1);
-            await Assert.ThrowsAsync<InvalidOperationException>(() => batcher.FlushAsync());
+            await batcher.FlushAsync();
+            Assert.IsType<InvalidOperationException>(exception);
 
             batcher.Enqueue(2);
             await batcher.FlushAsync();
