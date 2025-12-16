@@ -92,6 +92,13 @@ namespace EffectSharp.SourceGenerators
     }
 
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+    public sealed class ComputedListAttribute : Attribute
+    {
+        public string KeySelector { get; set; }
+        public string EqualityComparer { get; set; }
+    }
+
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public sealed class FunctionCommandAttribute : Attribute
     {
         public string CanExecute { get; set; }
