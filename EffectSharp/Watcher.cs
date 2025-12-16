@@ -16,6 +16,7 @@ namespace EffectSharp
         /// When true, performs deep tracking: if the getter returns an <see cref="IReactive"/> value (or an enumerable of reactive items),
         /// their nested dependencies are tracked, and the equality short-circuit is disabled. Default is <c>false</c>.
         /// </param>
+        /// <param name="once">When true, the watcher is automatically disposed after the first callback invocation. Default is <c>false</c>.</param>
         /// <param name="immediate">When true, the callback is invoked during the first evaluation. Default is <c>false</c>.</param>
         /// <param name="scheduler">Optional scheduler for the underlying effect; if provided, it receives the created <see cref="Effect"/> instance.</param>
         /// <param name="suppressEquality">
@@ -33,6 +34,7 @@ namespace EffectSharp
             Action<T, T> callback,
             bool immediate = false,
             bool deep = false,
+            bool once = false,
             Action<Effect> scheduler = null,
             bool suppressEquality = true,
             IEqualityComparer<T> equalityComparer = null)
@@ -86,6 +88,11 @@ namespace EffectSharp
                     callback(newValue, oldValue);
                     oldValue = newValue;
                 });
+
+                if (once)
+                {
+                    Effect.Current.Dispose();
+                }
             }, scheduler);
         }
 
@@ -99,6 +106,7 @@ namespace EffectSharp
         /// When true, performs deep tracking: if the getter returns an <see cref="IReactive"/> value (or an enumerable of reactive items),
         /// their nested dependencies are tracked, and the equality short-circuit is disabled. Default is <c>false</c>.
         /// </param>
+        /// <param name="once">When true, the watcher is automatically disposed after the first callback invocation. Default is <c>false</c>.</param>
         /// <param name="immediate">When true, the callback is invoked during the first evaluation. Default is <c>false</c>.</param>
         /// <param name="scheduler">Optional scheduler for the underlying effect; if provided, it receives the created <see cref="Effect"/> instance.</param>
         /// <param name="suppressEquality">
@@ -116,12 +124,13 @@ namespace EffectSharp
             Action<T, T> callback,
             bool immediate = false,
             bool deep = false,
+            bool once = false,
             Action<Effect> scheduler = null,
             bool suppressEquality = true,
             IEqualityComparer<T> equalityComparer = null)
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
-            return Watch(() => source.Value, callback, immediate, deep, scheduler, suppressEquality, equalityComparer);
+            return Watch(() => source.Value, callback, immediate, deep, once, scheduler, suppressEquality, equalityComparer);
         }
     }
 }
