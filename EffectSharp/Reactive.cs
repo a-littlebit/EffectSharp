@@ -189,53 +189,7 @@ namespace EffectSharp
         /// <returns>An <see cref="Effect"/> representing the watch; dispose to stop watching.</returns>
         public static Effect Watch<T>(Func<T> getter, Action<T, T> callback, WatchOptions<T> options = null)
         {
-            if (options == null) options = WatchOptions<T>.Default;
-
-            T oldValue = default;
-            bool firstRun = true;
-
-            return Effect(() =>
-            {
-                T newValue = getter();
-
-                if (options.Deep)
-                {
-                    if (newValue is IReactive reactive)
-                    {
-                        reactive.TrackDeep();
-                    }
-                    else if (newValue is System.Collections.IEnumerable enumerable)
-                    {
-                        foreach (var item in enumerable)
-                        {
-                            if (item is IReactive itemReactive)
-                            {
-                                itemReactive.TrackDeep();
-                            }
-                        }
-                    }
-                }
-                else if (options.EqualityComparer != null && options.EqualityComparer.Equals(oldValue, newValue) && !firstRun)
-                {
-                    return;
-                }
-
-                if (firstRun)
-                {
-                    firstRun = false;
-                    if (!options.Immediate)
-                    {
-                        oldValue = newValue;
-                        return;
-                    }
-                }
-
-                EffectSharp.Effect.Untracked(() =>
-                {
-                    callback(newValue, oldValue);
-                    oldValue = newValue;
-                });
-            }, options.Scheduler);
+            return Watcher.Watch(getter, callback, options);
         }
 
         /// <summary>
@@ -251,7 +205,7 @@ namespace EffectSharp
         public static Effect Watch<T>(IRef<T> source, Action<T, T> callback, WatchOptions<T> options = null)
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
-            return Watch(() => source.Value, callback, options);
+            return Watcher.Watch(() => source.Value, callback, options);
         }
 
         /// <summary>
@@ -295,7 +249,7 @@ namespace EffectSharp
             if (keySelector == null) throw new ArgumentNullException(nameof(keySelector));
             if (equalityComparer == null) equalityComparer = EqualityComparer<TKey>.Default;
 
-            return Watch(source, (newList, _) =>
+            return Watcher.Watch(source, (newList, _) =>
             {
                 ListSynchronizer.SyncWithUnique(observableCollection, newList, keySelector, equalityComparer);
             }, new WatchOptions<TList> { Immediate = true, Scheduler = scheduler, EqualityComparer = null });
@@ -335,7 +289,7 @@ namespace EffectSharp
             if (observableCollection == null) throw new ArgumentNullException(nameof(observableCollection));
             if (equalityComparer == null) equalityComparer = EqualityComparer<T>.Default;
 
-            return Watch(source, (newList, _) =>
+            return Watcher.Watch(source, (newList, _) =>
             {
                 ListSynchronizer.SyncWith(observableCollection, newList, t => t, equalityComparer);
             }, new WatchOptions<TList> { Immediate = true, Scheduler = scheduler, EqualityComparer = null });
@@ -391,36 +345,5 @@ namespace EffectSharp
         {
             return Task.WhenAll(TaskManager.NextEffectTick(cancellationToken), TaskManager.NextNotificationTick(cancellationToken));
         }
-    }
-
-    /// <summary>
-    /// Options that control the behavior of <see cref="Reactive.Watch{T}(Func{T}, Action{T, T}, WatchOptions{T})"/>.
-    /// </summary>
-    /// <typeparam name="T">The watched value type.</typeparam>
-    public class WatchOptions<T>
-    {
-        /// <summary>
-        /// When true, the callback is invoked during the first evaluation. Default is <c>false</c>.
-        /// </summary>
-        public bool Immediate { get; set; } = false;
-        /// <summary>
-        /// When true, performs deep tracking: if the getter returns an <see cref="IReactive"/> value (or an enumerable of reactive items),
-        /// their nested dependencies are tracked, and the equality short-circuit is disabled. Default is <c>false</c>.
-        /// </summary>
-        public bool Deep { get; set; } = false;
-        /// <summary>
-        /// Equality comparer used to suppress callbacks when the produced value has not changed. Default is <see cref="EqualityComparer{T}.Default"/>.
-        /// Ignored when <see cref="Deep"/> is true.
-        /// </summary>
-        public IEqualityComparer<T> EqualityComparer { get; set; } = EqualityComparer<T>.Default;
-        /// <summary>
-        /// Optional scheduler for the underlying effect; if provided, it receives the created <see cref="Effect"/> instance.
-        /// </summary>
-        public Action<Effect> Scheduler { get; set; } = null;
-
-        /// <summary>
-        /// A reusable default options instance.
-        /// </summary>
-        public static readonly WatchOptions<T> Default = new WatchOptions<T>();
     }
 }
