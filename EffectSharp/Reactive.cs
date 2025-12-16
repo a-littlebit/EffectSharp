@@ -261,12 +261,11 @@ namespace EffectSharp
         /// <typeparam name="T">The type of elements contained in the source list and observable collection.</typeparam>
         /// <typeparam name="TList">The type of the source list, which must implement <see cref="IList{T}"/>.</typeparam>
         /// <typeparam name="TKey">The type of the key used to identify elements for diffing.</typeparam>
-        /// <param name="source">
-        /// A reactive reference to the source list whose changes will be observed and reflected in the observable collection.
-        /// Cannot be null.
-        /// </param>
         /// <param name="observableCollection">
         /// The <see cref="ObservableCollection{T}"/> to be synchronized with the source list. Cannot be null.
+        /// </param>
+        /// <param name="source">
+        /// A function that returns the source list whose changes will be observed and reflected in the observable collection.
         /// </param>
         /// <param name="keySelector">
         /// A function that extracts the unique key from each element, used to determine identity during diffing. Cannot be null.
@@ -284,8 +283,8 @@ namespace EffectSharp
         /// Thrown if <paramref name="source"/>, <paramref name="observableCollection"/>, or <paramref name="keySelector"/> is null.
         /// </exception>
         public static IDisposable BindTo<T, TList, TKey>(
-            this IRef<TList> source,
-            ObservableCollection<T> observableCollection,
+            this ObservableCollection<T> observableCollection,
+            Func<TList> source,
             Func<T, TKey> keySelector,
             IEqualityComparer<TKey> equalityComparer = null,
             Action<Effect> scheduler = null)
@@ -299,7 +298,7 @@ namespace EffectSharp
             return Watch(source, (newList, _) =>
             {
                 ListSynchronizer.SyncWithUnique(observableCollection, newList, keySelector, equalityComparer);
-            }, new WatchOptions<TList> { Immediate = true, Scheduler = scheduler });
+            }, new WatchOptions<TList> { Immediate = true, Scheduler = scheduler, EqualityComparer = null });
         }
 
         /// <summary>
@@ -308,12 +307,11 @@ namespace EffectSharp
         /// </summary>
         /// <typeparam name="T">The type of elements contained in the list and observable collection.</typeparam>
         /// <typeparam name="TList">The type of the referenced list, which must implement <see cref="IList{T}"/>.</typeparam>
-        /// <param name="source">
-        /// A reactive reference to the source list whose changes will be observed and reflected in the observable collection.
-        /// Cannot be null.
-        /// </param>
         /// <param name="observableCollection">
         /// The observable collection to be synchronized with the source list. Cannot be null.
+        /// </param>
+        /// <param name="source">
+        /// A function that returns the source list whose changes will be observed and reflected in the observable collection.
         /// </param>
         /// <param name="equalityComparer">
         /// An optional equality comparer used to determine whether items are equal. If null, the default equality
@@ -327,8 +325,8 @@ namespace EffectSharp
         /// </returns>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="source"/> or <paramref name="observableCollection"/> is null.</exception>
         public static IDisposable BindTo<T, TList>(
-            this IRef<TList> source,
-            ObservableCollection<T> observableCollection,
+            this ObservableCollection<T> observableCollection,
+            Func<TList> source,
             IEqualityComparer<T> equalityComparer = null,
             Action<Effect> scheduler = null)
             where TList : IList<T>
@@ -340,7 +338,50 @@ namespace EffectSharp
             return Watch(source, (newList, _) =>
             {
                 ListSynchronizer.SyncWith(observableCollection, newList, t => t, equalityComparer);
-            }, new WatchOptions<TList> { Immediate = true, Scheduler = scheduler });
+            }, new WatchOptions<TList> { Immediate = true, Scheduler = scheduler, EqualityComparer = null });
+        }
+
+        /// <summary>
+        /// Creates a <see cref="ReactiveCollection{T}"/> that is computed from the specified getter function,
+        /// synchronizing its contents based on the provided key selector.
+        /// </summary>
+        /// <typeparam name="T">Element type.</typeparam>
+        /// <typeparam name="TList">The type of the source list, which must implement <see cref="IList{T}"/>.</typeparam>
+        /// <typeparam name="TKey">The type of the key used to identify elements for diffing.</typeparam>
+        /// <param name="getter">Function that returns the source list.</param>
+        /// <param name="keySelector">Function that extracts the unique key from each element.</param>
+        /// <param name="equalityComparer">Optional equality comparer for keys.</param>
+        /// <returns>A new reactive collection bound to the computed list.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="getter"/> or <paramref name="keySelector"/> is null.</exception>
+        public static ReactiveCollection<T> ComputedList<T, TList, TKey>(
+            Func<TList> getter,
+            Func<T, TKey> keySelector,
+            IEqualityComparer<TKey> equalityComparer = null)
+            where TList : IList<T>
+        {
+            var collection = new ReactiveCollection<T>();
+            collection.BindTo(getter, keySelector, equalityComparer);
+            return collection;
+        }
+
+        /// <summary>
+        /// Creates a <see cref="ReactiveCollection{T}"/> that is computed from the specified getter function,
+        /// synchronizing its contents without using keys.
+        /// </summary>
+        /// <typeparam name="T">Element type.</typeparam>
+        /// <typeparam name="TList">The type of the source list, which must implement <see cref="IList{T}"/>.</typeparam>
+        /// <param name="getter">Function that returns the source list.</param>
+        /// <param name="equalityComparer">Optional equality comparer for items.</param>
+        /// <returns>A new reactive collection bound to the computed list.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="getter"/> is null.</exception>
+        public static ReactiveCollection<T> ComputedList<T, TList>(
+            Func<TList> getter,
+            IEqualityComparer<T> equalityComparer = null)
+            where TList : IList<T>
+        {
+            var collection = new ReactiveCollection<T>();
+            collection.BindTo(getter, equalityComparer);
+            return collection;
         }
 
         /// <summary>
