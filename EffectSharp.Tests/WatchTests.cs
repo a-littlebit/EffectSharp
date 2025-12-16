@@ -108,7 +108,7 @@ namespace EffectSharp.Tests
                 observedNewValue = newValue;
                 observedOldValue = oldValue;
                 callbackCalled = true;
-            }, new WatchOptions<int> { Immediate = true });
+            }, immediate: true);
             // Assert that the callback was called immediately
             Assert.True(callbackCalled);
             // Assert the values passed to the callback
@@ -134,7 +134,7 @@ namespace EffectSharp.Tests
             {
                 effectRunCount++;
                 productPrice = order.Product.Price;
-            }, new WatchOptions<IOrder> { Deep = true });
+            }, deep: true);
             // Change a nested property
             order.Product.Price = 150;
             // Assert
