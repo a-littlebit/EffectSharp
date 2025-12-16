@@ -144,5 +144,30 @@ namespace EffectSharp.Tests
             // Cleanup
             sub.Dispose();
         }
+
+        [Fact]
+        public async Task Watch_WhenOnceOption_CallbackCalledOnlyOnce()
+        {
+            // Arrange
+            var countRef = Reactive.Ref(0);
+            int effectRunCount = 0;
+            // Act
+            var sub = Reactive.Watch(countRef, (_, _) =>
+            {
+                effectRunCount++;
+            }, once: true);
+            // Change the ref value
+            countRef.Value = 1;
+            // Assert
+            await Reactive.NextTick();
+            Assert.Equal(1, effectRunCount);
+            // Change the ref value again
+            countRef.Value = 2;
+            // Assert
+            await Reactive.NextTick();
+            Assert.Equal(1, effectRunCount); // Should still be 1
+            // Cleanup
+            sub.Dispose();
+        }
     }
 }
