@@ -47,6 +47,11 @@ namespace EffectSharp
         /// Raised when processing a batch fails with an exception.
         /// </summary>
         public event EventHandler<BatchProcessingFailedEventArgs<T>> BatchProcessingFailed;
+
+        /// <summary>
+        /// Raised when an exception occurs in the throttler function.
+        /// </summary>
+        public event EventHandler<ThrottlerExceptionEventArgs> ThrottlerExceptionOccurred;
         #endregion
 
         #region Constructor
@@ -325,6 +330,11 @@ namespace EffectSharp
                         {
                             // Cancellation triggered by FlushAsync—proceed to process immediately
                         }
+                        catch (Exception ex)
+                        {
+                            // Raise throttler exception event
+                            ThrottlerExceptionOccurred?.Invoke(this, new ThrottlerExceptionEventArgs(ex));
+                        }
                         finally
                         {
                             // Clear the reference to the delay cancellation source
@@ -460,21 +470,18 @@ namespace EffectSharp
                 }
                 catch
                 {
-                    // Ignore exceptions here; they may be handled in other NextTick calls
+                    // Ignore exceptions here
                 }
                 oldTickState = Volatile.Read(ref _tickState);
             }
 
             var newTickState = new TickState(processedSeq);
             oldTickState = Interlocked.Exchange(ref _tickState, newTickState);
+
+            oldTickState.NextTickTcs.TrySetResult(true);
             if (ex != null)
             {
-                oldTickState.NextTickTcs.TrySetException(ex);
                 BatchProcessingFailed?.Invoke(this, new BatchProcessingFailedEventArgs<T>(ex, batch));
-            }
-            else
-            {
-                oldTickState.NextTickTcs.TrySetResult(true);
             }
         }
 
@@ -560,6 +567,15 @@ namespace EffectSharp
         {
             Exception = exception;
             FailedItems = failedItems;
+        }
+    }
+
+    public class ThrottlerExceptionEventArgs : EventArgs
+    {
+        public Exception Exception { get; }
+        public ThrottlerExceptionEventArgs(Exception exception)
+        {
+            Exception = exception;
         }
     }
 }
