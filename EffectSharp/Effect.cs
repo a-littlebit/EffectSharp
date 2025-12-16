@@ -12,12 +12,12 @@ namespace EffectSharp
     /// </summary>
     public class Effect : IDisposable
     {
-        internal static readonly ThreadLocal<Effect> CurrentEffectContext = new ThreadLocal<Effect>();
+        internal static readonly ThreadLocal<Effect> _current = new ThreadLocal<Effect>();
 
         /// <summary>
         /// Gets the effect currently being executed (tracking dependencies), if any.
         /// </summary>
-        public static Effect CurrentEffect => CurrentEffectContext.Value;
+        public static Effect Current => _current.Value;
 
         private readonly Action _action;
 
@@ -26,6 +26,9 @@ namespace EffectSharp
         private volatile bool _isDisposed = false;
 
         private readonly AsyncLock _lock = new AsyncLock();
+
+        // Allows direct access to the locked effect API during execution.
+        private readonly ThreadLocal<AsyncLock.Scope> _executionScope = new ThreadLocal<AsyncLock.Scope>();
 
         /// <summary>
         /// Gets the custom scheduler used to enqueue this effect, if provided.
@@ -65,21 +68,30 @@ namespace EffectSharp
         /// <param name="existingScope">Optional existing lock scope.</param>
         public void Execute(AsyncLock.Scope existingScope = null)
         {
+            if (_executionScope.Value != null)
+            {
+                // recursive execution
+                Untracked(_action);
+                return;
+            }
+
             using (var scope = _lock.Enter(existingScope))
             {
                 if (_isDisposed) return;
 
                 Stop(scope);
 
-                var previousEffect = CurrentEffectContext.Value;
-                CurrentEffectContext.Value = this;
+                var previousEffect = _current.Value;
+                _current.Value = this;
+                _executionScope.Value = scope;
                 try
                 {
                     _action();
                 }
                 finally
                 {
-                    CurrentEffectContext.Value = previousEffect;
+                    _executionScope.Value = null;
+                    _current.Value = previousEffect;
                 }
             }
         }
@@ -110,20 +122,20 @@ namespace EffectSharp
         /// <returns>Function result.</returns>
         public static T Untracked<T>(Func<T> getter)
         {
-            var previousEffect = CurrentEffectContext.Value;
+            var previousEffect = _current.Value;
             if (previousEffect == null)
             {
                 return getter();
             }
 
-            CurrentEffectContext.Value = null;
+            _current.Value = null;
             try
             {
                 return getter();
             }
             finally
             {
-                CurrentEffectContext.Value = previousEffect;
+                _current.Value = previousEffect;
             }
         }
 
@@ -146,7 +158,7 @@ namespace EffectSharp
         /// <param name="existingScope">Optional existing lock scope.</param>
         public void Stop(AsyncLock.Scope existingScope = null)
         {
-            using (var scope = _lock.Enter(existingScope))
+            using (var scope = _lock.Enter(existingScope ?? _executionScope.Value))
             {
                 foreach (var dependency in _dependencies)
                 {
@@ -158,6 +170,8 @@ namespace EffectSharp
 
         internal void AddDependency(Dependency dependency)
         {
+            // This function can only be called during execution, so no lock is needed here.
+            if (_isDisposed) return;
             _dependencies.Add(dependency);
         }
 
@@ -166,7 +180,16 @@ namespace EffectSharp
         /// </summary>
         public void Dispose()
         {
-            using (var scope = _lock.Enter())
+            Dispose(_executionScope.Value);
+        }
+
+        /// <summary>
+        /// Disposes the effect with an existing lock scope.
+        /// </summary>
+        /// <param name="existingScope">Existing lock scope.</param>
+        public void Dispose(AsyncLock.Scope existingScope)
+        {
+            using (var scope = _lock.Enter(existingScope ?? _executionScope.Value))
             {
                 if (_isDisposed) return;
                 Stop(scope);

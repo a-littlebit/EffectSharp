@@ -108,7 +108,7 @@ namespace EffectSharp.Tests
                 observedNewValue = newValue;
                 observedOldValue = oldValue;
                 callbackCalled = true;
-            }, new WatchOptions<int> { Immediate = true });
+            }, immediate: true);
             // Assert that the callback was called immediately
             Assert.True(callbackCalled);
             // Assert the values passed to the callback
@@ -134,13 +134,38 @@ namespace EffectSharp.Tests
             {
                 effectRunCount++;
                 productPrice = order.Product.Price;
-            }, new WatchOptions<IOrder> { Deep = true });
+            }, deep: true);
             // Change a nested property
             order.Product.Price = 150;
             // Assert
             await Reactive.NextTick();
             Assert.Equal(1, effectRunCount);
             Assert.Equal(150, productPrice);
+            // Cleanup
+            sub.Dispose();
+        }
+
+        [Fact]
+        public async Task Watch_WhenOnceOption_CallbackCalledOnlyOnce()
+        {
+            // Arrange
+            var countRef = Reactive.Ref(0);
+            int effectRunCount = 0;
+            // Act
+            var sub = Reactive.Watch(countRef, (_, _) =>
+            {
+                effectRunCount++;
+            }, once: true);
+            // Change the ref value
+            countRef.Value = 1;
+            // Assert
+            await Reactive.NextTick();
+            Assert.Equal(1, effectRunCount);
+            // Change the ref value again
+            countRef.Value = 2;
+            // Assert
+            await Reactive.NextTick();
+            Assert.Equal(1, effectRunCount); // Should still be 1
             // Cleanup
             sub.Dispose();
         }

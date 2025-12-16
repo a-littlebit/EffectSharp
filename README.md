@@ -75,7 +75,7 @@ var totalPrice = Reactive.Computed(() => product.Price * count.Value);
 // Watch changes
 var watcher = Reactive.Watch(() => totalPrice.Value, (newVal, oldVal) => {
     Console.WriteLine($"Total price changed from {oldVal} to {newVal}");
-}, new WatchOptions<int> { Immediate = true }); // Total price changed from 0 to 1000
+}, immediate: true); // Total price changed from 0 to 1000
 count.Value = 2;
 await Reactive.NextTick(); // Total price changed from 1000 to 2000
 
