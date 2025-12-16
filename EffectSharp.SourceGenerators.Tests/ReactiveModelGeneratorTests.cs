@@ -37,7 +37,7 @@ public partial class Sample
 
     public bool CanInc() => Count < 10;
 
-    [Watch(Properties = new[] { nameof(Count) })]
+    [Watch(Values = new[] { nameof(Count) })]
     public void OnCountChanged(int n, int o) { }
 }
 ";
@@ -148,7 +148,7 @@ public partial class Sample
     [ReactiveField]
     private int _value;
 
-    [Watch(Properties = new[] { nameof(Value) }, Immediate = true, Scheduler = ""TaskScheduler.Default"", SupressEquality = true)]
+    [Watch(Values = new[] { nameof(Value) }, Immediate = true, Scheduler = ""TaskScheduler.Default"", SupressEquality = true)]
     public void OnChanged(int n, int o) { }
 }
 ";
@@ -167,7 +167,7 @@ public partial class Sample
         }
 
         [Fact]
-        public void Generates_Watch_For_Multiple_Properties_And_Maps_Params()
+        public void Generates_Watch_For_Multiple_Values_And_Maps_Params()
         {
             var src = @"
 using EffectSharp.SourceGenerators;
@@ -178,7 +178,7 @@ public partial class Sample
     [ReactiveField] private int _a;
     [ReactiveField] private int _b;
 
-    [Watch(Properties = new[] { nameof(A), nameof(B) })]
+    [Watch(Values = new[] { nameof(A), nameof(B) })]
     public void OnAB(int n, int o) { }
 }
 ";
@@ -383,7 +383,7 @@ using EffectSharp.SourceGenerators;
 [ReactiveModel]
 public partial class Sample
 {
-    [Watch(Properties = new[] { nameof(Value) })]
+    [Watch(Values = new[] { nameof(Value) })]
     public void OnChanged(int a, int b, int c) { }
 
     [ReactiveField]

@@ -109,7 +109,7 @@ namespace EffectSharp.SourceGenerators
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public sealed class WatchAttribute : Attribute
     {
-        public string[] Properties { get; set; }
+        public string[] Values { get; set; }
         public bool Immediate { get; set; } = false;
         public bool Deep { get; set; } = false;
         public bool Once { get; set; } = false;

@@ -10,7 +10,7 @@ namespace EffectSharp.SourceGenerators.Context
     {
         public IMethodSymbol MethodSymbol { get; }
         public AttributeData AttributeData { get; }
-        public List<string> Properties { get; }
+        public List<string> Values { get; }
 
         public bool IsValid { get;  }
         public string FieldName => $"_{NameHelper.ToCamelCase(MethodSymbol.Name)}_watchEffect";
@@ -36,8 +36,8 @@ namespace EffectSharp.SourceGenerators.Context
             if (AttributeData == null)
                 return;
 
-            Properties = AttributeData.GetNamedArgumentList<string>("Properties");
-            if (Properties == null || Properties.Count == 0)
+            Values = AttributeData.GetNamedArgumentList<string>("Values");
+            if (Values == null || Values.Count == 0)
                 return;
 
             if (ParameterCount > 2)

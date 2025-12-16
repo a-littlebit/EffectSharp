@@ -7,7 +7,7 @@ namespace EffectSharp.SourceGenerators
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public class WatchAttribute : Attribute
     {
-        public string[] Properties { get; set; }
+        public string[] Values { get; set; }
 
         public bool Immediate { get; set; } = false;
 

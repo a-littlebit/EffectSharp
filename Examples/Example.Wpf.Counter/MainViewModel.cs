@@ -32,7 +32,7 @@ namespace Example.Wpf.Counter
             return $"Current Count: {ComputedCurrentCount}";
         }
 
-        [Watch(Properties = [nameof(Count)])]
+        [Watch(Values = [nameof(Count)])]
         public void OnDisplayCountChanged(int newCount, int oldCount)
         {
             _ = RestoreLater(2000, oldCount - newCount);

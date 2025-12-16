@@ -36,15 +36,15 @@ namespace EffectSharp.SourceGenerators.Emmiters
         {
             foreach (var watchContext in modelContext.WatchContexts)
             {
-                var properties = string.Join(", ", watchContext.Properties);
-                if (watchContext.Properties.Count > 1)
-                    properties = "(" + properties + ")";
-                writer.WriteLine($"this.{watchContext.FieldName} = Reactive.Watch(() => {properties},");
+                var valuesExpr = string.Join(", ", watchContext.Values);
+                if (watchContext.Values.Count > 1)
+                    valuesExpr = "(" + valuesExpr + ")";
+                writer.WriteLine($"this.{watchContext.FieldName} = Reactive.Watch(() => {valuesExpr},");
                 writer.Indent++;
                 writer.Write($"(newValue, oldValue) => this.{watchContext.MethodSymbol.Name}(");
-                if (properties.Length > 0)
+                if (valuesExpr.Length > 0)
                     writer.Write("newValue");
-                if (properties.Length > 1)
+                if (valuesExpr.Length > 1)
                     writer.Write(", oldValue");
                 writer.Write(")");
 
