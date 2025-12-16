@@ -20,7 +20,7 @@
     - Notification Batching & `TaskManager` configuration
     - Custom Effect Schedulers
     - Deep Watching
-    - List Diff & Binding (`BindTo`)
+    - List Diff & Binding (`BindTo` / `ComputedList`)
 - [Comparison with Vue 3](#comparison-with-vue-3)
 - [Limitations](#limitations)
 - [FAQ](#faq)
@@ -267,11 +267,19 @@ Bind a source list to an `ObservableCollection<T>` with diffing:
 ```csharp
 var source = Reactive.Collection<Item>();
 var target = Reactive.Collection<Item>();
-Reactive.Computed(() => {
+target.BindTo(() => {
     return source.Where(item => item.IsActive)
         .OrderBy(item => item.Name)
         .ToList()
-}).BindTo(target, keySelector: item => item.Id);
+}, keySelector: item => item.Id);
+```
+Or directly create a computed list:
+```csharp
+var computedList = Reactive.ComputedList<Item, List<Item>, long>(() => {
+    return source.Where(item => item.IsActive)
+        .OrderBy(item => item.Name)
+        .ToList();
+}, keySelector: item => item.Id);
 ```
 This minimizes updates to `target` based on the longest increasing subsequence (LIS) algorithm.
 
