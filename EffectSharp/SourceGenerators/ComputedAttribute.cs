@@ -7,6 +7,6 @@ namespace EffectSharp.SourceGenerators
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public class ComputedAttribute : Attribute
     {
-        public string SetterMethod { get; set; }
+        public string Setter { get; set; }
     }
 }

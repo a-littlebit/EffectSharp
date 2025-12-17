@@ -39,12 +39,12 @@ namespace EffectSharp.SourceGenerators.Emmiters
             foreach (var computedContext in modelContext.ComputedContexts)
             {
                 iw.Write($"this.{computedContext.FieldName} = " +
-                    $"Reactive.Computed<{computedContext.ValueTypeName}>(() => {computedContext.MethodSymbol.Name}()");
-                if (!string.IsNullOrEmpty(computedContext.SetterMethod))
+                    $"Reactive.Computed<{computedContext.ValueTypeName}>(() => this.{computedContext.MethodSymbol.Name}()");
+                if (!string.IsNullOrEmpty(computedContext.Setter))
                 {
                     iw.WriteLine(",");
                     iw.Indent++;
-                    iw.Write($"setter: (value) => {computedContext.SetterMethod}(value)");
+                    iw.Write($"setter: (value) => {computedContext.Setter}(value)");
                     iw.Indent--;
                 }
                 iw.WriteLine(");");

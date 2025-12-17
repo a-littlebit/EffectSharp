@@ -10,7 +10,7 @@ namespace EffectSharp.SourceGenerators.Context
     {
         public IMethodSymbol MethodSymbol { get; }
         public AttributeData AttributeData { get; }
-        public string SetterMethod { get; }
+        public string Setter { get; }
 
         public string ValueTypeName => MethodSymbol.ReturnType.ToDisplayString();
 
@@ -36,7 +36,7 @@ namespace EffectSharp.SourceGenerators.Context
                 return;
             }
 
-            SetterMethod = attr.GetNamedArgument<string>("SetterMethod");
+            Setter = attr.GetNamedArgument<string>("Setter");
 
             AttributeData = attr;
         }
