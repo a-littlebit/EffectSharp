@@ -10,7 +10,7 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/a-littlebit/EffectSharp</RepositoryUrl>
     <PackageTags>Vue;ref;computed;watch;Reactive;StateManagement;WPF;MAUI;DataBinding;MVVM;UI;Diff</PackageTags>
-    <Copyright>© 2025 a-littebit</Copyright>
+    <Copyright>© 2025 a-littlebit</Copyright>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <IncludeSymbols>True</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
