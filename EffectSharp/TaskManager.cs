@@ -203,7 +203,7 @@ namespace EffectSharp
         {
             var notificationBatcher = _notificationBatcher;
             cancellationToken.ThrowIfCancellationRequested();
-            return notificationBatcher != null ? notificationBatcher.NextTick() : Task.CompletedTask;
+            return notificationBatcher != null ? notificationBatcher.NextTick(cancellationToken) : Task.CompletedTask;
         }
 
         /// <summary>
