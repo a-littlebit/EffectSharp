@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace EffectSharp.SourceGenerators.Emmiters
+namespace EffectSharp.SourceGenerators.Emiters
 {
     internal class FunctionCommandEmitter : IReactiveModelEmitter
     {

@@ -5,7 +5,7 @@ using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Text;
 
-namespace EffectSharp.SourceGenerators.Emmiters
+namespace EffectSharp.SourceGenerators.Emiters
 {
     internal sealed class InitializerEmitter : IReactiveModelEmitter
     {
