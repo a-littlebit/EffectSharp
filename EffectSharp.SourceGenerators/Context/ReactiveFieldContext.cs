@@ -22,6 +22,24 @@ namespace EffectSharp.SourceGenerators.Context
             NameHelper.ToPascalCase(
                 NameHelper.RemoveLeadingUnderscore(FieldSymbol.Name));
 
+        public bool MayBeIReactive(Compilation compilation)
+        {
+            if (UnderlyingType.IsValueType) return false;
+            
+            var iReactiveType = compilation.GetTypeByMetadataName("EffectSharp.IReactive");
+            if (UnderlyingType.IsAssignableTo(iReactiveType))
+                return false; // must be
+
+            return !UnderlyingType.IsSealed;
+        }
+
+        public bool MustBeIReactive(Compilation compilation)
+        {
+            var iReactiveType = compilation.GetTypeByMetadataName("EffectSharp.IReactive");
+            return UnderlyingType.IsAssignableTo(iReactiveType);
+        }
+
+
         public ReactiveFieldContext(IFieldSymbol field, ReactiveModelContext modelContext)
         {
             FieldSymbol = field;

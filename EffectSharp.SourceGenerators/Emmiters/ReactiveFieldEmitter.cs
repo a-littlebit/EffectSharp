@@ -131,18 +131,20 @@ namespace EffectSharp.SourceGenerators.Emitters
                 var field = fieldContext.FieldSymbol;
                 var readExpression = fieldContext.GetReadExpression();
                 iw.WriteLine(field.Name + "_dependency.Track();");
-                if (fieldContext.UnderlyingType.IsValueType)
+                if (fieldContext.MayBeIReactive(context.Compilation))
                 {
-                    iw.WriteLine();
-                    continue;
+                    iw.WriteLine(
+                        "if (" + readExpression + " is IReactive r_" + field.Name + ")");
+                    iw.WriteLine("{");
+                    iw.Indent++;
+                    iw.WriteLine("r_" + field.Name + ".TrackDeep();");
+                    iw.Indent--;
+                    iw.WriteLine("}");
                 }
-                iw.WriteLine(
-                    "if (" + readExpression + " is IReactive r_" + field.Name + ")");
-                iw.WriteLine("{");
-                iw.Indent++;
-                iw.WriteLine("r_" + field.Name + ".TrackDeep();");
-                iw.Indent--;
-                iw.WriteLine("}");
+                else if (fieldContext.MustBeIReactive(context.Compilation))
+                {
+                    iw.WriteLine($"{readExpression}.TrackDeep();");
+                }
                 iw.WriteLine();
             }
 

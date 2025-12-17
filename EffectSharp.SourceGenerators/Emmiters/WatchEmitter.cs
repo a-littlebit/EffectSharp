@@ -65,6 +65,7 @@ namespace EffectSharp.SourceGenerators.Emmiters
 
                 writer.WriteLine(");");
                 writer.Indent--;
+                writer.WriteLine();
             }
         }
     }
