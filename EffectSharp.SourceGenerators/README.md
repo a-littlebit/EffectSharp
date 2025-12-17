@@ -4,6 +4,7 @@ Incremental Roslyn source generator for EffectSharp that turns simple C# classes
 
 - Reactive properties from fields annotated with `[ReactiveField]`
 - Read-only computed properties from methods annotated with `[Computed]`
+- `ReactiveCollection<T>` computed from methods annotated with `[ComputedList]` with minimal updates
 - Command properties from methods annotated with `[FunctionCommand]`
 - Watch/effect subscriptions from methods annotated with `[Watch]`
 - Boilerplate: `INotifyPropertyChanging`, `INotifyPropertyChanged`, `IReactive`, `InitializeReactiveModel()` and `TrackDeep()`
@@ -65,7 +66,7 @@ public partial class CounterViewModel
     [ReactiveField]
     private bool _orderByCount = true;
 
-    [ComputedList]
+    [ComputedList(KeySelector = "x => x.Count")]
     public List<(int Count, DateTime Timestamp)> CurrentRecords()
     {
         if (OrderByCount)
@@ -121,6 +122,21 @@ Naming:
 Options:
 - `Setter` (string): optional setter callback invoked when the computed value is assigned via the generated `Computed<T>` wrapper.
 
+### `[ComputedList]` (method)
+Generates a read-only `ReactiveCollection<T>` property computed from the method returning an `IList<T>`.
+
+Naming:
+- If the method name starts with `Compute`, the property name is the method name without `Compute` (e.g., `ComputeItems` -> `Items`).
+- Otherwise the property name is prefixed with `Computed` (e.g., `Items` -> `ComputedItems`).
+
+Options:
+- `KeySelector` (string): optional key selector expression used to identify items for minimal updates.
+  - Must be a fully resolvable expression of type `Func<T, TKey>`.
+  - If not provided, items are compared by reference.
+- `EqualsComparer` (string): optional equality comparer expression used to compare items for minimal updates.
+  - Must be a fully resolvable expression of type `EqualityComparer<T>`.
+  - If not provided, `EqualityComparer<T>.Default` is used.
+
 ### `[FunctionCommand]` (method)
 Generates a command property exposing either `IFunctionCommand` or `IAsyncFunctionCommand` depending on the method signature.
 
@@ -129,7 +145,7 @@ Supported method shapes:
 - Async: `async Task<TResult> Method(TParam param, CancellationToken ct)` or `Task Method()`
 
 Options:
-- `CanExecute` (string): name of a parameterless method returning `bool` used for `CanExecute`.
+- `CanExecute` (string): expression of a parameterless method returning `bool` used for `CanExecute`.
 - `AllowConcurrentExecution` (bool, default `true`): set to `false` to serialize command executions.
 - `ExecutionScheduler` (string): scheduler expression used only for async commands.
 
@@ -137,7 +153,7 @@ Options:
 Creates an effect that re-runs when the specified properties change.
 
 Options:
-- `Values` (string[]): names of properties to watch; more than one creates a tuple `(p1, p2, ...)`.
+- `Values` (string[]): array of value expressions to watch; more than one creates a tuple `(v1, v2, ...)`.
 - `Immediate` (bool, default `false`): if `true`, runs the watcher immediately upon initialization.
 - `Deep` (bool, default `false`): if `true`, tracks deep changes on `IReactive` properties.
 - `Once` (bool, default `false`): if `true`, runs the watcher only once when any of the values change.
