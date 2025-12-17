@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Keep a Changelog and uses Semantic Versioning (when versions are published). For now, changes are grouped by version and date.
 
+## Unreleased
+
+### Added
+
+- Source generator support! [EffectSharp.SourceGenerators](https://github.com/a-littlebit/EffectSharp/tree/main/EffectSharp.SourceGenerators) provides compile-time generation of reactive models, computed properties, watchers, and function commands via attributes. See the [README](EffectSharp.SourceGenerators/README.md) for details.
+- `TaskBatcher` now supports custom throttlers to control task scheduling rates.
+- `Reactive.NextTick(...)` could now specify a cancellation token to cancel waiting.
+- `Reactive.ComputedList(...)`: directly create a `ReactiveCollection<T>` with diffing support from a method returning `IList<T>`.
+- `Reactive.Watch(...)` now supports `once` option to auto-unsubscribe after first invocation.
+
+### Changed
+
+- Renamed `Reactive.DiffAndBindTo` to `Reactive.BindTo` and changed parameter order for better usability.
+- `Reactive.Watch(...)` now supports named parameters for options instead of a separate `WatchOptions<T>` class.
+- `TaskBatcher.NextTick(...)` and `Reactive.NextTick(...)` now does not propagate exceptions thrown in scheduled actions; exceptions could be observed via related events.
+
+### Fixed
+
+- `TaskBatcher.FlushAsync(...)` may fail to cancel a throttling delay if it hasn't started yet.
+
+### Removed
+
+- `WatchOptions<T>` class removed; use named parameters on `Reactive.Watch` instead.
+
+### Optimizations
+
+- The default `TaskManager.NotificationBatcher` now uses a new throttling strategy that waits for the current effect batch to complete before processing notifications, reducing redundant effect executions during high-frequency updates.
+- `Reactive.BindTo(...)` disables equality comparison in `Reactive.Watch` - the diffing algorithm will handle it.
+- `Effect` allows directly calling locked methods during effect execution without an `AsyncLock.Scope`.
+
 ## 1.2.2 - 2025-12-14
 
 ### Changed
