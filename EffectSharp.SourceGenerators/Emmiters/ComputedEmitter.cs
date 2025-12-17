@@ -48,10 +48,19 @@ namespace EffectSharp.SourceGenerators.Emmiters
                     iw.Indent--;
                 }
                 iw.WriteLine(");");
+
+                // Subscribe to PropertyChanged of the computed to raise PropertyChanged for the property
+                iw.WriteLine($"this.{computedContext.FieldName}.PropertyChanging += (s, e) =>");
+                iw.Indent++;
+                iw.WriteLine($"this.PropertyChanging?.Invoke(this, new System.ComponentModel.PropertyChangingEventArgs(nameof(this.{computedContext.PropertyName})));");
+                iw.Indent--;
+
+                // Subscribe to PropertyChanged of the computed to raise PropertyChanged for the property
                 iw.WriteLine($"this.{computedContext.FieldName}.PropertyChanged += (s, e) =>");
                 iw.Indent++;
                 iw.WriteLine($"this.PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(this.{computedContext.PropertyName})));");
                 iw.Indent--;
+
                 iw.WriteLine();
             }
         }
