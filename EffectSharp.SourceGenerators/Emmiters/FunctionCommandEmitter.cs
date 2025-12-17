@@ -61,8 +61,8 @@ namespace EffectSharp.SourceGenerators.Emmiters
 
                 writer.Write(")");
 
-                if (!string.IsNullOrWhiteSpace(commandContext.CanExecuteMethodName))
-                    writer.Write($", () => {commandContext.CanExecuteMethodName}()");
+                if (!string.IsNullOrWhiteSpace(commandContext.CanExecute))
+                    writer.Write($", canExecute: {commandContext.CanExecute}");
 
                 if (!commandContext.AllowConcurrentExecution)
                     writer.Write(", allowConcurrentExecution: false");
