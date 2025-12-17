@@ -254,7 +254,7 @@ namespace EffectSharp
                 {
                     TaskManager.QueueNotification(this, propertyName, (args) =>
                     {
-                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                        PropertyChanged?.Invoke(this, args);
                     });
                 }
             }
