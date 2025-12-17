@@ -161,16 +161,16 @@ namespace EffectSharp.SourceGenerators.Utils
             if (taskType == null)
                 return false;
 
-            // Task
-            if (returnType.IsAssignableTo(taskType))
-                return true;
-
             // Task<T>
             if (returnType is INamedTypeSymbol named &&
                 named.TryGetGenericArgument(taskOfTType, 0, out resultType))
             {
-                return true; 
+                return true;
             }
+
+            // Task
+            if (returnType.IsAssignableTo(taskType))
+                return true;
 
             return false;
         }

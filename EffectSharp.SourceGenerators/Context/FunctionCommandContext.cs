@@ -86,6 +86,10 @@ namespace EffectSharp.SourceGenerators.Context
                     }
                 }
             }
+            else
+            {
+                commandParameterIndex = paramCount == 1 ? 0 : -1;
+            }
 
             if (paramCount > 1)
             {
@@ -107,7 +111,7 @@ namespace EffectSharp.SourceGenerators.Context
 
             CanExecuteMethodName = AttributeData.GetNamedArgument<string>("CanExecute");
 
-            AllowConcurrentExecution = AttributeData.GetNamedArgument("AllowConcurrentExecution", false);
+            AllowConcurrentExecution = AttributeData.GetNamedArgument("AllowConcurrentExecution", true);
 
             var scheduler = AttributeData.GetNamedArgument("ExecutionScheduler", "");
             if (!IsAsync && !string.IsNullOrWhiteSpace(scheduler))
