@@ -302,8 +302,6 @@ namespace EffectSharp
         /// </summary>
         private async Task RunProcessingLoopAsync()
         {
-            // Ensure only one consumer is dequeuing tasks at a time
-            Task lasStartTask = null;
             // Outermost loop: ensure continuous processing while there are tasks
             while (Volatile.Read(ref _disposed) == 0 && !_taskQueue.IsEmpty)
             {
@@ -342,18 +340,11 @@ namespace EffectSharp
                             delayCts.Dispose();
                         }
 
-                        if (lasStartTask != null)
-                        {
-                            // Ensure the last batch dequeuing is complete before starting a new one
-                            await lasStartTask.ConfigureAwait(false);
-                            lasStartTask = null;
-                        }
-
                         // Exit loop if disposed during the delay
                         if (Volatile.Read(ref _disposed) == 1) break;
 
                         // Start batch processing
-                        lasStartTask = StartBatchProcessingAsync();
+                        await StartBatchProcessingAsync();
                     }
                 }
                 finally
