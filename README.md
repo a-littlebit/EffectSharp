@@ -16,6 +16,7 @@
     - Reactive Dictionaries (`Reactive.Dictionary`)
     - Commands (`FunctionCommand`)
 - [Usage Examples](#usage-examples)
+- [Source Generators](#source-generators)
 - [Advanced Topics](#advanced-topics)
     - Notification Batching & `TaskManager` configuration
     - Custom Effect Schedulers
@@ -191,7 +192,7 @@ effect.Dispose();
 `Watch` lets you observe specific sources without executing a full effect body manually. It returns an `Effect` you can dispose to stop watching. Variants:
 - Ref-based: `Watch(refObj, (newVal, oldVal) => ...)`
 - Getter-based: `Watch(() => (refA.Value, refB.Value), callback)`; supports tuples and enumerable shapes
-- Options: `Immediate`, `Deep`, `EqualityComparer<T>`, `Scheduler`
+- Options: `immediate`, `deep`, `once`, `equalityComparer`, `scheduler`
 ```csharp
 var refA = Reactive.Ref(1);
 var refB = Reactive.Ref(10);
@@ -241,13 +242,29 @@ var executingCount = asyncCmd.ExecutingCount.Value; // IReadOnlyRef<int>
 
 See [a-littlebit/EffectSharp · GitHub](https://github.com/a-littlebit/EffectSharp/tree/main/Examples/) for more usage examples.
 
+## Source Generators
+
+EffectSharp provides a source generator project [EffectSharp.SourceGenerators](EffectSharp.SourceGenerators/README.md) that generates reactive models, computed properties, watchers, and function commands via attributes.
+
 ## Advanced Topics
 ### Notification Batching
-`TaskManager` batches both effect triggers and UI notifications. Configure intervals/schedulers as needed:
+`TaskManager` batches both effect triggers and UI notifications. Configure the `TaskBatcher` instances as needed:
 ```csharp
-TaskManager.EffectIntervalMs = 0; // process effects ASAP
-TaskManager.NotifyIntervalMs = 16; // UI-friendly batching
-TaskManager.FlushNotifyAfterEffectBatch = true; // auto flush after effect batch
+TaskManager.CreateEffectBatcherIfAbsent(() =>
+{
+    var batcher = new TaskBatcher<Effect>(
+        batchProcessor: DefaultEffectBatchProcessor, // process effects
+        intervalMs: 0, // execute once the target scheduler is idle
+        scheduler: TaskScheduler.FromCurrentSynchronizationContext(), // e.g., UI thread
+        maxConsumers: 1 // single-threaded processing
+    );
+    batcher.BatchProcessingFailed += TraceEffectFailure; // log failures
+    return batcher;
+});
+TaskManager.CreateNotificationBatcherIfAbsent(() =>
+{
+    // TODO: create your custom notification batcher
+});
 ```
 Use `await Reactive.NextTick()` to await both effect and notify ticks.
 
