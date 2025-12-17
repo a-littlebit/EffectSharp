@@ -84,8 +84,8 @@ namespace EffectSharp.SourceGenerators.Utils
                 var className = attr.AttributeClass.Name;
                 var classNamespace = attr.AttributeClass.ContainingNamespace.ToDisplayString();
 
-                if (className == attributeName ||
-                    className == attributeName + "Attribute"
+                if ((className == attributeName ||
+                    className == attributeName + "Attribute")
                     && classNamespace == containingNamespace)
                 {
                     return true;
@@ -105,8 +105,8 @@ namespace EffectSharp.SourceGenerators.Utils
                 var className = attr.AttributeClass.Name;
                 var classNamespace = attr.AttributeClass.ContainingNamespace.ToDisplayString();
 
-                if (className == attributeName ||
-                    className == attributeName + "Attribute"
+                if ((className == attributeName ||
+                    className == attributeName + "Attribute")
                     && classNamespace == containingNamespace)
                 {
                     return attr;
