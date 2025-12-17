@@ -1,7 +1,7 @@
 ﻿using EffectSharp.SourceGenerators;
 using EffectSharp.SourceGenerators.Context;
 using EffectSharp.SourceGenerators.Emitters;
-using EffectSharp.SourceGenerators.Emmiters;
+using EffectSharp.SourceGenerators.Emiters;
 using EffectSharp.SourceGenerators.Utils;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;

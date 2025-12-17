@@ -117,7 +117,7 @@ namespace EffectSharp.SourceGenerators
         public bool Deep { get; set; } = false;
         public bool Once { get; set; } = false;
         public string Scheduler { get; set; } = ""null"";
-        public bool SupressEquality { get; set; } = false;
+        public bool SuppressEquality { get; set; } = false;
         public string EqualityComparer { get; set; } = ""null"";
     }
 }
