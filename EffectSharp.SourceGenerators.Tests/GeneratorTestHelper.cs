@@ -73,6 +73,9 @@ namespace EffectSharp.SourceGenerators.Tests
             yield return MetadataReference.CreateFromFile(typeof(System.Linq.Enumerable).Assembly.Location);
         }
 
+        public static IEnumerable<Diagnostic> AllDiags(GeneratorDriverRunResult result)
+            => result.Diagnostics.Concat(result.Results.SelectMany(r => r.Diagnostics));
+
         public static string EffectSharpAttributeStubs => @"using System;
 namespace EffectSharp.SourceGenerators
 {
@@ -88,7 +91,7 @@ namespace EffectSharp.SourceGenerators
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public sealed class ComputedAttribute : Attribute
     {
-        public string SetterMethod { get; set; }
+        public string Setter { get; set; }
     }
 
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
