@@ -346,7 +346,7 @@ or your application requires specific threading contexts (e.g., specific UI thre
 Dispose the `Effect` returned by `Reactive.Effect()` or `Reactive.Watch()`.  
 If you want to perform side effects without tracking dependencies, use `Effect.Untracked(() => { ... })`.
 
-**Q: How does Deep Watch work?**
+**Q: How does Deep Watch work?**  
 Deep watching tracks changes on the selected value and all reactive values inside it, by invoking the outmost object's `TrackDeep` method (from the IReactive interface).  
 To use it safely, mark nested properties with `[ReactiveProperty(deep: true)]` so they become reactive objects — but avoid applying `deep: true` everywhere, as it increases proxy creation cost and may cause unnecessary recursion. Use it only when you truly need to watch an entire object graph.
 
