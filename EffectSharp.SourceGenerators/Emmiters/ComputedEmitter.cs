@@ -30,7 +30,11 @@ namespace EffectSharp.SourceGenerators.Emmiters
         static void EmitDefinition(ComputedContext computedContext, IndentedTextWriter iw)
         {
             iw.WriteLine($"private Computed<{computedContext.ValueTypeName}> {computedContext.FieldName};");
-            iw.WriteLine($"public {computedContext.ValueTypeName} {computedContext.PropertyName} => {computedContext.FieldName}.Value;");
+            if (string.IsNullOrEmpty(computedContext.Setter))
+                iw.WriteLine($"public {computedContext.ValueTypeName} {computedContext.PropertyName} => {computedContext.FieldName}.Value;");
+            else
+                iw.WriteLine($"public {computedContext.ValueTypeName} {computedContext.PropertyName} "
+                    + $"{{ get => {computedContext.FieldName}.Value; set => {computedContext.FieldName}.Value = value; }}");
             iw.WriteLine();
         }
 
