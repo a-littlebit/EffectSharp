@@ -42,9 +42,9 @@ namespace EffectSharp.SourceGenerators.Emmiters
                 writer.WriteLine($"this.{watchContext.FieldName} = Reactive.Watch(() => {valuesExpr},");
                 writer.Indent++;
                 writer.Write($"(newValue, oldValue) => this.{watchContext.MethodSymbol.Name}(");
-                if (valuesExpr.Length > 0)
+                if (watchContext.ParameterCount > 0)
                     writer.Write("newValue");
-                if (valuesExpr.Length > 1)
+                if (watchContext.ParameterCount > 1)
                     writer.Write(", oldValue");
                 writer.Write(")");
 
