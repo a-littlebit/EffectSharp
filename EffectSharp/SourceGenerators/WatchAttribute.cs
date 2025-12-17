@@ -17,7 +17,7 @@ namespace EffectSharp.SourceGenerators
 
         public string Scheduler { get; set; } = "null";
 
-        public bool SupressEquality { get; set; } = false;
+        public bool SuppressEquality { get; set; } = false;
 
         public string EqualityComparer { get; set; } = "null";
     }

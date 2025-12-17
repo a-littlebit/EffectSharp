@@ -18,7 +18,7 @@ public partial class Sample
     [ReactiveField]
     private int _value;
 
-    [Watch(Values = new[] { nameof(Value) }, Immediate = true, Scheduler = ""TaskScheduler.Default"", SupressEquality = true)]
+    [Watch(Values = new[] { nameof(Value) }, Immediate = true, Scheduler = ""TaskScheduler.Default"", SuppressEquality = true)]
     public void OnChanged(int n, int o) { }
 }
 ";
@@ -31,9 +31,9 @@ public partial class Sample
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
             Assert.Contains("Reactive.Watch(() => Value,", text);
-            Assert.Contains("Immediate: true", text);
+            Assert.Contains("immediate: true", text);
             Assert.Contains("scheduler: TaskScheduler.Default", text);
-            Assert.Contains("supressEquality: true", text);
+            Assert.Contains("suppressEquality: true", text);
         }
 
         [Fact]
@@ -48,7 +48,7 @@ public partial class Sample
     [ReactiveField]
     private int _value;
 
-    [Watch(Values = new[] { nameof(Value) }, Deep = true, Once = true, SupressEquality = false, EqualityComparer = ""System.Collections.Generic.EqualityComparer<int>.Default"")]
+    [Watch(Values = new[] { nameof(Value) }, Deep = true, Once = true, SuppressEquality = false, EqualityComparer = ""System.Collections.Generic.EqualityComparer<int>.Default"")]
     public void OnChanged(int n, int o) { }
 }
 ";

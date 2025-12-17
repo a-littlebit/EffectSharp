@@ -25,7 +25,7 @@ namespace EffectSharp.SourceGenerators.Context
 
         public string Scheduler { get; set; }
 
-        public bool SupressEquality { get; set; }
+        public bool SuppressEquality { get; set; }
 
         public string EqualityComparer { get; set; }
 
@@ -53,7 +53,7 @@ namespace EffectSharp.SourceGenerators.Context
             Deep = AttributeData.GetNamedArgument("Deep", false);
             Once = AttributeData.GetNamedArgument("Once", false);
             Scheduler = AttributeData.GetNamedArgument<string>("Scheduler");
-            SupressEquality = AttributeData.GetNamedArgument("SupressEquality", false);
+            SuppressEquality = AttributeData.GetNamedArgument("SuppressEquality", false);
             EqualityComparer = AttributeData.GetNamedArgument<string>("EqualityComparer");
 
             IsValid = true;
