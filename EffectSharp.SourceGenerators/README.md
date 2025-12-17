@@ -34,50 +34,63 @@ using EffectSharp;
 using EffectSharp.SourceGenerators;
 
 [ReactiveModel]
-public partial class MainViewModel
+public partial class CounterViewModel
 {
     [ReactiveField]
     private int _count = 0;
 
+    [FunctionCommand(CanExecute = nameof(CanIncrement))]
+    public void Increment() => Count++; // Generated property
+
+    public bool CanIncrement() => Count < int.MaxValue;
+
+    [Computed]
+    public string ComputeDisplayCount() => $"Current Count: {Count}";
+
+    [ReactiveField(EqualsMethod = null)] // disable equality check
+    private int _maxCount = 0;
+
+    private ReactiveCollection<(int Count, DateTime Timestamp)> _records = new();
+
+    [Watch(Values =  [nameof(Count)])]
+    private void OnCountChanged(int newCount, int oldCount)
+    {
+        if (MaxCount < newCount)
+        {
+            MaxCount = newCount;
+            records.Add((newCount, DateTime.Now));
+        }
+    }
+
     [ReactiveField]
-    private int _restoreCount = 0;
+    private bool _orderByCount = true;
 
-    [Computed]
-    public int CurrentCount() => Count + RestoreCount; // => property: ComputedCurrentCount
-
-    [Computed]
-    public string ComputeDisplayCount() => $"Current Count: {ComputedCurrentCount}"; // => property: DisplayCount
-
-    [Watch(Properties = new[] { nameof(Count) })]
-    public void OnDisplayCountChanged(int newCount, int oldCount)
+    [ComputedList]
+    public List<(int Count, DateTime Timestamp)> CurrentRecords()
     {
-        // runs whenever Count changes
-    }
-
-    [FunctionCommand(CanExecute = nameof(CanIncrement), AllowConcurrentExecution = false)]
-    public async Task Increment()
-    {
-        Count++;
-        await Task.Delay(200).ConfigureAwait(false);
-    }
-
-    public bool CanIncrement() => Count < 10;
-
-    public MainViewModel()
-    {
-        InitializeReactiveModel(); // required: wires up computed values and watchers
+        if (OrderByCount)
+        {
+            return records.OrderBy(r => r.Count).ToList();
+        }
+        else
+        {
+            return records.OrderBy(r => r.Timestamp).ToList();
+        }
     }
 }
 ```
 
 What gets generated (conceptually):
-- `public int Count { get; set; }` with `PropertyChanging/Changed` notification and reactive dependency tracking
-- `public int RestoreCount { get; set; }`
-- `public int ComputedCurrentCount { get; }` computed from `CurrentCount()`
-- `public string DisplayCount { get; }` computed from `ComputeDisplayCount()`
-- `public IAsyncFunctionCommand<object> IncrementCommand { get; }`
+- Implementation of `INotifyPropertyChanging` and `INotifyPropertyChanged`
+- Implementation of `IReactive` and `TrackDeep()` method for dependency tracking
 - `public void InitializeReactiveModel()` that creates computed values, subscribes watchers, and hooks change notifications
-- `public void TrackDeep()` to propagate tracking to nested `IReactive` values
+- `public int Count { get; set; }` with `PropertyChanging/Changed` notification and reactive dependency tracking
+- `public int IFunctionCommand<object> IncrementCommand { get; }` for the `Increment` method with `CanExecute` support
+- `public string DisplayCount { get; }` computed from `ComputeDisplayCount()`
+- `public int MaxCount { get; set; }` with no equality check on set
+- `Reactive.Watch` subscription for `OnCountChanged` in `InitializeReactiveModel()`
+- `public bool OrderByCount { get; set; }` with notification
+- `public ReactiveCollection<(int Count, DateTime Timestamp)> CurrentRecords { get; }` computed list from `CurrentRecords()` method with minimal updates.
 
 ## Attributes
 
@@ -94,7 +107,7 @@ Options:
 
 Example:
 ```csharp
-[ReactiveField(EqualsMethod = "System.Collections.Generic.EqualityComparer<T>.Default")]
+[ReactiveField(EqualsMethod = "MyEqualityComparer.Equals")]
 private string _name;
 ```
 
@@ -106,14 +119,14 @@ Naming:
 - Otherwise the property name is prefixed with `Computed` (e.g., `Total` -> `ComputedTotal`).
 
 Options:
-- `SetterMethod` (string): optional setter callback invoked when the computed value is assigned via the generated `Computed<T>` wrapper.
+- `Setter` (string): optional setter callback invoked when the computed value is assigned via the generated `Computed<T>` wrapper.
 
 ### `[FunctionCommand]` (method)
-Generates a command property exposing either `IFunctionCommand<T>` or `IAsyncFunctionCommand<T>` depending on the method signature.
+Generates a command property exposing either `IFunctionCommand` or `IAsyncFunctionCommand` depending on the method signature.
 
 Supported method shapes:
-- Sync: `void Method(TParam param)` or `void Method()`
-- Async: `Task Method(TParam param, CancellationToken ct)` or `Task Method()`
+- Sync: `TResult Method(TParam param)` or `void Method()`
+- Async: `async Task<TResult> Method(TParam param, CancellationToken ct)` or `Task Method()`
 
 Options:
 - `CanExecute` (string): name of a parameterless method returning `bool` used for `CanExecute`.
@@ -124,17 +137,23 @@ Options:
 Creates an effect that re-runs when the specified properties change.
 
 Options:
-- `Properties` (string[]): names of properties to watch; more than one creates a tuple `(p1, p2, ...)`.
-- `Options` (string): expression for `WatchOptions` (may be `null`).
+- `Values` (string[]): names of properties to watch; more than one creates a tuple `(p1, p2, ...)`.
+- `Immediate` (bool, default `false`): if `true`, runs the watcher immediately upon initialization.
+- `Deep` (bool, default `false`): if `true`, tracks deep changes on `IReactive` properties.
+- `Once` (bool, default `false`): if `true`, runs the watcher only once when any of the values change.
+- `Scheduler` (string): `Action<Effect>` scheduler expression to schedule watcher execution.
+- `SupressEquality` (bool, default `true`): if `true`, the watcher will not run if the new and old values are equal.
+- `EqualsComparer` (string, default `null`): `EqualityComparer<T>` expression used to compare new and old values when `SupressEquality` is `true`.
 
 Supported method shapes:
-- `(newValue)` or `(newValue, oldValue)`
+- `()`, `(newValue)` or `(newValue, oldValue)`
+- When multiple values are watched, use a tuple for the value parameters.
 
 ## Diagnostics
 
 The generator ships analyzers that validate attribute usage.
 
-See `AnalyzerReleases.Unshipped.md` and `AnalyzerReleases.Shipped.md` for release tracking.
+See [AnalyzerReleases.Unshipped.md](AnalyzerReleases.Unshipped.md) and [AnalyzerReleases.Shipped.md](AnalyzerReleases.Shipped.md) for release tracking.
 
 ## Build and Try
 
