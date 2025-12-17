@@ -16,6 +16,7 @@ This project adheres to Keep a Changelog and uses Semantic Versioning (when vers
 
 ### Changed
 
+- `TaskManager` now provides `CreateEffectBatcherIfAbsent(...)` and `CreateNotificationBatcherIfAbsent(...)` methods for more flexible batcher initialization, instead of static properties.
 - Renamed `Reactive.DiffAndBindTo` to `Reactive.BindTo` and changed parameter order for better usability.
 - `Reactive.Watch(...)` now supports named parameters for options instead of a separate `WatchOptions<T>` class.
 - `TaskBatcher.NextTick(...)` and `Reactive.NextTick(...)` now does not propagate exceptions thrown in scheduled actions; exceptions could be observed via related events.
