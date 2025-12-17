@@ -165,7 +165,7 @@ namespace EffectSharp
 
             /// <summary>
             /// Dispose decrements the refcount. When it reaches zero, releases the underlying lock.
-            /// Multiple Dispose calls are safe (idempotent).
+            /// Note that Dispose may be called multiple times; only the transition to zero triggers release.
             /// </summary>
             public void Dispose()
             {
