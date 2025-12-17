@@ -53,8 +53,7 @@ namespace EffectSharp.SourceGenerators.Emitters
                 var propertyName = fieldContext.PropertyName;
                 var fieldType = fieldContext.UnderlyingType.ToDisplayString();
                 var readExpression = fieldContext.GetReadExpression();
-
-                var equalsMethod = attr.GetNamedArgument<string>("EqualsMethod");
+                var equalsMethod = fieldContext.EqualsMethod;
 
                 iw.WriteLine("public " + fieldType + " " + propertyName);
                 iw.WriteLine("{");

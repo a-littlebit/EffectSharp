@@ -18,6 +18,8 @@ namespace EffectSharp.SourceGenerators.Context
 
         public ITypeSymbol UnderlyingType { get; }
 
+        public string EqualsMethod { get; }
+
         public string PropertyName =>
             NameHelper.ToPascalCase(
                 NameHelper.RemoveLeadingUnderscore(FieldSymbol.Name));
@@ -54,6 +56,10 @@ namespace EffectSharp.SourceGenerators.Context
                 IsAtomic = true;
                 UnderlyingType = atomicArg ?? field.Type;
             }
+
+            EqualsMethod = ReactiveFieldAttribute?.GetNamedArgument(
+                "EqualsMethod",
+                "global::System.Collections.Generic.EqualityComparer<T>.Default");
         }
 
         public string GetReadExpression()
