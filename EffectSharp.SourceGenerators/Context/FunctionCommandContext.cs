@@ -105,7 +105,7 @@ namespace EffectSharp.SourceGenerators.Context
             CommandParameterIndex = commandParameterIndex;
             CancellationTokenParameterIndex = cancellationTokenIndex;
 
-            CanExecuteMethodName = AttributeData.GetNamedArgument<string>("CanExecuteMethod");
+            CanExecuteMethodName = AttributeData.GetNamedArgument<string>("CanExecute");
 
             AllowConcurrentExecution = AttributeData.GetNamedArgument("AllowConcurrentExecution", false);
 
