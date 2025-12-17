@@ -7,10 +7,35 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid>
-        <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20">
             <TextBlock Text="A counter with throttling who always tries to restore itself" HorizontalAlignment="Center" />
             <TextBlock Text="{Binding DisplayCount}" FontSize="20" HorizontalAlignment="Center" Margin="20" />
             <Button Content="Increment" Command="{Binding IncrementCommand}" CommandParameter="{Binding IncrementStep}" HorizontalAlignment="Stretch" Padding="10" />
         </StackPanel>
+        <StackPanel Grid.Row="1">
+            <StackPanel Orientation="Horizontal" Margin="10">
+                <TextBlock Text="Throttling Interval: " />
+                <TextBox Text="{Binding ThrottlingIntervalInput, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Text=" ms" Margin="2,0,0,0" />
+                <TextBlock Visibility="{Binding ErrorInfoVisibility}" Text="Please enter a valid non-negative integer." Foreground="Red" Margin="10,0,0,0" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Count Records:" FontWeight="Bold" Margin="10,0,0,0" />
+                <CheckBox Content="Order by Descending" IsChecked="{Binding OrderByDescending}" Margin="10,0,0,10" />
+            </StackPanel>
+        </StackPanel>
+        <ListView Grid.Row="2" ItemsSource="{Binding DisplayCountRecords}" Margin="20">
+            <ListView.View>
+                <GridView AllowsColumnReorder="True">
+                    <GridViewColumn Header="Count" DisplayMemberBinding="{Binding Count}" Width="80"/>
+                    <GridViewColumn Header="Time Stamp" DisplayMemberBinding="{Binding Timestamp}" Width="160"/>
+                </GridView>
+            </ListView.View>
+        </ListView>
     </Grid>
 </Window>

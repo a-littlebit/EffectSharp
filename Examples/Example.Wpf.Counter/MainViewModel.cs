@@ -1,38 +1,40 @@
 ﻿using EffectSharp;
 using EffectSharp.SourceGenerators;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Input;
+using System.Windows;
 
 namespace Example.Wpf.Counter
 {
     [ReactiveModel]
     public partial class MainViewModel
     {
-        [ReactiveField]
-        private int _count = 0;
+        public AtomicIntRef IncrementCount { get; } = new AtomicIntRef(0);
 
-        [ReactiveField]
-        private int _restoreCount = 0;
-
-        private readonly SynchronizationContext sync = SynchronizationContext.Current!;
+        public AtomicIntRef RestoreCount { get; } = new AtomicIntRef(0);
 
         [Computed]
-        public int CurrentCount()
+        public int ComputeCount() => IncrementCount.Value + RestoreCount.Value;
+
+        [Computed]
+        public string ComputeDisplayCount() => $"Current Count: {Count}";
+
+        [ReactiveField]
+        private string _throttlingIntervalInput = "200";
+
+        [Computed]
+        public int ComputeThrottlingInterval()
         {
-            return Count + RestoreCount;
+            int interval = 0;
+            int.TryParse(ThrottlingIntervalInput, out interval);
+            return interval;
         }
 
         [Computed]
-        public string ComputeDisplayCount()
-        {
-            return $"Current Count: {ComputedCurrentCount}";
-        }
+        public bool ComputeIsThrottlingIntervalValid() => int.TryParse(ThrottlingIntervalInput, out _);
 
-        [Watch(Values = [nameof(Count)])]
+        [Computed]
+        public Visibility ComputeErrorInfoVisibility() => ComputeIsThrottlingIntervalValid() ? Visibility.Collapsed : Visibility.Visible;
+
+        [Watch(Values = [$"{nameof(IncrementCount)}.Value"])]
         public void OnDisplayCountChanged(int newCount, int oldCount)
         {
             _ = RestoreLater(2000, oldCount - newCount);
@@ -41,30 +43,58 @@ namespace Example.Wpf.Counter
         public async Task RestoreLater(int delay, int setp)
         {
             await Task.Delay(delay).ConfigureAwait(false);
-            sync.Post(_ =>
-            {
-                RestoreCount += setp;
-            }, null);
+            RestoreCount.Add(setp);
         }
 
-        [FunctionCommand(CanExecute = nameof(CanIncrement), AllowConcurrentExecution = false)]
+        [FunctionCommand(CanExecute = nameof(ComputeIsThrottlingIntervalValid), AllowConcurrentExecution = false)]
         public async Task Increment()
         {
-            sync.Post(_ =>
-            {
-                Count++;
-            }, null);
-            await Task.Delay(200).ConfigureAwait(false);
+            IncrementCount.Increment();
+            await Task.Delay(ThrottlingInterval).ConfigureAwait(false);
         }
 
-        public bool CanIncrement()
+        [ReactiveField]
+        private int _maxCount = 0;
+
+        [Watch(Values = [nameof(Count)])]
+        public void OnCountChanged(int newCount, int oldCount)
         {
-            return Count < 10;
+            if (newCount < oldCount && oldCount > MaxCount)
+            {
+                MaxCount = oldCount;
+            }
         }
+
+        public ReactiveCollection<CountRecord> CountRecords { get; } = [];
+
+        [Watch(Values = [nameof(MaxCount)])]
+        public void OnMaxCountChanged(int newMaxCount)
+        {
+            CountRecords.Add(new CountRecord
+            {
+                Count = newMaxCount,
+                Timestamp = DateTime.Now,
+            });
+        }
+
+        [ReactiveField]
+        private bool _orderByDescending = false;
+
+        [ComputedList]
+        public List<CountRecord> ComputeDisplayCountRecords()
+            => OrderByDescending
+                ? CountRecords.OrderByDescending(r => r.Count).ToList()
+                : CountRecords.ToList();
 
         public MainViewModel()
         {
             InitializeReactiveModel();
         }
+    }
+
+    public class CountRecord
+    {
+        public int Count { get; set; }
+        public DateTime Timestamp { get; set; }
     }
 }
