@@ -17,6 +17,13 @@ namespace Example.Wpf.Counter
         [Computed]
         public string ComputeDisplayCount() => $"Current Count: {Count}";
 
+        [FunctionCommand(CanExecute = nameof(ComputeIsThrottlingIntervalValid), AllowConcurrentExecution = false)]
+        public async Task Increment()
+        {
+            IncrementCount.Increment();
+            await Task.Delay(ThrottlingInterval).ConfigureAwait(false);
+        }
+
         [ReactiveField]
         private string _throttlingIntervalInput = "200";
 
@@ -25,11 +32,11 @@ namespace Example.Wpf.Counter
         {
             int interval = 0;
             int.TryParse(ThrottlingIntervalInput, out interval);
-            return interval;
+            return Math.Max(0, interval);
         }
 
         [Computed]
-        public bool ComputeIsThrottlingIntervalValid() => int.TryParse(ThrottlingIntervalInput, out _);
+        public bool ComputeIsThrottlingIntervalValid() => int.TryParse(ThrottlingIntervalInput, out var interval) && interval >= 0;
 
         [Computed]
         public Visibility ComputeErrorInfoVisibility() => ComputeIsThrottlingIntervalValid() ? Visibility.Collapsed : Visibility.Visible;
@@ -44,13 +51,6 @@ namespace Example.Wpf.Counter
         {
             await Task.Delay(delay).ConfigureAwait(false);
             RestoreCount.Add(setp);
-        }
-
-        [FunctionCommand(CanExecute = nameof(ComputeIsThrottlingIntervalValid), AllowConcurrentExecution = false)]
-        public async Task Increment()
-        {
-            IncrementCount.Increment();
-            await Task.Delay(ThrottlingInterval).ConfigureAwait(false);
         }
 
         [ReactiveField]
