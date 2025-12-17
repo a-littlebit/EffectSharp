@@ -53,7 +53,7 @@ namespace EffectSharp.SourceGenerators.Context
             Deep = AttributeData.GetNamedArgument("Deep", false);
             Once = AttributeData.GetNamedArgument("Once", false);
             Scheduler = AttributeData.GetNamedArgument<string>("Scheduler");
-            SuppressEquality = AttributeData.GetNamedArgument("SuppressEquality", false);
+            SuppressEquality = AttributeData.GetNamedArgument("SuppressEquality", true);
             EqualityComparer = AttributeData.GetNamedArgument<string>("EqualityComparer");
 
             IsValid = true;

@@ -58,8 +58,8 @@ namespace EffectSharp.SourceGenerators.Emiters
                 if (watchContext.Deep) WriteOption("deep", "true");
                 if (watchContext.Once) WriteOption("once", "true");
                 if (!string.IsNullOrWhiteSpace(watchContext.Scheduler)) WriteOption("scheduler", watchContext.Scheduler);
-                if (watchContext.SuppressEquality)
-                    WriteOption("suppressEquality", "true");
+                if (!watchContext.SuppressEquality)
+                    WriteOption("suppressEquality", "false");
                 else if (!string.IsNullOrWhiteSpace(watchContext.EqualityComparer))
                     WriteOption("equalityComparer", watchContext.EqualityComparer);
 
