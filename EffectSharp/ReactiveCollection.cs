@@ -170,7 +170,7 @@ namespace EffectSharp
             int index = base.IndexOf(item);
             if (index >= 0)
             {
-                TriggerIndexDependency(index);
+                TrackIndexDependency(index);
                 return true;
             }
             else
