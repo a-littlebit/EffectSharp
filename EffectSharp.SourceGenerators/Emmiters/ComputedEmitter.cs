@@ -44,7 +44,7 @@ namespace EffectSharp.SourceGenerators.Emmiters
                 {
                     iw.WriteLine(",");
                     iw.Indent++;
-                    iw.Write($"setter: (value) => {computedContext.Setter}(value)");
+                    iw.Write($"setter: {computedContext.Setter}");
                     iw.Indent--;
                 }
                 iw.WriteLine(");");

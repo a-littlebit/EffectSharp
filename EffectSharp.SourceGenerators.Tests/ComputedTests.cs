@@ -53,7 +53,7 @@ public partial class Sample
             var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
-            Assert.Contains("setter: (value) => SetTotal(value)", text);
+            Assert.Contains("setter: SetTotal", text);
         }
 
         [Fact]
