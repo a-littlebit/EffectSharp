@@ -35,7 +35,7 @@ using EffectSharp;
 using EffectSharp.SourceGenerators;
 
 [ReactiveModel]
-public partial class CounterViewModel
+public partial class CounterViewModel : IDisposable
 {
     [ReactiveField]
     private int _count = 0;
@@ -78,6 +78,16 @@ public partial class CounterViewModel
             return records.OrderBy(r => r.Timestamp).ToList();
         }
     }
+
+    public CounterViewModel()
+    {
+        InitializeReactiveModel(); // Generated method
+    }
+
+    public void Dispose()
+    {
+        DisposeReactiveModel(); // Generated method
+    }
 }
 ```
 
@@ -85,6 +95,7 @@ What gets generated (conceptually):
 - Implementation of `INotifyPropertyChanging` and `INotifyPropertyChanged`
 - Implementation of `IReactive` and `TrackDeep()` method for dependency tracking
 - `public void InitializeReactiveModel()` that creates computed values, subscribes watchers, and hooks change notifications
+- `public void DisposeReactiveModel()` that disposes computed values and watchers
 - `public int Count { get; set; }` with `PropertyChanging/Changed` notification and reactive dependency tracking
 - `public int IFunctionCommand<object> IncrementCommand { get; }` for the `Increment` method with `CanExecute` support
 - `public string DisplayCount { get; }` computed from `ComputeDisplayCount()`
@@ -96,7 +107,8 @@ What gets generated (conceptually):
 ## Attributes
 
 ### `[ReactiveModel]` (class)
-Marks a partial class as a reactive model. The generator adds interfaces and generated members to this partial type.
+Marks a partial class as a reactive model. The generator adds interfaces and generated members to this partial type
+and an `InitializeReactiveModel()` method to wire up reactive properties, computed values, commands, and watchers.
 
 ### `[ReactiveField]` (field)
 Generates a reactive property for the field.
@@ -164,6 +176,20 @@ Options:
 Supported method shapes:
 - `()`, `(newValue)` or `(newValue, oldValue)`
 - When multiple values are watched, use a tuple for the value parameters.
+- 
+## Resource Disposal
+
+The generator emits a unified disposal method to release reactive resources created during initialization:
+
+- **Generated method:** `public void DisposeReactiveModel()`
+- **What it does:**
+  - Disposes all generated `Computed<T>` instances and `Watch` effects (`Effect`) created in `InitializeReactiveModel()`.
+  - Clears corresponding backing fields to `null` for idempotent repeated calls.
+- **When to call:**
+  - When the reactive model is no longer needed (e.g., view deactivation, window closing).
+  - Typical integration points: implement `IDisposable` on your view model and call `DisposeReactiveModel()` from `Dispose()`, or call it from lifecycle hooks.
+- **Idempotency:**
+  - Safe to call multiple times; calling `DisposeReactiveModel()` after `InitializeReactiveModel()` will release resources. If you need the model again, call `InitializeReactiveModel()` to re-wire computations and watchers.
 
 ## Diagnostics
 
@@ -196,7 +222,7 @@ Inspect generated sources (optional):
 </PropertyGroup>
 ```
 
-Generated files will appear under `obj/generated/`. Look for `*.Reactive.g.cs` next to your annotated types.
+Generated files will appear under `obj/generated/`. Look for `*.ReactiveModel.g.cs` next to your annotated types.
 
 ## Notes
 
