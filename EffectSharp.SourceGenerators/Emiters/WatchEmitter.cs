@@ -13,7 +13,7 @@ namespace EffectSharp.SourceGenerators.Emitters
     {
         public void Emit(ReactiveModelContext context, IndentedTextWriter writer)
         {
-            context.WatchContexts = context.ModelSymbol.GetMembers()
+            context.WatchContexts ??= context.ModelSymbol.GetMembers()
                 .OfType<IMethodSymbol>()
                 .Select(m => new WatchContext(m, context))
                 .Where(m => m.IsValid)

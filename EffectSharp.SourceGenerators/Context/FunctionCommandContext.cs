@@ -32,8 +32,8 @@ namespace EffectSharp.SourceGenerators.Context
 
         public string GenericTypeArguments =>
             ResultType != null ?
-            $"<{ParameterType?.ToDisplayString() ?? "object"}, {ResultType.ToDisplayString()}>" :
-            $"<{ParameterType?.ToDisplayString() ?? "object"}>";
+            $"<{(ParameterType != null ? ParameterType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) : "object")}, {ResultType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>" :
+            $"<{(ParameterType != null ? ParameterType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) : "object")}>";
 
         public int CommandParameterIndex { get; }
 

@@ -46,6 +46,8 @@ namespace EffectSharp.SourceGenerators.Context
         {
             foreach (var initializer in Initializers)
             {
+                if (ProductionContext.CancellationToken.IsCancellationRequested)
+                    return;
                 initializer(this, iw);
             }
         }
@@ -59,6 +61,8 @@ namespace EffectSharp.SourceGenerators.Context
         {
             foreach (var disposer in Disposers)
             {
+                if (ProductionContext.CancellationToken.IsCancellationRequested)
+                    return;
                 disposer(this, iw);
             }
         }

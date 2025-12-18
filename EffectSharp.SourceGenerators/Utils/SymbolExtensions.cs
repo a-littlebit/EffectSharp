@@ -10,6 +10,9 @@ namespace EffectSharp.SourceGenerators.Utils
             this ITypeSymbol type,
             INamedTypeSymbol targetType)
         {
+            if (type == null || targetType == null)
+                return false;
+
             // Walk the inheritance chain
             for (var current = type; current != null; current = current.BaseType)
             {
@@ -39,6 +42,9 @@ namespace EffectSharp.SourceGenerators.Utils
             out INamedTypeSymbol typeArgument)
         {
             typeArgument = null;
+
+            if (type == null || genericDefinition == null)
+                return false;
 
             // Walk the inheritance chain
             for (var current = type; current != null; current = current.BaseType)
@@ -158,7 +164,7 @@ namespace EffectSharp.SourceGenerators.Utils
 
             resultType = null;
 
-            if (taskType == null)
+            if (taskType == null || taskOfTType == null)
                 return false;
 
             // Task<T>

@@ -82,8 +82,8 @@ public partial class Sample
             var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
-            Assert.Contains(", canExecute: CanRun", text);
-            Assert.Contains(", allowConcurrentExecution: false", text);
+            Assert.Contains("canExecute: CanRun", text);
+            Assert.Contains("allowConcurrentExecution: false", text);
         }
 
         [Fact]

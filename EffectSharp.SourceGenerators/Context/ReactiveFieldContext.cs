@@ -41,7 +41,6 @@ namespace EffectSharp.SourceGenerators.Context
             return UnderlyingType.IsAssignableTo(iReactiveType);
         }
 
-
         public ReactiveFieldContext(IFieldSymbol field, ReactiveModelContext modelContext)
         {
             FieldSymbol = field;

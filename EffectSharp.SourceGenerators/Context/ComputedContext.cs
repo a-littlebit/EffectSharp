@@ -12,7 +12,7 @@ namespace EffectSharp.SourceGenerators.Context
         public AttributeData AttributeData { get; }
         public string Setter { get; }
 
-        public string ValueTypeName => MethodSymbol.ReturnType.ToDisplayString();
+        public string ValueTypeName => MethodSymbol.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
         public string PropertyName => MethodSymbol.Name.StartsWith("Compute")
             ? MethodSymbol.Name.Substring("Compute".Length)

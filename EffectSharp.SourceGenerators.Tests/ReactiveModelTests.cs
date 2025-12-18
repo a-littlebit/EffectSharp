@@ -40,8 +40,8 @@ namespace My.App
             Assert.Contains("public partial class Inner<U>", text);
             Assert.Contains("where U : new()", text);
 
-            // Base list includes missing interfaces on the model type
-            Assert.Contains(": System.ComponentModel.INotifyPropertyChanging, System.ComponentModel.INotifyPropertyChanged, IReactive", text);
+            // Base list includes missing interfaces on the model type (IReactive first)
+            Assert.Contains(": IReactive, System.ComponentModel.INotifyPropertyChanging, System.ComponentModel.INotifyPropertyChanged", text);
         }
 
         [Fact]
@@ -90,7 +90,7 @@ public partial class Sample : System.ComponentModel.INotifyPropertyChanged
             var text = gen.GetText()!.ToString();
 
             // Header should include only missing interfaces (no duplicate INotifyPropertyChanged)
-            Assert.Contains(": System.ComponentModel.INotifyPropertyChanging, IReactive", text);
+            Assert.Contains(": IReactive, System.ComponentModel.INotifyPropertyChanging", text);
             Assert.DoesNotContain("System.ComponentModel.INotifyPropertyChanged, IReactive", text);
 
             // Event generation should skip PropertyChanged (already defined) but emit PropertyChanging

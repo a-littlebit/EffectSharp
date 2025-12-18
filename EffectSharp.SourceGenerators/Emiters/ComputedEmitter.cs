@@ -13,7 +13,7 @@ namespace EffectSharp.SourceGenerators.Emitters
     {
         public void Emit(ReactiveModelContext context, IndentedTextWriter writer)
         {
-            context.ComputedContexts = context.ModelSymbol.GetMembers()
+            context.ComputedContexts ??= context.ModelSymbol.GetMembers()
                 .OfType<IMethodSymbol>()
                 .Select(m => new ComputedContext(m, context))
                 .Where(m => m.AttributeData != null)
@@ -30,11 +30,12 @@ namespace EffectSharp.SourceGenerators.Emitters
 
         static void EmitDefinition(ComputedContext computedContext, IndentedTextWriter iw)
         {
-            iw.WriteLine($"private Computed<{computedContext.ValueTypeName}> {computedContext.FieldName};");
+            var valueType = computedContext.ValueTypeName.Replace("global::", "");
+            iw.WriteLine($"private Computed<{valueType}> {computedContext.FieldName};");
             if (string.IsNullOrEmpty(computedContext.Setter))
-                iw.WriteLine($"public {computedContext.ValueTypeName} {computedContext.PropertyName} => {computedContext.FieldName}.Value;");
+                iw.WriteLine($"public {valueType} {computedContext.PropertyName} => {computedContext.FieldName}.Value;");
             else
-                iw.WriteLine($"public {computedContext.ValueTypeName} {computedContext.PropertyName} "
+                iw.WriteLine($"public {valueType} {computedContext.PropertyName} "
                     + $"{{ get => {computedContext.FieldName}.Value; set => {computedContext.FieldName}.Value = value; }}");
             iw.WriteLine();
         }
@@ -43,8 +44,9 @@ namespace EffectSharp.SourceGenerators.Emitters
         {
             foreach (var computedContext in modelContext.ComputedContexts)
             {
+                var valueType = computedContext.ValueTypeName.Replace("global::", "");
                 iw.Write($"this.{computedContext.FieldName} = " +
-                    $"Reactive.Computed<{computedContext.ValueTypeName}>(() => this.{computedContext.MethodSymbol.Name}()");
+                    $"Reactive.Computed<{valueType}>(() => this.{computedContext.MethodSymbol.Name}()");
                 if (!string.IsNullOrEmpty(computedContext.Setter))
                 {
                     iw.WriteLine(",");

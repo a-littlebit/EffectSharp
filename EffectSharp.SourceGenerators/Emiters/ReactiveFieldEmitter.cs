@@ -13,7 +13,7 @@ namespace EffectSharp.SourceGenerators.Emitters
             ReactiveModelContext context,
             IndentedTextWriter iw)
         {
-            context.ReactiveFields = context.ModelSymbol.GetMembers()
+            context.ReactiveFields ??= context.ModelSymbol.GetMembers()
                               .OfType<IFieldSymbol>()
                               .Select(f => new ReactiveFieldContext(f, context))
                               .Where(f => f.ReactiveFieldAttribute != null)
@@ -50,7 +50,7 @@ namespace EffectSharp.SourceGenerators.Emitters
                 var field = fieldContext.FieldSymbol;
                 var fieldName = field.Name;
                 var propertyName = fieldContext.PropertyName;
-                var fieldType = fieldContext.UnderlyingType.ToDisplayString();
+                var fieldType = fieldContext.UnderlyingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                 var readExpression = fieldContext.GetReadExpression();
                 var equalsMethod = fieldContext.EqualsMethod;
 

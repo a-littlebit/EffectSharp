@@ -14,28 +14,28 @@ namespace EffectSharp.SourceGenerators.Emitters
     {
         public void Emit(ReactiveModelContext context, IndentedTextWriter writer)
         {
-            context.FunctionCommands = context.ModelSymbol.GetMembers()
+            context.FunctionCommands ??= context.ModelSymbol.GetMembers()
                 .OfType<IMethodSymbol>()
                 .Select(m => new FunctionCommandContext(m, context))
                 .Where(m => m.IsValid)
                 .ToList();
 
-            EmitDefinition(context, writer);
+            foreach (var commandContext in context.FunctionCommands)
+            {
+                EmitDefinition(commandContext, writer);
+            }
             context.RegisterInitializer(EmitInitializer);
             context.RegisterDisposer(EmitDisposer);
         }
 
-        static void EmitDefinition(ReactiveModelContext context, IndentedTextWriter writer)
+        static void EmitDefinition(FunctionCommandContext commandContext, IndentedTextWriter writer)
         {
-            foreach (var commandContext in context.FunctionCommands)
-            {
-                var interfaceName = commandContext.InterfaceName;
-                var genericTypeArguments = commandContext.GenericTypeArguments;
-                var fieldName = commandContext.FieldName;
-                writer.WriteLine($"private {interfaceName}{genericTypeArguments} {fieldName};");
-                writer.WriteLine($"public {interfaceName}{genericTypeArguments} {commandContext.PropertyName} => {fieldName};");
-                writer.WriteLine();
-            }
+            var interfaceName = commandContext.InterfaceName;
+            var genericTypeArguments = commandContext.GenericTypeArguments.Replace("global::", "");
+            var fieldName = commandContext.FieldName;
+            writer.WriteLine($"private {interfaceName}{genericTypeArguments} {fieldName};");
+            writer.WriteLine($"public {interfaceName}{genericTypeArguments} {commandContext.PropertyName} => {fieldName};");
+            writer.WriteLine();
         }
 
         static void EmitInitializer(ReactiveModelContext context, IndentedTextWriter writer)
@@ -62,16 +62,33 @@ namespace EffectSharp.SourceGenerators.Emitters
 
                 writer.Write(")");
 
+                var hasNewLine = false;
+                void WriteOption(string name, string value)
+                {
+                    if (hasNewLine)
+                        writer.WriteLine(",");
+                    else
+                    {
+                        writer.WriteLine(",");
+                        writer.Indent++;
+                        hasNewLine = true;
+                    }
+                    writer.Write($"{name}: {value}");
+                }
+
                 if (!string.IsNullOrWhiteSpace(commandContext.CanExecute))
-                    writer.Write($", canExecute: {commandContext.CanExecute}");
+                    WriteOption("canExecute", commandContext.CanExecute);
 
                 if (!commandContext.AllowConcurrentExecution)
-                    writer.Write(", allowConcurrentExecution: false");
+                    WriteOption("allowConcurrentExecution", "false");
 
                 if (commandContext.IsAsync && !string.IsNullOrWhiteSpace(commandContext.ExecutionScheduler))
-                    writer.Write($", executionScheduler: {commandContext.ExecutionScheduler}");
+                    WriteOption("executionScheduler", commandContext.ExecutionScheduler);
 
                 writer.WriteLine(");");
+                if (hasNewLine)
+                    writer.Indent--;
+
                 writer.WriteLine();
             }
         }
