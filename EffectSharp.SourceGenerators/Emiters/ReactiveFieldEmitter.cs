@@ -48,7 +48,6 @@ namespace EffectSharp.SourceGenerators.Emitters
             foreach (var fieldContext in context.ReactiveFields)
             {
                 var field = fieldContext.FieldSymbol;
-                var attr = fieldContext.ReactiveFieldAttribute;
                 var fieldName = field.Name;
                 var propertyName = fieldContext.PropertyName;
                 var fieldType = fieldContext.UnderlyingType.ToDisplayString();
