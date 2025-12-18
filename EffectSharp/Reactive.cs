@@ -271,12 +271,12 @@ namespace EffectSharp
         /// An optional scheduler action to control when the synchronization effect is executed.
         /// </param>
         /// <returns>
-        /// An <see cref="IDisposable"/> that, when disposed, stops synchronizing changes from the source list to the observable collection.
+        /// An <see cref="Effect"/> that, when disposed, stops synchronizing changes from the source list to the observable collection.
         /// </returns>
         /// <exception cref="ArgumentNullException">
         /// Thrown if <paramref name="source"/>, <paramref name="observableCollection"/>, or <paramref name="keySelector"/> is null.
         /// </exception>
-        public static IDisposable BindTo<T, TList, TKey>(
+        public static Effect BindTo<T, TList, TKey>(
             this ObservableCollection<T> observableCollection,
             Func<TList> source,
             Func<T, TKey> keySelector,
@@ -315,10 +315,10 @@ namespace EffectSharp
         /// An optional scheduler action to control when the synchronization effect is executed.
         /// </param>
         /// <returns>
-        /// An <see cref="IDisposable"/> that, when disposed, stops synchronizing changes from the source list to the observable collection.
+        /// An <see cref="Effect"/> that, when disposed, stops synchronizing changes from the source list to the observable collection.
         /// </returns>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="source"/> or <paramref name="observableCollection"/> is null.</exception>
-        public static IDisposable BindTo<T, TList>(
+        public static Effect BindTo<T, TList>(
             this ObservableCollection<T> observableCollection,
             Func<TList> source,
             IEqualityComparer<T> equalityComparer = null,
