@@ -12,12 +12,12 @@ namespace EffectSharp
         /// <typeparam name="T">The watched value type.</typeparam>
         /// <param name="getter">Function that returns the value to watch.</param>
         /// <param name="callback">Callback receiving the new and previous values.</param>
+        /// <param name="immediate">When true, the callback is invoked during the first evaluation. Default is <c>false</c>.</param>
         /// <param name="deep">
         /// When true, performs deep tracking: if the getter returns an <see cref="IReactive"/> value (or an enumerable of reactive items),
         /// their nested dependencies are tracked, and the equality short-circuit is disabled. Default is <c>false</c>.
         /// </param>
         /// <param name="once">When true, the watcher is automatically disposed after the first callback invocation. Default is <c>false</c>.</param>
-        /// <param name="immediate">When true, the callback is invoked during the first evaluation. Default is <c>false</c>.</param>
         /// <param name="scheduler">Optional scheduler for the underlying effect; if provided, it receives the created <see cref="Effect"/> instance.</param>
         /// <param name="suppressEquality">
         /// When true, uses <paramref name="equalityComparer"/> to suppress callbacks when the produced value has not changed.
@@ -102,12 +102,12 @@ namespace EffectSharp
         /// <typeparam name="T">The watched value type.</typeparam>
         /// <param name="source">The reactive reference to watch.</param>
         /// <param name="callback">Callback receiving the new and previous values.</param>
+        /// <param name="immediate">When true, the callback is invoked during the first evaluation. Default is <c>false</c>.</param>
         /// <param name="deep">
         /// When true, performs deep tracking: if the getter returns an <see cref="IReactive"/> value (or an enumerable of reactive items),
         /// their nested dependencies are tracked, and the equality short-circuit is disabled. Default is <c>false</c>.
         /// </param>
         /// <param name="once">When true, the watcher is automatically disposed after the first callback invocation. Default is <c>false</c>.</param>
-        /// <param name="immediate">When true, the callback is invoked during the first evaluation. Default is <c>false</c>.</param>
         /// <param name="scheduler">Optional scheduler for the underlying effect; if provided, it receives the created <see cref="Effect"/> instance.</param>
         /// <param name="suppressEquality">
         /// When true, uses <paramref name="equalityComparer"/> to suppress callbacks when the produced value has not changed.

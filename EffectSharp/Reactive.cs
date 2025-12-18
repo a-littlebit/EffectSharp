@@ -21,7 +21,7 @@ namespace EffectSharp
         /// Properties are reactive by default unless annotated with <see cref="ReactivePropertyAttribute"/> specifying otherwise.
         /// Interface-typed properties marked with <see cref="ReactivePropertyAttribute.Deep"/> are initialized as nested reactive proxies.
         /// </summary>
-        /// <typeparam name="T">The interface or class type to proxy. Must be a reference type.</typeparam>
+        /// <typeparam name="T">The interface type to proxy.</typeparam>
         /// <returns>A reactive proxy implementing <typeparamref name="T"/>.</returns>
         public static T Create<T>() where T : class
         {
@@ -34,7 +34,7 @@ namespace EffectSharp
         /// Creates a reactive proxy that delegates property access to the specified <paramref name="instance"/>.
         /// Properties participate in dependency tracking by default unless marked with <see cref="ReactivePropertyAttribute.Reactive"/> = <c>false</c> on the interface.
         /// </summary>
-        /// <typeparam name="T">The interface or class type to proxy. Must be a reference type.</typeparam>
+        /// <typeparam name="T">The interface type to proxy.</typeparam>
         /// <param name="instance">The target instance to delegate to.</param>
         /// <returns>A reactive proxy wrapping the provided instance.</returns>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="instance"/> is null.</exception>
@@ -50,7 +50,7 @@ namespace EffectSharp
         /// Creates a new reactive proxy for the specified reference <paramref name="type"/> using reflection.
         /// Equivalent to calling the generic <see cref="Create{T}()"/> with <paramref name="type"/> as &lt;T&gt;.
         /// </summary>
-        /// <param name="type">The reference type to proxy.</param>
+        /// <param name="type">The interface type to proxy.</param>
         /// <returns>A reactive proxy instance implementing the specified type.</returns>
         public static object Create(Type type)
         {
@@ -181,12 +181,12 @@ namespace EffectSharp
         /// <typeparam name="T">The watched value type.</typeparam>
         /// <param name="getter">Function that returns the value to watch.</param>
         /// <param name="callback">Callback receiving the new and previous values.</param>
+        /// <param name="immediate">When true, the callback is invoked during the first evaluation. Default is <c>false</c>.</param>
         /// <param name="deep">
         /// When true, performs deep tracking: if the getter returns an <see cref="IReactive"/> value (or an enumerable of reactive items),
         /// their nested dependencies are tracked, and the equality short-circuit is disabled. Default is <c>false</c>.
         /// </param>
         /// <param name="once">When true, the watcher is automatically disposed after the first callback invocation. Default is <c>false</c>.</param>
-        /// <param name="immediate">When true, the callback is invoked during the first evaluation. Default is <c>false</c>.</param>
         /// <param name="scheduler">Optional scheduler for the underlying effect; if provided, it receives the created <see cref="Effect"/> instance.</param>
         /// <param name="suppressEquality">
         /// When true, uses <paramref name="equalityComparer"/> to suppress callbacks when the produced value has not changed.
@@ -217,12 +217,12 @@ namespace EffectSharp
         /// <typeparam name="T">The watched value type.</typeparam>
         /// <param name="source">The reactive reference to watch.</param>
         /// <param name="callback">Callback receiving the new and previous values.</param>
+        /// <param name="immediate">When true, the callback is invoked during the first evaluation. Default is <c>false</c>.</param>
         /// <param name="deep">
         /// When true, performs deep tracking: if the getter returns an <see cref="IReactive"/> value (or an enumerable of reactive items),
         /// their nested dependencies are tracked, and the equality short-circuit is disabled. Default is <c>false</c>.
         /// </param>
         /// <param name="once">When true, the watcher is automatically disposed after the first callback invocation. Default is <c>false</c>.</param>
-        /// <param name="immediate">When true, the callback is invoked during the first evaluation. Default is <c>false</c>.</param>
         /// <param name="scheduler">Optional scheduler for the underlying effect; if provided, it receives the created <see cref="Effect"/> instance.</param>
         /// <param name="suppressEquality">
         /// When true, uses <paramref name="equalityComparer"/> to suppress callbacks when the produced value has not changed.

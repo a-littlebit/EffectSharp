@@ -13,9 +13,6 @@ namespace EffectSharp
     /// A reactive reference that holds a value of type T and notifies subscribers on changes.
     /// </summary>
     /// <typeparam name="T">The type of the value held by the reference. </typeparam>
-    /// <summary>
-    /// A reactive reference that holds a value of type T and notifies subscribers on changes.
-    /// </summary>
     public class Ref<T> : IRef<T>, IReadOnlyRef<T>, IReactive, INotifyPropertyChanging, INotifyPropertyChanged
     {
         /// <summary>
