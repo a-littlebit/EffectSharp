@@ -469,11 +469,18 @@ namespace EffectSharp
             var newTickState = new TickState(processedSeq);
             oldTickState = Interlocked.Exchange(ref _tickState, newTickState);
 
-            oldTickState.NextTickTcs.TrySetResult(true);
             if (ex != null)
             {
-                BatchProcessingFailed?.Invoke(this, new BatchProcessingFailedEventArgs<T>(ex, batch));
+                try
+                {
+                    BatchProcessingFailed?.Invoke(this, new BatchProcessingFailedEventArgs<T>(ex, batch));
+                }
+                catch
+                {
+                    // Swallow exceptions from event handlers
+                }
             }
+            oldTickState.NextTickTcs.TrySetResult(true);
         }
 
         private CancellationTokenSource EnsureDelayCancellationSource()
