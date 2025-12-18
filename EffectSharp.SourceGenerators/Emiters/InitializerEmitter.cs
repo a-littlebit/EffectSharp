@@ -19,6 +19,17 @@ namespace EffectSharp.SourceGenerators.Emitters
 
             writer.Indent--;
             writer.WriteLine("}");
+
+            writer.WriteLine();
+
+            writer.WriteLine("public void DisposeReactiveModel()");
+            writer.WriteLine("{");
+            writer.Indent++;
+
+            context.EmitDisposers(writer);
+
+            writer.Indent--;
+            writer.WriteLine("}");
         }
     }
 }

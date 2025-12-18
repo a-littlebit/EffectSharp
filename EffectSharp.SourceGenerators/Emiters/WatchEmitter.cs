@@ -25,6 +25,7 @@ namespace EffectSharp.SourceGenerators.Emitters
             }
 
             context.RegisterInitializer(EmitInitializer);
+            context.RegisterDisposer(EmitDisposer);
         }
 
         static void EmitDefinition(WatchContext watchContext, IndentedTextWriter writer)
@@ -65,6 +66,16 @@ namespace EffectSharp.SourceGenerators.Emitters
 
                 writer.WriteLine(");");
                 writer.Indent--;
+                writer.WriteLine();
+            }
+        }
+
+        static void EmitDisposer(ReactiveModelContext modelContext, IndentedTextWriter writer)
+        {
+            foreach (var watchContext in modelContext.WatchContexts)
+            {
+                writer.WriteLine($"this.{watchContext.FieldName}?.Dispose();");
+                writer.WriteLine($"this.{watchContext.FieldName} = null;");
                 writer.WriteLine();
             }
         }

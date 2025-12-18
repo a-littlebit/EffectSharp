@@ -17,6 +17,7 @@ namespace EffectSharp.SourceGenerators.Context
         internal List<ReactiveFieldContext> ReactiveFields { get; set; }
 
         public List<Action<ReactiveModelContext, IndentedTextWriter>> Initializers { get; } = [];
+        public List<Action<ReactiveModelContext, IndentedTextWriter>> Disposers { get; } = [];
 
         internal List<FunctionCommandContext> FunctionCommands { get; set; }
 
@@ -46,6 +47,19 @@ namespace EffectSharp.SourceGenerators.Context
             foreach (var initializer in Initializers)
             {
                 initializer(this, iw);
+            }
+        }
+
+        public void RegisterDisposer(Action<ReactiveModelContext, IndentedTextWriter> disposer)
+        {
+            Disposers.Add(disposer);
+        }
+
+        public void EmitDisposers(IndentedTextWriter iw)
+        {
+            foreach (var disposer in Disposers)
+            {
+                disposer(this, iw);
             }
         }
     }

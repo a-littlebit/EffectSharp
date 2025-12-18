@@ -25,6 +25,7 @@ namespace EffectSharp.SourceGenerators.Emitters
             }
 
             context.RegisterInitializer(EmitInitializer);
+            context.RegisterDisposer(EmitDisposer);
         }
 
         static void EmitDefinition(ComputedContext computedContext, IndentedTextWriter iw)
@@ -65,6 +66,16 @@ namespace EffectSharp.SourceGenerators.Emitters
                 iw.WriteLine($"this.PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(this.{computedContext.PropertyName})));");
                 iw.Indent--;
 
+                iw.WriteLine();
+            }
+        }
+
+        static void EmitDisposer(ReactiveModelContext modelContext, IndentedTextWriter iw)
+        {
+            foreach (var computedContext in modelContext.ComputedContexts)
+            {
+                iw.WriteLine($"this.{computedContext.FieldName}?.Dispose();");
+                iw.WriteLine($"this.{computedContext.FieldName} = null;");
                 iw.WriteLine();
             }
         }
