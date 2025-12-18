@@ -16,8 +16,8 @@ namespace EffectSharp.SourceGenerators.Context
 
         internal List<ReactiveFieldContext> ReactiveFields { get; set; }
 
-        public List<Action<ReactiveModelContext, IndentedTextWriter>> Initializers { get; } = [];
-        public List<Action<ReactiveModelContext, IndentedTextWriter>> Disposers { get; } = [];
+        public List<Action<ReactiveModelContext, IndentedTextWriter>> Initializers { get; } = new();
+        public List<Action<ReactiveModelContext, IndentedTextWriter>> Disposers { get; } = new();
 
         internal List<FunctionCommandContext> FunctionCommands { get; set; }
 

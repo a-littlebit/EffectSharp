@@ -31,7 +31,7 @@ namespace EffectSharp.SourceGenerators.Emitters
         static void EmitDefinition(FunctionCommandContext commandContext, IndentedTextWriter writer)
         {
             var interfaceName = commandContext.InterfaceName;
-            var genericTypeArguments = commandContext.GenericTypeArguments.Replace("global::", "");
+            var genericTypeArguments = commandContext.GenericTypeArguments;
             var fieldName = commandContext.FieldName;
             writer.WriteLine($"private {interfaceName}{genericTypeArguments} {fieldName};");
             writer.WriteLine($"public {interfaceName}{genericTypeArguments} {commandContext.PropertyName} => {fieldName};");

@@ -30,7 +30,7 @@ namespace EffectSharp.SourceGenerators.Emitters
 
         static void EmitDefinition(ComputedContext computedContext, IndentedTextWriter iw)
         {
-            var valueType = computedContext.ValueTypeName.Replace("global::", "");
+            var valueType = computedContext.ValueTypeName;
             iw.WriteLine($"private Computed<{valueType}> {computedContext.FieldName};");
             if (string.IsNullOrEmpty(computedContext.Setter))
                 iw.WriteLine($"public {valueType} {computedContext.PropertyName} => {computedContext.FieldName}.Value;");
@@ -44,7 +44,7 @@ namespace EffectSharp.SourceGenerators.Emitters
         {
             foreach (var computedContext in modelContext.ComputedContexts)
             {
-                var valueType = computedContext.ValueTypeName.Replace("global::", "");
+                var valueType = computedContext.ValueTypeName;
                 iw.Write($"this.{computedContext.FieldName} = " +
                     $"Reactive.Computed<{valueType}>(() => this.{computedContext.MethodSymbol.Name}()");
                 if (!string.IsNullOrEmpty(computedContext.Setter))

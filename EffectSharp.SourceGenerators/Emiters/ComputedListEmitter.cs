@@ -27,7 +27,7 @@ namespace EffectSharp.SourceGenerators.Emitters
 
         private static void EmitDefinition(ComputedListContext lc, IndentedTextWriter iw)
         {
-            var elem = lc.ElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", "");
+            var elem = lc.ElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
             iw.WriteLine($"private ReactiveCollection<{elem}> {lc.FieldName} = new ReactiveCollection<{elem}>();");
             iw.WriteLine($"private Effect {lc.EffectFieldName};");
             iw.WriteLine($"public ReactiveCollection<{elem}> {lc.PropertyName} => {lc.FieldName};");
@@ -45,7 +45,7 @@ namespace EffectSharp.SourceGenerators.Emitters
                 }
                 else
                 {
-                    var elem = lc.ElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", "");
+                    var elem = lc.ElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                     var equalityComparer = string.IsNullOrWhiteSpace(lc.EqualityComparer)
                         ? $"(System.Collections.Generic.IEqualityComparer<{elem}>)null"
                         : lc.EqualityComparer;
