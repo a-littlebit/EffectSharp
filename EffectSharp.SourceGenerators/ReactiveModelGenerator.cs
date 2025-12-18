@@ -134,9 +134,9 @@ public sealed class ReactiveModelGenerator : IIncrementalGenerator
         iw.WriteLine("{");
         iw.Indent++;
 
-        // Only emit events if not already declared on the type
-        bool hasPropertyChanging = model.GetMembers("PropertyChanging").OfType<IEventSymbol>().Any();
-        bool hasPropertyChanged = model.GetMembers("PropertyChanged").OfType<IEventSymbol>().Any();
+        // Only emit events if not already declared on the type or any base type
+        bool hasPropertyChanging = HasEventInHierarchy(model, "PropertyChanging");
+        bool hasPropertyChanged = HasEventInHierarchy(model, "PropertyChanged");
         if (!hasPropertyChanging)
         {
             iw.WriteLine(
@@ -241,5 +241,17 @@ public sealed class ReactiveModelGenerator : IIncrementalGenerator
         if (!hasChanged) list.Add("System.ComponentModel.INotifyPropertyChanged");
         if (!hasReactive) list.Add("IReactive");
         return list.ToArray();
+    }
+
+    private static bool HasEventInHierarchy(INamedTypeSymbol type, string eventName)
+    {
+        INamedTypeSymbol current = type;
+        while (current != null)
+        {
+            if (current.GetMembers(eventName).OfType<IEventSymbol>().Any())
+                return true;
+            current = current.BaseType;
+        }
+        return false;
     }
 }
