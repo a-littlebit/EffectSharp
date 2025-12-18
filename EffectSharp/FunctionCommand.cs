@@ -9,7 +9,7 @@ namespace EffectSharp
     /// Reactive command interface with execution tracking and failure notification.
     /// </summary>
     /// <typeparam name="TParam">Command parameter type.</typeparam>
-    public interface IReactiveCommand<TParam> : ICommand
+    public interface IReactiveCommand<TParam> : ICommand, IDisposable
     {
         /// <summary>
         /// Read-only count of ongoing command executions.
