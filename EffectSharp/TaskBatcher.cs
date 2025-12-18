@@ -330,8 +330,15 @@ namespace EffectSharp
                         }
                         catch (Exception ex)
                         {
-                            // Raise throttler exception event
-                            ThrottlerExceptionOccurred?.Invoke(this, new ThrottlerExceptionEventArgs(ex));
+                            try
+                            {
+                                // Raise throttler exception event
+                                ThrottlerExceptionOccurred?.Invoke(this, new ThrottlerExceptionEventArgs(ex));
+                            }
+                            catch (Exception handlerEx)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Exception in ThrottlerExceptionOccurred handler: {handlerEx}");
+                            }
                         }
                         finally
                         {
@@ -475,9 +482,9 @@ namespace EffectSharp
                 {
                     BatchProcessingFailed?.Invoke(this, new BatchProcessingFailedEventArgs<T>(ex, batch));
                 }
-                catch
+                catch (Exception handlerEx)
                 {
-                    // Swallow exceptions from event handlers
+                    System.Diagnostics.Debug.WriteLine($"Exception in BatchProcessingFailed handler: {handlerEx}");
                 }
             }
             oldTickState.NextTickTcs.TrySetResult(true);
