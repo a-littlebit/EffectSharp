@@ -134,8 +134,12 @@ namespace EffectSharp
         /// <see cref="ReactivePropertyAttribute.Reactive"/> = <c>false</c> on the interface property.
         /// </summary>
         /// <param name="target">The target instance to proxy.</param>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="target"/> is null.</exception>
         public void InitializeForTarget(T target)
         {
+            if (target == null)
+                throw new ArgumentNullException(nameof(target));
+
             var deps = new Dependency[_propertyCache.Length];
             if (Interlocked.CompareExchange(ref _dependencies, deps, null) != null)
                 throw new InvalidOperationException($"ReactiveProxy<{typeof(T).Name}> is already initialized.");
