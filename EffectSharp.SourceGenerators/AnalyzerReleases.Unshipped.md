@@ -9,7 +9,7 @@ EFSP1001 | EffectSharp.FunctionCommand | Error | FunctionCommand method has too 
 EFSP1002 | EffectSharp.FunctionCommand | Warning | FunctionCommand Scheduler is only valid for async methods
 EFSP2001 | EffectSharp.Watch | Error | Watch method has too many parameters
 EFSP3001 | EffectSharp.Computed | Error | Computed method has too many parameters
-EFSP4001 | EffectSharp.ComputedList | Effor | ComputedList has invalid return type
+EFSP4001 | EffectSharp.ComputedList | Error | ComputedList has invalid return type
 
 ## Rule Details
 
