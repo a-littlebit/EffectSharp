@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis;
 using System.CodeDom.Compiler;
 using System.Linq;
 
-namespace EffectSharp.SourceGenerators.Emiters
+namespace EffectSharp.SourceGenerators.Emitters
 {
     internal class ComputedListEmitter : IReactiveModelEmitter
     {

@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace EffectSharp.SourceGenerators.Emiters
+namespace EffectSharp.SourceGenerators.Emitters
 {
     internal class ComputedEmitter : IReactiveModelEmitter
     {

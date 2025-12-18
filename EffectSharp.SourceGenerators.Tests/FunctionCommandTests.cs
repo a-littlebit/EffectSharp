@@ -23,7 +23,7 @@ public partial class Sample
                 GeneratorTestHelper.EffectSharpAttributeStubs,
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
             Assert.Contains("private IFunctionCommand<string, int> _doCommand;", text);
@@ -50,7 +50,7 @@ public partial class Sample
                 GeneratorTestHelper.EffectSharpAttributeStubs,
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
             Assert.Contains("private IAsyncFunctionCommand<string, int> _doAsyncCommand;", text);
@@ -77,7 +77,7 @@ public partial class Sample
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
 
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
             Assert.Contains(", canExecute: CanRun", text);
@@ -104,7 +104,7 @@ public partial class Sample
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
 
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
             Assert.Contains(") => this.Do(param, cancellationToken)", text);
@@ -130,7 +130,7 @@ public partial class Sample
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
 
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
             Assert.Contains("executionScheduler: TaskScheduler.Default", text);

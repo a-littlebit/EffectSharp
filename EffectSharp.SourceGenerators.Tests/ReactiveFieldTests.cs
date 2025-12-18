@@ -25,7 +25,7 @@ public partial class Sample
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
 
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
             Assert.Contains("public int Count", text);
@@ -57,7 +57,7 @@ public partial class Sample
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
 
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
             Assert.Contains("if (Cmp.AreEqual(_x, value))", text);
@@ -82,7 +82,7 @@ public partial class Sample
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
 
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
             Assert.Contains("return _x.Value;", text);
@@ -109,7 +109,7 @@ public partial class Sample
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
 
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
             Assert.Contains("_rx_dependency.Track();", text);

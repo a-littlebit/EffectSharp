@@ -23,7 +23,7 @@ public partial class Sample
                 GeneratorTestHelper.EffectSharpAttributeStubs,
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
             Assert.Contains("private Computed<int> _computedTotal;", text);
@@ -50,7 +50,7 @@ public partial class Sample
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
 
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
             Assert.Contains("public int ComputedTotal { get => _computedTotal.Value; set => _computedTotal.Value = value; }", text);
@@ -78,7 +78,7 @@ public partial class Sample
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
 
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
             Assert.Contains("public int Total =>", text);
@@ -103,7 +103,7 @@ public partial class Sample
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
 
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
             Assert.Contains("PropertyChanging += (s, e) =>", text);

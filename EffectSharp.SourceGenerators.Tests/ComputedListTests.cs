@@ -25,7 +25,7 @@ public partial class Sample
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
 
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
 
@@ -55,7 +55,7 @@ public partial class Sample
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
 
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
 
@@ -85,7 +85,7 @@ public partial class Sample
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
 
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.Reactive.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
 
