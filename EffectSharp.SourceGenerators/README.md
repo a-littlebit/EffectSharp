@@ -145,7 +145,7 @@ Options:
 - `KeySelector` (string): optional key selector expression used to identify items for minimal updates.
   - Must be a fully resolvable expression of type `Func<T, TKey>`.
   - If not provided, items are compared by reference.
-- `EqualsComparer` (string): optional equality comparer expression used to compare items for minimal updates.
+- `EqualityComparer` (string): optional equality comparer expression used to compare items for minimal updates.
   - Must be a fully resolvable expression of type `EqualityComparer<T>`.
   - If not provided, `EqualityComparer<T>.Default` is used.
 
@@ -171,7 +171,7 @@ Options:
 - `Once` (bool, default `false`): if `true`, runs the watcher only once when any of the values change.
 - `Scheduler` (string): `Action<Effect>` scheduler expression to schedule watcher execution.
 - `SupressEquality` (bool, default `true`): if `true`, the watcher will not run if the new and old values are equal.
-- `EqualsComparer` (string, default `null`): `EqualityComparer<T>` expression used to compare new and old values when `SupressEquality` is `true`.
+- `EqualityComparer` (string, default `null`): `EqualityComparer<T>` expression used to compare new and old values when `SupressEquality` is `true`.
 
 Supported method shapes:
 - `()`, `(newValue)` or `(newValue, oldValue)`
