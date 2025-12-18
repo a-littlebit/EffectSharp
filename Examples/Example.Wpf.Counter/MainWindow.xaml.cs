@@ -22,5 +22,15 @@ namespace Example.Wpf.Counter
 
             DataContext = new MainViewModel();
         }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            if (DataContext is IDisposable disposable)
+            {
+                disposable.Dispose();
+                DataContext = null;
+            }
+            base.OnClosed(e);
+        }
     }
 }

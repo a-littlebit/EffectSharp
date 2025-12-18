@@ -5,7 +5,7 @@ using System.Windows;
 namespace Example.Wpf.Counter
 {
     [ReactiveModel]
-    public partial class MainViewModel
+    public partial class MainViewModel : IDisposable
     {
         public AtomicIntRef IncrementCount { get; } = new AtomicIntRef(0);
 
@@ -86,10 +86,9 @@ namespace Example.Wpf.Counter
                 ? CountRecords.OrderByDescending(r => r.Count).ToList()
                 : CountRecords.ToList();
 
-        public MainViewModel()
-        {
-            InitializeReactiveModel();
-        }
+        public MainViewModel() => InitializeReactiveModel();
+
+        public void Dispose() => DisposeReactiveModel();
     }
 
     public class CountRecord
