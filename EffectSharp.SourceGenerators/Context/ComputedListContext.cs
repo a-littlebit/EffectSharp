@@ -12,7 +12,11 @@ namespace EffectSharp.SourceGenerators.Context
         public INamedTypeSymbol ElementType { get; }
         public INamedTypeSymbol ListType { get; }
         public string PropertyName { get; }
+
         public string FieldName { get; }
+
+        public string EffectFieldName => FieldName + "_bindEffect";
+
         public string KeySelector { get; }
 
         public string EqualityComparer { get; }

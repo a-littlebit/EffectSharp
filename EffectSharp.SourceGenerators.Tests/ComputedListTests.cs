@@ -30,8 +30,11 @@ public partial class Sample
             var text = gen.GetText()!.ToString();
 
             Assert.Contains("private ReactiveCollection<int> _computedItems = new ReactiveCollection<int>();", text);
+            Assert.Contains("private Effect _computedItems_bindEffect;", text);
             Assert.Contains("public ReactiveCollection<int> ComputedItems => _computedItems;", text);
-            Assert.Contains("this._computedItems.BindTo(() => this.Items(), (System.Collections.Generic.IEqualityComparer<int>)null);", text);
+            Assert.Contains("this._computedItems_bindEffect = this._computedItems.BindTo(() => this.Items(), (System.Collections.Generic.IEqualityComparer<int>)null);", text);
+            Assert.Contains("this._computedItems_bindEffect?.Dispose();", text);
+            Assert.Contains("this._computedItems_bindEffect = null;", text);
         }
 
         [Fact]

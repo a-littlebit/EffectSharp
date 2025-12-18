@@ -22,11 +22,13 @@ namespace EffectSharp.SourceGenerators.Emitters
             }
 
             context.RegisterInitializer(EmitInitializer);
+            context.RegisterDisposer(EmitDisposer);
         }
 
         private static void EmitDefinition(ComputedListContext lc, IndentedTextWriter iw)
         {
             iw.WriteLine($"private ReactiveCollection<{lc.ElementType.ToDisplayString()}> {lc.FieldName} = new ReactiveCollection<{lc.ElementType.ToDisplayString()}>();");
+            iw.WriteLine($"private Effect {lc.EffectFieldName};");
             iw.WriteLine($"public ReactiveCollection<{lc.ElementType.ToDisplayString()}> {lc.PropertyName} => {lc.FieldName};");
             iw.WriteLine();
         }
@@ -38,15 +40,25 @@ namespace EffectSharp.SourceGenerators.Emitters
                 if (!string.IsNullOrWhiteSpace(lc.KeySelector))
                 {
                     var equalityComparer = string.IsNullOrWhiteSpace(lc.EqualityComparer) ? "null" : lc.EqualityComparer;
-                    iw.WriteLine($"this.{lc.FieldName}.BindTo(() => this.{lc.MethodSymbol.Name}(), {lc.KeySelector}, {equalityComparer});");
+                    iw.WriteLine($"this.{lc.EffectFieldName} = this.{lc.FieldName}.BindTo(() => this.{lc.MethodSymbol.Name}(), {lc.KeySelector}, {equalityComparer});");
                 }
                 else
                 {
                     var equalityComparer = string.IsNullOrWhiteSpace(lc.EqualityComparer)
                         ? $"(System.Collections.Generic.IEqualityComparer<{lc.ElementType.ToDisplayString()}>)null"
                         : lc.EqualityComparer;
-                    iw.WriteLine($"this.{lc.FieldName}.BindTo(() => this.{lc.MethodSymbol.Name}(), {equalityComparer});");
+                    iw.WriteLine($"this.{lc.EffectFieldName} = this.{lc.FieldName}.BindTo(() => this.{lc.MethodSymbol.Name}(), {equalityComparer});");
                 }
+                iw.WriteLine();
+            }
+        }
+
+        private static void EmitDisposer(ReactiveModelContext modelContext, IndentedTextWriter iw)
+        {
+            foreach (var lc in modelContext.ComputedListContexts)
+            {
+                iw.WriteLine($"this.{lc.EffectFieldName}?.Dispose();");
+                iw.WriteLine($"this.{lc.EffectFieldName} = null;");
                 iw.WriteLine();
             }
         }
