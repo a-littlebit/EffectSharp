@@ -29,6 +29,8 @@ public partial class Sample
             Assert.Contains("private Computed<int> _computedTotal;", text);
             Assert.Contains("public int ComputedTotal => _computedTotal.Value;", text);
             Assert.Contains("Reactive.Computed<int>(() => this.Total())", text);
+            Assert.Contains("this._computedTotal?.Dispose();", text);
+            Assert.Contains("this._computedTotal = null;", text);
         }
 
         [Fact]

@@ -29,6 +29,8 @@ public partial class Sample
             Assert.Contains("private IFunctionCommand<string, int> _doCommand;", text);
             Assert.Contains("public IFunctionCommand<string, int> DoCommand => _doCommand;", text);
             Assert.Contains("this._doCommand = FunctionCommand.Create<string, int>(", text);
+            Assert.Contains("this._doCommand?.Dispose();", text);
+            Assert.Contains("this._doCommand = null;", text);
         }
 
         [Fact]

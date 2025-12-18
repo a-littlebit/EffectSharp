@@ -34,6 +34,8 @@ public partial class Sample
             Assert.Contains("immediate: true", text);
             Assert.Contains("scheduler: TaskScheduler.Default", text);
             Assert.Contains("suppressEquality: false", text);
+            Assert.Contains("this._onChanged_watchEffect?.Dispose();", text);
+            Assert.Contains("this._onChanged_watchEffect = null;", text);
         }
 
         [Fact]

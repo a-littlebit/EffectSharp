@@ -45,6 +45,30 @@ namespace My.App
         }
 
         [Fact]
+        public void Generates_InitializeReactiveModel_And_DisposeReactiveModel_Methods()
+        {
+            var src = @"
+using EffectSharp.SourceGenerators;
+
+[ReactiveModel]
+public partial class Sample
+{
+}
+";
+            var (comp, result, driver) = GeneratorTestHelper.RunGenerator(
+                GeneratorTestHelper.EffectSharpAttributeStubs,
+                GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
+                src);
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
+            Assert.NotNull(gen);
+            var text = gen.GetText()!.ToString();
+            // Check for InitializeReactiveModel method
+            Assert.Contains("public void InitializeReactiveModel()", text);
+            // Check for DisposeReactiveModel method
+            Assert.Contains("public void DisposeReactiveModel()", text);
+        }
+
+        [Fact]
         public void Skips_Duplicated_Interfaces_And_Existing_Events()
         {
             var src = @"
