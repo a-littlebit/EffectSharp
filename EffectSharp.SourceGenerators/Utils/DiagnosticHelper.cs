@@ -6,7 +6,7 @@ namespace EffectSharp.SourceGenerators.Utils
 {
     internal static class DiagnosticHelper
     {
-        public static void Report(this SourceProductionContext context, DiagnosticDescriptor descriptor, ISymbol? symbol, object[] messageArgs)
+        public static void Report(this SourceProductionContext context, DiagnosticDescriptor descriptor, ISymbol symbol, object[] messageArgs)
         {
             var diagnostic = Diagnostic.Create(descriptor, symbol?.Locations.FirstOrDefault(), messageArgs);
             context.ReportDiagnostic(diagnostic);

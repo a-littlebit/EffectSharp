@@ -18,8 +18,6 @@ namespace EffectSharp.SourceGenerators.Emitters
             registry.Require("EffectSharp.IReactive");
         }
 
-
-
         public IncrementalValuesProvider<INamedTypeSymbol> Subcribe(
             IncrementalGeneratorInitializationContext context,
             IncrementalValuesProvider<INamedTypeSymbol> modelProvider)
