@@ -1,19 +1,55 @@
 ﻿using EffectSharp.SourceGenerators.Context;
 using EffectSharp.SourceGenerators.Utils;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 
 namespace EffectSharp.SourceGenerators.Emitters
 {
     internal sealed class ReactiveFieldEmitter : IReactiveModelEmitter
     {
+        public void RequireTypes(
+            KnownTypeRegistry registry)
+        {
+            registry.Require("EffectSharp.IAtomic`1");
+            registry.Require("EffectSharp.IReactive");
+        }
+
+
+
+        public IncrementalValuesProvider<INamedTypeSymbol> Subcribe(
+            IncrementalGeneratorInitializationContext context,
+            IncrementalValuesProvider<INamedTypeSymbol> modelProvider)
+        {
+            var fields = context.SyntaxProvider
+                .ForAttributeWithMetadataName(
+                    fullyQualifiedMetadataName: "EffectSharp.SourceGenerators.ReactiveFieldAttribute",
+                    predicate: static (node, _) => node is FieldDeclarationSyntax,
+                    transform: static (ctx, _) => (IFieldSymbol)ctx.TargetSymbol)
+                .Where(static m => m is not null)
+                .Select(static (m, _) => (m, m.GetAttributeData("EffectSharp.SourceGenerators.ReactiveFieldAttribute")))
+                .WithComparer(EqualityComparer<(IFieldSymbol, AttributeData)>.Default)
+                .Select(static (pair, _) => pair.Item1)
+                .Collect();
+
+            return modelProvider.Combine(fields)
+                .Select(static (pair, _) =>
+                {
+                    var (modelSymbol, methods) = pair;
+                    return (modelSymbol, methods.Where(m => SymbolEqualityComparer.Default.Equals(m.ContainingType, modelSymbol)).ToImmutableArray());
+                })
+                .WithComparer(EqualityComparer<(INamedTypeSymbol, ImmutableArray<IFieldSymbol>)>.Default)
+                .Select((pair, _) => pair.Item1);
+        }
+
         public void Emit(
             ReactiveModelContext context,
             IndentedTextWriter iw)
         {
-            context.ReactiveFields ??= context.ModelSymbol.GetMembers()
+            context.ReactiveFields = context.ModelSymbol.GetMembers()
                               .OfType<IFieldSymbol>()
                               .Select(f => new ReactiveFieldContext(f, context))
                               .Where(f => f.ReactiveFieldAttribute != null)
@@ -129,7 +165,7 @@ namespace EffectSharp.SourceGenerators.Emitters
                 var field = fieldContext.FieldSymbol;
                 var readExpression = fieldContext.GetReadExpression();
                 iw.WriteLine(field.Name + "_dependency.Track();");
-                if (fieldContext.MayBeIReactive(context.Compilation))
+                if (fieldContext.MayBeIReactive(context.KnownTypes))
                 {
                     iw.WriteLine(
                         "if (" + readExpression + " is IReactive r_" + field.Name + ")");
@@ -139,7 +175,7 @@ namespace EffectSharp.SourceGenerators.Emitters
                     iw.Indent--;
                     iw.WriteLine("}");
                 }
-                else if (fieldContext.MustBeIReactive(context.Compilation))
+                else if (fieldContext.MustBeIReactive(context.KnownTypes))
                 {
                     iw.WriteLine($"{readExpression}.TrackDeep();");
                 }

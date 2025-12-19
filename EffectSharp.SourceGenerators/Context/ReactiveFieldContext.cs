@@ -24,20 +24,20 @@ namespace EffectSharp.SourceGenerators.Context
             NameHelper.ToPascalCase(
                 NameHelper.RemoveLeadingUnderscore(FieldSymbol.Name));
 
-        public bool MayBeIReactive(Compilation compilation)
+        public bool MayBeIReactive(KnownTypes knownTypes)
         {
             if (UnderlyingType.IsValueType) return false;
             
-            var iReactiveType = compilation.GetTypeByMetadataName("EffectSharp.IReactive");
+            var iReactiveType = knownTypes.Get("EffectSharp.IReactive");
             if (UnderlyingType.IsAssignableTo(iReactiveType))
                 return false; // must be
 
             return !UnderlyingType.IsSealed;
         }
 
-        public bool MustBeIReactive(Compilation compilation)
+        public bool MustBeIReactive(KnownTypes knownTypes)
         {
-            var iReactiveType = compilation.GetTypeByMetadataName("EffectSharp.IReactive");
+            var iReactiveType = knownTypes.Get("EffectSharp.IReactive");
             return UnderlyingType.IsAssignableTo(iReactiveType);
         }
 
@@ -48,8 +48,7 @@ namespace EffectSharp.SourceGenerators.Context
             IsAtomic = false;
             UnderlyingType = field.Type;
 
-            var compilation = modelContext.Compilation;
-            var iAtomicType = compilation.GetTypeByMetadataName("EffectSharp.IAtomic`1");
+            var iAtomicType = modelContext.KnownTypes.Get("EffectSharp.IAtomic`1");
             if (iAtomicType != null && field.Type.TryGetGenericArgument(iAtomicType, 0, out var atomicArg))
             {
                 IsAtomic = true;

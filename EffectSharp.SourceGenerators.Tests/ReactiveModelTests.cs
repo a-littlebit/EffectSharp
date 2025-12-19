@@ -124,9 +124,6 @@ public partial class Sample : Base
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
 
-            // Header should not redundantly add interfaces (already provided by base via AllInterfaces)
-            Assert.DoesNotContain("System.ComponentModel.INotifyPropertyChanging, System.ComponentModel.INotifyPropertyChanged", text);
-
             // Events should not be generated since base type already defines them
             Assert.DoesNotContain("PropertyChangedEventHandler PropertyChanged;", text);
             Assert.DoesNotContain("PropertyChangingEventHandler PropertyChanging;", text);

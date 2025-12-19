@@ -2,9 +2,11 @@
 using EffectSharp.SourceGenerators.Emitters;
 using EffectSharp.SourceGenerators.Utils;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 
@@ -12,9 +14,39 @@ namespace EffectSharp.SourceGenerators.Emitters
 {
     internal class FunctionCommandEmitter : IReactiveModelEmitter
     {
+        public void RequireTypes(KnownTypeRegistry registry)
+        {
+            registry.Require("System.Threading.CancellationToken");
+        }
+
+        public IncrementalValuesProvider<INamedTypeSymbol> Subcribe(
+            IncrementalGeneratorInitializationContext context,
+            IncrementalValuesProvider<INamedTypeSymbol> modelProvider)
+        {
+            var methods = context.SyntaxProvider
+                .ForAttributeWithMetadataName(
+                    fullyQualifiedMetadataName: "EffectSharp.SourceGenerators.FunctionCommandAttribute",
+                    predicate: static (node, _) => node is MethodDeclarationSyntax,
+                    transform: static (ctx, _) => (IMethodSymbol)ctx.TargetSymbol)
+                .Where(static m => m is not null)
+                .Select(static (m, _) => (m, m.GetAttributeData("EffectSharp.SourceGenerators.FunctionCommandAttribute")))
+                .WithComparer(EqualityComparer<(IMethodSymbol, AttributeData)>.Default)
+                .Select(static (pair, _) => pair.Item1)
+                .Collect();
+
+            return modelProvider.Combine(methods)
+                .Select(static (pair, _) =>
+                {
+                    var (modelSymbol, methods) = pair;
+                    return (modelSymbol, methods.Where(m => SymbolEqualityComparer.Default.Equals(m.ContainingType, modelSymbol)).ToImmutableArray());
+                })
+                .WithComparer(EqualityComparer<(INamedTypeSymbol, ImmutableArray<IMethodSymbol>)>.Default)
+                .Select((pair, _) => pair.Item1);
+        }
+
         public void Emit(ReactiveModelContext context, IndentedTextWriter writer)
         {
-            context.FunctionCommands ??= context.ModelSymbol.GetMembers()
+            context.FunctionCommands = context.ModelSymbol.GetMembers()
                 .OfType<IMethodSymbol>()
                 .Select(m => new FunctionCommandContext(m, context))
                 .Where(m => m.IsValid)

@@ -43,9 +43,9 @@ namespace EffectSharp.SourceGenerators.Context
             if (ParameterCount > 2)
             {
                 modelContext.ProductionContext.Report(
-                    DiagnosticDescriptors.WatchMethodTooManyParameters,
+                    DiagnosticHelper.WatchMethodTooManyParameters,
                     MethodSymbol,
-                    MethodSymbol.Name);
+                    [MethodSymbol.Name]);
                 return;
             }
 

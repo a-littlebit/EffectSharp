@@ -53,13 +53,13 @@ namespace EffectSharp.SourceGenerators.Context
             if (AttributeData == null)
                 return;
 
-            IsAsync = method.ReturnsTaskLike(modelContext.Compilation, out var taskResultType);
+            IsAsync = method.ReturnsTaskLike(modelContext.KnownTypes, out var taskResultType);
             ResultType = method.ReturnsVoid ? null :
                 IsAsync ?
                     taskResultType :
                     method.ReturnType as INamedTypeSymbol;
 
-            var cancellationTokenSymbol = modelContext.Compilation.GetTypeByMetadataName("System.Threading.CancellationToken");
+            var cancellationTokenSymbol = modelContext.KnownTypes.Get("System.Threading.CancellationToken");
             var commandParameterIndex = -1;
             var cancellationTokenIndex = -1;
             var paramCount = method.Parameters.Length;
@@ -68,7 +68,7 @@ namespace EffectSharp.SourceGenerators.Context
             {
                 Report(
                     modelContext,
-                    DiagnosticDescriptors.FunctionCommandTooManyParameters);
+                    DiagnosticHelper.FunctionCommandTooManyParameters);
                 return;
             }
 
@@ -95,7 +95,7 @@ namespace EffectSharp.SourceGenerators.Context
             {
                 Report(
                     modelContext,
-                    DiagnosticDescriptors.FunctionCommandTooManyParameters);
+                    DiagnosticHelper.FunctionCommandTooManyParameters);
                 return;
             }
 
@@ -119,7 +119,7 @@ namespace EffectSharp.SourceGenerators.Context
                 // Scheduler can only be specified for async commands
                 Report(
                     modelContext,
-                    DiagnosticDescriptors.FunctionCommandSchedulerNonAsync);
+                    DiagnosticHelper.FunctionCommandSchedulerNonAsync);
                 scheduler = "";
             }
 
@@ -133,7 +133,7 @@ namespace EffectSharp.SourceGenerators.Context
             context.ProductionContext.Report(
                 descriptor,
                 MethodSymbol,
-                MethodSymbol.Name);
+                [MethodSymbol.Name]);
         }
     }
 }

@@ -30,9 +30,9 @@ namespace EffectSharp.SourceGenerators.Context
             if (method.Parameters.Length > 0)
             {
                 modelContext.ProductionContext.Report(
-                    DiagnosticDescriptors.ComputedMethodTooManyParameters,
+                    DiagnosticHelper.ComputedMethodTooManyParameters,
                     method,
-                    method.Name);
+                    [method.Name]);
                 return;
             }
 

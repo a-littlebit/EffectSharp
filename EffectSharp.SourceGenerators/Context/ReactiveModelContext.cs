@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using EffectSharp.SourceGenerators.Utils;
+using Microsoft.CodeAnalysis;
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
@@ -8,9 +9,9 @@ namespace EffectSharp.SourceGenerators.Context
 {
     public class ReactiveModelContext
     {
-        public Compilation Compilation { get; set; }
+        public SourceProductionContext ProductionContext { get; }
 
-        public SourceProductionContext ProductionContext { get; set; }
+        public KnownTypes KnownTypes { get; }
 
         public INamedTypeSymbol ModelSymbol { get; }
 
@@ -28,12 +29,12 @@ namespace EffectSharp.SourceGenerators.Context
         internal List<WatchContext> WatchContexts { get; set; }
 
         public ReactiveModelContext(
-            Compilation compilation,
             SourceProductionContext productionContext,
+            KnownTypes knownTypes,
             INamedTypeSymbol reactiveModelSymbol)
         {
-            Compilation = compilation;
             ProductionContext = productionContext;
+            KnownTypes = knownTypes;
             ModelSymbol = reactiveModelSymbol;
         }
 

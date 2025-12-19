@@ -42,29 +42,35 @@ public sealed class ReactiveModelGenerator : IIncrementalGenerator
             .Where(static m => m is not null)
             .WithComparer(SymbolEqualityComparer.Default);
 
-        var compilationProvider = context.CompilationProvider;
-        var wellKnown = compilationProvider.Select(static (c, _) => new WellKnownTypes(c));
+        var knownTypeRegistry = new KnownTypeRegistry();
+        SymbolExtensions.RequireTypes(knownTypeRegistry);
 
-        var pipeline = models.Combine(compilationProvider).Combine(wellKnown);
+        foreach (var emitter in _emitters)
+        {
+            models = emitter.Subcribe(context, models);
+            emitter.RequireTypes(knownTypeRegistry);
+        }
+
+        var knownTypesProvider = knownTypeRegistry.Build(context.CompilationProvider);
+        var pipeline = models.Combine(knownTypesProvider);
 
         context.RegisterSourceOutput(pipeline, static (spc, pair) =>
         {
             if (spc.CancellationToken.IsCancellationRequested)
                 return;
-            var model = pair.Left.Left;
-            var compilation = pair.Left.Right;
-            var wk = pair.Right;
-            EmitModel(compilation, model, wk, spc);
+            var (model, knownTypes) = pair;
+            var modelContext = new ReactiveModelContext(spc, knownTypes, model);
+            EmitModel(modelContext);
         });
     }
 
-    private static void EmitModel(
-        Compilation compilation,
-        INamedTypeSymbol model,
-        WellKnownTypes wellKnown,
-        SourceProductionContext context)
+    private static void EmitModel(ReactiveModelContext context)
     {
-        if (context.CancellationToken.IsCancellationRequested)
+        var model = context.ModelSymbol;
+        var productionContext = context.ProductionContext;
+        var cancellationToken = productionContext.CancellationToken;
+
+        if (cancellationToken.IsCancellationRequested)
             return;
         var sw = new StringWriter();
         var iw = new IndentedTextWriter(sw, "    ");
@@ -96,25 +102,23 @@ public sealed class ReactiveModelGenerator : IIncrementalGenerator
 
         foreach (var t in containingTypes)
         {
-            iw.WriteLine(ComposeTypeHeader(t, baseList: null));
+            iw.WriteLine(t.ComposeTypeHeader());
             // Constraints for outer types
-            WriteTypeParameterConstraints(iw, t);
+            t.WriteTypeParameterConstraints(iw);
             iw.WriteLine("{");
             iw.Indent++;
         }
 
         // Compose base list for the model only when interfaces are not already implemented
-        var baseInterfaces = GetMissingInterfaces(wellKnown, model);
-        string baseList = baseInterfaces.Length > 0 ? (": " + string.Join(", ", baseInterfaces)) : null;
-
-        iw.WriteLine(ComposeTypeHeader(model, baseList));
-        WriteTypeParameterConstraints(iw, model);
+        const string baseList = "IReactive, System.ComponentModel.INotifyPropertyChanging, System.ComponentModel.INotifyPropertyChanged";
+        iw.WriteLine(model.ComposeTypeHeader(baseList));
+        model.WriteTypeParameterConstraints(iw);
         iw.WriteLine("{");
         iw.Indent++;
 
         // Only emit events if not already declared on the type or any base type
-        bool hasPropertyChanging = HasEventInHierarchy(model, "PropertyChanging");
-        bool hasPropertyChanged = HasEventInHierarchy(model, "PropertyChanged");
+        bool hasPropertyChanging = model.GetMemberInHierarchy<IEventSymbol>("PropertyChanging") != null;
+        bool hasPropertyChanged = model.GetMemberInHierarchy<IEventSymbol>("PropertyChanged") != null;
         if (!hasPropertyChanging)
         {
             iw.WriteLine(
@@ -127,17 +131,14 @@ public sealed class ReactiveModelGenerator : IIncrementalGenerator
         }
         iw.WriteLine();
 
-        var contextModel = new ReactiveModelContext(compilation, context, model);
-
-        PreAnalyzeModelMembers(contextModel);
-        if (context.CancellationToken.IsCancellationRequested)
+        if (cancellationToken.IsCancellationRequested)
             return;
         foreach (var emitter in _emitters)
         {
-            if (context.CancellationToken.IsCancellationRequested)
-                return;
-            emitter.Emit(contextModel, iw);
+            emitter.Emit(context, iw);
             iw.WriteLine();
+            if (cancellationToken.IsCancellationRequested)
+                return;
         }
 
         iw.Indent--;
@@ -157,158 +158,11 @@ public sealed class ReactiveModelGenerator : IIncrementalGenerator
         }
 
         // Use a unique hint name to avoid collisions across namespaces/nesting
-        if (context.CancellationToken.IsCancellationRequested)
+        if (cancellationToken.IsCancellationRequested)
             return;
         var hintName = NameHelper.GetReactiveHintFileName(model);
-        context.AddSource(
+        productionContext.AddSource(
             hintName,
             SourceText.From(sw.ToString(), Encoding.UTF8));
-    }
-
-    private static string ComposeTypeHeader(INamedTypeSymbol type, string baseList)
-    {
-        var accessibility = type.DeclaredAccessibility switch
-        {
-            Accessibility.Public => "public",
-            Accessibility.Internal => "internal",
-            Accessibility.Protected => "protected",
-            Accessibility.Private => "private",
-            Accessibility.ProtectedOrInternal => "protected internal",
-            Accessibility.ProtectedAndInternal => "private protected",
-            _ => "public"
-        };
-
-        var modifiers = new List<string> { accessibility, "partial" };
-        if (type.IsStatic) modifiers.Add("static");
-        if (type.IsSealed && !type.IsRecord) modifiers.Add("sealed");
-        if (type.IsAbstract && !type.IsRecord) modifiers.Add("abstract");
-
-        var kind = type.IsRecord ? "record" : (type.TypeKind == TypeKind.Struct ? "struct" : "class");
-        var typeParams = type.TypeParameters.Length > 0
-            ? "<" + string.Join(", ", type.TypeParameters.Select(tp => tp.Name)) + ">"
-            : string.Empty;
-
-        var header = string.Join(" ", modifiers) + " " + kind + " " + type.Name + typeParams;
-        if (!string.IsNullOrEmpty(baseList))
-            header += " " + baseList;
-        return header;
-    }
-
-    private static void WriteTypeParameterConstraints(IndentedTextWriter iw, INamedTypeSymbol type)
-    {
-        foreach (var tp in type.TypeParameters)
-        {
-            var constraints = new List<string>();
-            if (tp.HasReferenceTypeConstraint) constraints.Add("class");
-            if (tp.HasValueTypeConstraint) constraints.Add("struct");
-            if (tp.HasNotNullConstraint) constraints.Add("notnull");
-            if (tp.HasUnmanagedTypeConstraint) constraints.Add("unmanaged");
-            constraints.AddRange(tp.ConstraintTypes.Select(t => t.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
-            if (tp.HasConstructorConstraint) constraints.Add("new()");
-            if (constraints.Count > 0)
-            {
-                iw.WriteLine($"where {tp.Name} : {string.Join(", ", constraints)}");
-            }
-        }
-    }
-
-    private static string[] GetMissingInterfaces(WellKnownTypes wk, INamedTypeSymbol model)
-    {
-        var ifaceChanged = wk.INotifyPropertyChanged;
-        var ifaceChanging = wk.INotifyPropertyChanging;
-        var iReactive = wk.IReactive;
-
-        bool hasChanged = ifaceChanged != null && model.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, ifaceChanged));
-        bool hasChanging = ifaceChanging != null && model.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, ifaceChanging));
-        bool hasReactive = iReactive != null && model.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, iReactive));
-
-        var list = new List<string>();
-        if (!hasReactive) list.Add("IReactive");
-        if (!hasChanging) list.Add("System.ComponentModel.INotifyPropertyChanging");
-        if (!hasChanged) list.Add("System.ComponentModel.INotifyPropertyChanged");
-        return list.ToArray();
-    }
-
-    private static bool HasEventInHierarchy(INamedTypeSymbol type, string eventName)
-    {
-        INamedTypeSymbol current = type;
-        while (current != null)
-        {
-            if (current.GetMembers(eventName).OfType<IEventSymbol>().Any())
-                return true;
-            current = current.BaseType;
-        }
-        return false;
-    }
-
-    private static void PreAnalyzeModelMembers(ReactiveModelContext modelContext)
-    {
-        if (modelContext.ProductionContext.CancellationToken.IsCancellationRequested)
-            return;
-        // Avoid repeated GetMembers in each emitter; build once and distribute.
-        var members = modelContext.ModelSymbol.GetMembers();
-
-        // Fields
-        modelContext.ReactiveFields ??= members
-            .OfType<IFieldSymbol>()
-            .Select(f => new ReactiveFieldContext(f, modelContext))
-            .Where(f => f.ReactiveFieldAttribute != null)
-            .ToList();
-
-        if (modelContext.ProductionContext.CancellationToken.IsCancellationRequested)
-            return;
-
-        // Methods (single enumeration then branch into categories)
-        var methodSymbols = members.OfType<IMethodSymbol>().ToArray();
-
-        if (modelContext.ProductionContext.CancellationToken.IsCancellationRequested)
-            return;
-
-        // FunctionCommand
-        modelContext.FunctionCommands ??= methodSymbols
-            .Select(m => new FunctionCommandContext(m, modelContext))
-            .Where(fc => fc.IsValid)
-            .ToList();
-
-        if (modelContext.ProductionContext.CancellationToken.IsCancellationRequested)
-            return;
-
-        // Computed
-        modelContext.ComputedContexts ??= methodSymbols
-            .Select(m => new ComputedContext(m, modelContext))
-            .Where(cc => cc.AttributeData != null)
-            .ToList();
-
-        if (modelContext.ProductionContext.CancellationToken.IsCancellationRequested)
-            return;
-
-        // ComputedList
-        modelContext.ComputedListContexts ??= methodSymbols
-            .Select(m => new ComputedListContext(m, modelContext))
-            .Where(cl => cl.AttributeData != null)
-            .ToList();
-
-        if (modelContext.ProductionContext.CancellationToken.IsCancellationRequested)
-            return;
-
-        // Watch
-        modelContext.WatchContexts ??= methodSymbols
-            .Select(m => new WatchContext(m, modelContext))
-            .Where(wc => wc.IsValid)
-            .ToList();
-    }
-
-    private sealed class WellKnownTypes
-    {
-        public INamedTypeSymbol INotifyPropertyChanged { get; }
-        public INamedTypeSymbol INotifyPropertyChanging { get; }
-        public INamedTypeSymbol IReactive { get; }
-
-        public WellKnownTypes(Compilation compilation)
-        {
-            INotifyPropertyChanged = compilation.GetTypeByMetadataName("System.ComponentModel.INotifyPropertyChanged");
-            INotifyPropertyChanging = compilation.GetTypeByMetadataName("System.ComponentModel.INotifyPropertyChanging");
-            IReactive = compilation.GetTypeByMetadataName("EffectSharp.IReactive");
-        }
     }
 }

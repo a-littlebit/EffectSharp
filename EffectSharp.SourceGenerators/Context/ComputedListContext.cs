@@ -29,22 +29,22 @@ namespace EffectSharp.SourceGenerators.Context
                 return;
 
             // Validate return type implements IList<T>
-            var ilistType = modelContext.Compilation.GetTypeByMetadataName("System.Collections.Generic.IList`1");
+            var ilistType = modelContext.KnownTypes.Get("System.Collections.Generic.IList`1");
             if (ilistType == null || method.ReturnType is not INamedTypeSymbol listType)
             {
                 modelContext.ProductionContext.Report(
-                    DiagnosticDescriptors.ComputedListInvalidReturnType,
+                    DiagnosticHelper.ComputedListInvalidReturnType,
                     method,
-                    method.Name);
+                    [method.Name]);
                 return;
             }
 
             if (!listType.TryGetGenericArgument(ilistType, 0, out var elementType))
             {
                 modelContext.ProductionContext.Report(
-                    DiagnosticDescriptors.ComputedListInvalidReturnType,
+                    DiagnosticHelper.ComputedListInvalidReturnType,
                     method,
-                    method.Name);
+                    [method.Name]);
                 return;
             }
 

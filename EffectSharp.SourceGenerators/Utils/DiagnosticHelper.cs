@@ -6,52 +6,12 @@ namespace EffectSharp.SourceGenerators.Utils
 {
     internal static class DiagnosticHelper
     {
-        public static void Report(
-            this SourceProductionContext context,
-            DiagnosticDescriptor descriptor,
-            ISymbol symbol,
-            params object[] args)
+        public static void Report(this SourceProductionContext context, DiagnosticDescriptor descriptor, ISymbol? symbol, object[] messageArgs)
         {
-            context.ReportDiagnostic(
-                Diagnostic.Create(
-                    descriptor,
-                    symbol.Locations.FirstOrDefault(),
-                    args));
+            var diagnostic = Diagnostic.Create(descriptor, symbol?.Locations.FirstOrDefault(), messageArgs);
+            context.ReportDiagnostic(diagnostic);
         }
 
-        public static void Report(
-            this SourceProductionContext context,
-            DiagnosticException exception)
-        {
-            context.ReportDiagnostic(
-                Diagnostic.Create(
-                    exception.Descriptor,
-                    exception.Symbol.Locations.FirstOrDefault(),
-                    exception.Args));
-        }
-    }
-
-    internal class DiagnosticException : Exception
-    {
-        public DiagnosticDescriptor Descriptor { get; }
-
-        public ISymbol Symbol { get; }
-
-        public object[] Args { get; }
-
-        public DiagnosticException(
-            DiagnosticDescriptor descriptor,
-            ISymbol symbol,
-            params object[] args)
-        {
-            Descriptor = descriptor;
-            Symbol = symbol;
-            Args = args;
-        }
-    }
-
-    internal static class DiagnosticDescriptors
-    {
         public static readonly DiagnosticDescriptor FunctionCommandTooManyParameters = new(
             id: "EFSP1001",
             title: "FunctionCommand method has too many parameters",

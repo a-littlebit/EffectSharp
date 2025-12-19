@@ -1,16 +1,50 @@
 using EffectSharp.SourceGenerators.Context;
 using EffectSharp.SourceGenerators.Emitters;
+using EffectSharp.SourceGenerators.Utils;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 
 namespace EffectSharp.SourceGenerators.Emitters
 {
     internal class ComputedListEmitter : IReactiveModelEmitter
     {
+        public void RequireTypes(KnownTypeRegistry registry)
+        {
+            registry.Require("System.Collections.Generic.IList`1");
+        }
+
+        public IncrementalValuesProvider<INamedTypeSymbol> Subcribe(
+            IncrementalGeneratorInitializationContext context,
+            IncrementalValuesProvider<INamedTypeSymbol> modelProvider)
+        {
+            var methods = context.SyntaxProvider
+                .ForAttributeWithMetadataName(
+                    fullyQualifiedMetadataName: "EffectSharp.SourceGenerators.ComputedListAttribute",
+                    predicate: static (node, _) => node is MethodDeclarationSyntax,
+                    transform: static (ctx, _) => (IMethodSymbol)ctx.TargetSymbol)
+                .Where(static m => m is not null)
+                .Select(static (m, _) => (m, m.GetAttributeData("EffectSharp.SourceGenerators.ComputedListAttribute")))
+                .WithComparer(EqualityComparer<(IMethodSymbol, AttributeData)>.Default)
+                .Select(static (pair, _) => pair.Item1)
+                .Collect();
+
+            return modelProvider.Combine(methods)
+                .Select(static (pair, _) =>
+                {
+                    var (modelSymbol, methods) = pair;
+                    return (modelSymbol, methods.Where(m => SymbolEqualityComparer.Default.Equals(m.ContainingType, modelSymbol)).ToImmutableArray());
+                })
+                .WithComparer(EqualityComparer<(INamedTypeSymbol, ImmutableArray<IMethodSymbol>)>.Default)
+                .Select((pair, _) => pair.Item1);
+        }
+
         public void Emit(ReactiveModelContext context, IndentedTextWriter iw)
         {
-            context.ComputedListContexts ??= context.ModelSymbol.GetMembers()
+            context.ComputedListContexts = context.ModelSymbol.GetMembers()
                 .OfType<IMethodSymbol>()
                 .Select(m => new ComputedListContext(m, context))
                 .Where(c => c.AttributeData != null)

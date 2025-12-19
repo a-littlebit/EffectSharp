@@ -61,7 +61,7 @@ namespace EffectSharp.SourceGenerators.Utils
                 : string.Empty;
 
             var types = Enumerable.Repeat(symbol, 1)
-                .Concat(GetContainingTypes(symbol))
+                .Concat(symbol.GetContainingTypes())
                 .Reverse() // outermost → innermost
                 .Select(s => s.Name);
 
@@ -80,16 +80,6 @@ namespace EffectSharp.SourceGenerators.Utils
                 qualified = symbol.Name.Replace('`', '_');
 
             return qualified + ".ReactiveModel.g.cs";
-        }
-
-        private static System.Collections.Generic.IEnumerable<INamedTypeSymbol> GetContainingTypes(INamedTypeSymbol symbol)
-        {
-            var current = symbol.ContainingType;
-            while (current != null)
-            {
-                yield return current;
-                current = current.ContainingType;
-            }
         }
     }
 }
