@@ -89,9 +89,6 @@ public sealed class ReactiveModelGenerator : IIncrementalGenerator
             iw.Indent++;
         }
 
-        var version = typeof(ReactiveModelGenerator).Assembly.GetName().Version?.ToString() ?? "unknown";
-        iw.WriteLine($"[global::System.CodeDom.Compiler.GeneratedCode(\"EffectSharp.SourceGenerators.ReactiveModelGenerator\", \"{version}\")]");
-
         // Emit containing type wrappers if nested
         var containingTypes = new Stack<INamedTypeSymbol>();
         var ct = model.ContainingType;
@@ -109,6 +106,9 @@ public sealed class ReactiveModelGenerator : IIncrementalGenerator
             iw.WriteLine("{");
             iw.Indent++;
         }
+
+        var version = typeof(ReactiveModelGenerator).Assembly.GetName().Version?.ToString() ?? "unknown";
+        iw.WriteLine($"[global::System.CodeDom.Compiler.GeneratedCode(\"EffectSharp.SourceGenerators.ReactiveModelGenerator\", \"{version}\")]");
 
         // Compose base list for the model only when interfaces are not already implemented
         const string baseList = "IReactive, System.ComponentModel.INotifyPropertyChanging, System.ComponentModel.INotifyPropertyChanged";
