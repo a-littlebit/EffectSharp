@@ -40,10 +40,13 @@ public partial class CounterViewModel : IDisposable
     [ReactiveField]
     private int _count = 0;
 
-    [FunctionCommand(CanExecute = nameof(CanIncrement))]
+    [FunctionCommand]
     public void Increment() => Count++; // Generated property
 
-    public bool CanIncrement() => Count < int.MaxValue;
+    [FunctionCommand(CanExecute = nameof(CanDecrement))]
+    public void Decrement() => Count--;
+    
+    public bool CanDecrement() => Count > 0;
 
     [Computed]
     public string ComputeDisplayCount() => $"Current Count: {Count}";
@@ -108,7 +111,8 @@ What gets generated (conceptually):
 
 ### `[ReactiveModel]` (class)
 Marks a partial class as a reactive model. The generator adds interfaces and generated members to this partial type
-and an `InitializeReactiveModel()` method to wire up reactive properties, computed values, commands, and watchers.
+with an `InitializeReactiveModel()` method to wire up reactive properties, computed values, commands, and watchers
+and a `DisposeReactiveModel()` method to release resources.
 
 ### `[ReactiveField]` (field)
 Generates a reactive property for the field.
