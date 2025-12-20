@@ -9,10 +9,6 @@ namespace EffectSharp.SourceGenerators.Emitters
     {
         void RequireTypes(KnownTypeRegistry registry);
 
-        IncrementalValuesProvider<INamedTypeSymbol> Subcribe(
-            IncrementalGeneratorInitializationContext context,
-            IncrementalValuesProvider<INamedTypeSymbol> modelProvider);
-
         void Emit(
             ReactiveModelContext context,
             IndentedTextWriter writer);

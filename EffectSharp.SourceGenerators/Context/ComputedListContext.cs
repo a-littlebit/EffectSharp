@@ -35,7 +35,7 @@ namespace EffectSharp.SourceGenerators.Context
                 modelContext.ProductionContext.Report(
                     DiagnosticHelper.ComputedListInvalidReturnType,
                     method,
-                    [method.Name]);
+                    method.Name);
                 return;
             }
 
@@ -44,7 +44,7 @@ namespace EffectSharp.SourceGenerators.Context
                 modelContext.ProductionContext.Report(
                     DiagnosticHelper.ComputedListInvalidReturnType,
                     method,
-                    [method.Name]);
+                    method.Name);
                 return;
             }
 

@@ -133,7 +133,7 @@ namespace EffectSharp.SourceGenerators.Context
             context.ProductionContext.Report(
                 descriptor,
                 MethodSymbol,
-                [MethodSymbol.Name]);
+                MethodSymbol.Name);
         }
     }
 }

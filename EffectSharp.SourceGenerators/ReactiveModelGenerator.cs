@@ -40,14 +40,15 @@ public sealed class ReactiveModelGenerator : IIncrementalGenerator
                 predicate: static (node, _) => node is ClassDeclarationSyntax,
                 transform: static (ctx, _) => (INamedTypeSymbol)ctx.TargetSymbol)
             .Where(static m => m is not null)
-            .WithComparer(SymbolEqualityComparer.Default);
+            .WithComparer(new TypeMemberAttributesComparer(new[]
+            {
+                "EffectSharp.SourceGenerators"
+            }));
 
         var knownTypeRegistry = new KnownTypeRegistry();
         SymbolExtensions.RequireTypes(knownTypeRegistry);
-
         foreach (var emitter in _emitters)
         {
-            models = emitter.Subcribe(context, models);
             emitter.RequireTypes(knownTypeRegistry);
         }
 

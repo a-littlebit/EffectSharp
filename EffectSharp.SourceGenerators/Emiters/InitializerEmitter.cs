@@ -17,13 +17,6 @@ namespace EffectSharp.SourceGenerators.Emitters
             // No specific types required
         }
 
-        public IncrementalValuesProvider<INamedTypeSymbol> Subcribe(
-            IncrementalGeneratorInitializationContext context,
-            IncrementalValuesProvider<INamedTypeSymbol> modelProvider)
-        {
-            return modelProvider;
-        }
-
         public void Emit(ReactiveModelContext context, IndentedTextWriter writer)
         {
             writer.WriteLine("public void InitializeReactiveModel()");

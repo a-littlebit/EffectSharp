@@ -45,7 +45,7 @@ namespace EffectSharp.SourceGenerators.Context
                 modelContext.ProductionContext.Report(
                     DiagnosticHelper.WatchMethodTooManyParameters,
                     MethodSymbol,
-                    [MethodSymbol.Name]);
+                    MethodSymbol.Name);
                 return;
             }
 

@@ -32,7 +32,7 @@ namespace EffectSharp.SourceGenerators.Context
                 modelContext.ProductionContext.Report(
                     DiagnosticHelper.ComputedMethodTooManyParameters,
                     method,
-                    [method.Name]);
+                    method.Name);
                 return;
             }
 

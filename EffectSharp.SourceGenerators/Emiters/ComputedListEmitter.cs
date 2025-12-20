@@ -17,31 +17,6 @@ namespace EffectSharp.SourceGenerators.Emitters
             registry.Require("System.Collections.Generic.IList`1");
         }
 
-        public IncrementalValuesProvider<INamedTypeSymbol> Subcribe(
-            IncrementalGeneratorInitializationContext context,
-            IncrementalValuesProvider<INamedTypeSymbol> modelProvider)
-        {
-            var methods = context.SyntaxProvider
-                .ForAttributeWithMetadataName(
-                    fullyQualifiedMetadataName: "EffectSharp.SourceGenerators.ComputedListAttribute",
-                    predicate: static (node, _) => node is MethodDeclarationSyntax,
-                    transform: static (ctx, _) => (IMethodSymbol)ctx.TargetSymbol)
-                .Where(static m => m is not null)
-                .Select(static (m, _) => (m, m.GetAttributeData("EffectSharp.SourceGenerators.ComputedListAttribute")))
-                .WithComparer(EqualityComparer<(IMethodSymbol, AttributeData)>.Default)
-                .Select(static (pair, _) => pair.Item1)
-                .Collect();
-
-            return modelProvider.Combine(methods)
-                .Select(static (pair, _) =>
-                {
-                    var (modelSymbol, methods) = pair;
-                    return (modelSymbol, methods.Where(m => SymbolEqualityComparer.Default.Equals(m.ContainingType, modelSymbol)).ToImmutableArray());
-                })
-                .WithComparer(EqualityComparer<(INamedTypeSymbol, ImmutableArray<IMethodSymbol>)>.Default)
-                .Select((pair, _) => pair.Item1);
-        }
-
         public void Emit(ReactiveModelContext context, IndentedTextWriter iw)
         {
             context.ComputedListContexts = context.ModelSymbol.GetMembers()

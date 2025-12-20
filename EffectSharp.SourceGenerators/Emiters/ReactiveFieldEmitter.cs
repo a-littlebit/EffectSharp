@@ -18,31 +18,6 @@ namespace EffectSharp.SourceGenerators.Emitters
             registry.Require("EffectSharp.IReactive");
         }
 
-        public IncrementalValuesProvider<INamedTypeSymbol> Subcribe(
-            IncrementalGeneratorInitializationContext context,
-            IncrementalValuesProvider<INamedTypeSymbol> modelProvider)
-        {
-            var fields = context.SyntaxProvider
-                .ForAttributeWithMetadataName(
-                    fullyQualifiedMetadataName: "EffectSharp.SourceGenerators.ReactiveFieldAttribute",
-                    predicate: static (node, _) => node is FieldDeclarationSyntax,
-                    transform: static (ctx, _) => (IFieldSymbol)ctx.TargetSymbol)
-                .Where(static m => m is not null)
-                .Select(static (m, _) => (m, m.GetAttributeData("EffectSharp.SourceGenerators.ReactiveFieldAttribute")))
-                .WithComparer(EqualityComparer<(IFieldSymbol, AttributeData)>.Default)
-                .Select(static (pair, _) => pair.Item1)
-                .Collect();
-
-            return modelProvider.Combine(fields)
-                .Select(static (pair, _) =>
-                {
-                    var (modelSymbol, methods) = pair;
-                    return (modelSymbol, methods.Where(m => SymbolEqualityComparer.Default.Equals(m.ContainingType, modelSymbol)).ToImmutableArray());
-                })
-                .WithComparer(EqualityComparer<(INamedTypeSymbol, ImmutableArray<IFieldSymbol>)>.Default)
-                .Select((pair, _) => pair.Item1);
-        }
-
         public void Emit(
             ReactiveModelContext context,
             IndentedTextWriter iw)
