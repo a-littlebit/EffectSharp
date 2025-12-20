@@ -49,8 +49,11 @@ namespace EffectSharp.SourceGenerators.Emitters
         {
             foreach (var commandContext in context.FunctionCommands)
             {
-                writer.Write($"this.{commandContext.FieldName} = FunctionCommand." +
-                    $"{commandContext.HelperFunctionName}{commandContext.GenericTypeArguments}((param");
+                writer.WriteLine($"this.{commandContext.FieldName} = FunctionCommand." +
+                    $"{commandContext.HelperFunctionName}{commandContext.GenericTypeArguments}(");
+
+                writer.Indent++;
+                writer.Write("(param");
 
                 if (commandContext.IsAsync)
                     writer.Write(", cancellationToken");
@@ -69,17 +72,9 @@ namespace EffectSharp.SourceGenerators.Emitters
 
                 writer.Write(")");
 
-                var hasNewLine = false;
                 void WriteOption(string name, string value)
                 {
-                    if (hasNewLine)
-                        writer.WriteLine(",");
-                    else
-                    {
-                        writer.WriteLine(",");
-                        writer.Indent++;
-                        hasNewLine = true;
-                    }
+                    writer.WriteLine(",");
                     writer.Write($"{name}: {value}");
                 }
 
@@ -93,8 +88,7 @@ namespace EffectSharp.SourceGenerators.Emitters
                     WriteOption("executionScheduler", commandContext.ExecutionScheduler);
 
                 writer.WriteLine(");");
-                if (hasNewLine)
-                    writer.Indent--;
+                writer.Indent--;
 
                 writer.WriteLine();
             }
