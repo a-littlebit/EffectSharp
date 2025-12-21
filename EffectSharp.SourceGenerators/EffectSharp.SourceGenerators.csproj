@@ -7,6 +7,23 @@
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <Title>EffectSharp.SourceGenerators</Title>
+    <Version>1.3.0</Version>
+    <Authors>a-littlebit</Authors>
+    <Description>Declarative reactive model generation for EffectSharp.</Description>
+    <PackageProjectUrl>https://github.com/a-littlebit/EffectSharp/tree/main/EffectSharp.SourceGenerators</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/a-littlebit/EffectSharp/tree/main/EffectSharp.SourceGenerators</RepositoryUrl>
+    <PackageTags>Vue;ref;computed;watch;Reactive;StateManagement;WPF;MAUI;DataBinding;MVVM;UI;Diff;SourceGenerator</PackageTags>
+    <Copyright>© 2025 a-littlebit</Copyright>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <IncludeSymbols>True</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+
   <ItemGroup>
     <!-- Roslyn API -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" PrivateAssets="all" />
@@ -16,6 +33,20 @@
   <ItemGroup>
     <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
     <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>

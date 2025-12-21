@@ -2,10 +2,13 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <Title>EffectSharp</Title>
-    <Version>1.2.2</Version>
+    <Version>1.3.0</Version>
     <Authors>a-littlebit</Authors>
-    <Description>Lightweight reactive state management for .NET with a Vue 3 inspired API.</Description>
+    <Description>Source generator for EffectSharp that turns simple C# classes into reactive view models using attributes.</Description>
     <PackageProjectUrl>https://github.com/a-littlebit/EffectSharp</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/a-littlebit/EffectSharp</RepositoryUrl>
