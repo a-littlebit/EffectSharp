@@ -5,6 +5,8 @@
     <LangVersion>latest</LangVersion>
     <IsRoslynAnalyzer>true</IsRoslynAnalyzer>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <DevelopmentDependency>true</DevelopmentDependency>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -18,10 +20,6 @@
     <PackageTags>Vue;ref;computed;watch;Reactive;StateManagement;WPF;MAUI;DataBinding;MVVM;UI;Diff;SourceGenerator</PackageTags>
     <Copyright>© 2025 a-littlebit</Copyright>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <IncludeSymbols>True</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -47,6 +45,10 @@
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
   </ItemGroup>
 
 </Project>
