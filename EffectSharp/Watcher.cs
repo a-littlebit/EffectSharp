@@ -35,16 +35,16 @@ namespace EffectSharp
             bool immediate = false,
             bool deep = false,
             bool once = false,
-            Action<Effect> scheduler = null,
+            Action<Effect>? scheduler = null,
             bool suppressEquality = true,
-            IEqualityComparer<T> equalityComparer = null)
+            IEqualityComparer<T>? equalityComparer = null)
         {
             if (getter == null) throw new ArgumentNullException(nameof(getter));
             if (callback == null) throw new ArgumentNullException(nameof(callback));
             if (suppressEquality && equalityComparer == null)
                 equalityComparer = EqualityComparer<T>.Default;
 
-            T oldValue = default;
+            T oldValue = default!;
             bool firstRun = true;
 
             return new Effect(() =>
@@ -68,7 +68,7 @@ namespace EffectSharp
                         }
                     }
                 }
-                else if (suppressEquality && equalityComparer.Equals(oldValue, newValue) && !firstRun)
+                else if (suppressEquality && equalityComparer!.Equals(oldValue, newValue) && !firstRun)
                 {
                     return;
                 }
@@ -91,7 +91,7 @@ namespace EffectSharp
 
                 if (once)
                 {
-                    Effect.Current.Dispose();
+                    Effect.Current!.Dispose();
                 }
             }, scheduler);
         }
@@ -125,9 +125,9 @@ namespace EffectSharp
             bool immediate = false,
             bool deep = false,
             bool once = false,
-            Action<Effect> scheduler = null,
+            Action<Effect>? scheduler = null,
             bool suppressEquality = true,
-            IEqualityComparer<T> equalityComparer = null)
+            IEqualityComparer<T>? equalityComparer = null)
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
             return Watch(() => source.Value, callback, immediate, deep, once, scheduler, suppressEquality, equalityComparer);

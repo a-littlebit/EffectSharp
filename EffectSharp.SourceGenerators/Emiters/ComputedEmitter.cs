@@ -50,7 +50,7 @@ namespace EffectSharp.SourceGenerators.Emitters
 
         static void EmitInitializer(ReactiveModelContext modelContext, IndentedTextWriter iw)
         {
-            foreach (var computedContext in modelContext.ComputedContexts)
+            foreach (var computedContext in modelContext.ComputedContexts!)
             {
                 var valueType = computedContext.ValueTypeName;
                 iw.Write($"this.{computedContext.FieldName} = " +
@@ -82,7 +82,7 @@ namespace EffectSharp.SourceGenerators.Emitters
 
         static void EmitDisposer(ReactiveModelContext modelContext, IndentedTextWriter iw)
         {
-            foreach (var computedContext in modelContext.ComputedContexts)
+            foreach (var computedContext in modelContext.ComputedContexts!)
             {
                 iw.WriteLine($"this.{computedContext.FieldName}?.Dispose();");
                 iw.WriteLine($"this.{computedContext.FieldName} = null;");

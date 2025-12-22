@@ -28,20 +28,22 @@ namespace EffectSharp
         /// </summary>
         public ReactiveCollection(List<T> list) : base(list) { }
 
-        private readonly List<Dependency> _indexDependencies = new List<Dependency>();
-        private readonly Dependency _listDependency = new Dependency();
+        private readonly List<Dependency> _indexDependencies = new();
+        private readonly Dependency _listDependency = new();
 
         private void EnsureDependencyIndex(int index)
         {
             int extend = index - _indexDependencies.Count + 1;
             if (extend > 0)
             {
-                _indexDependencies.AddRange(Enumerable.Repeat<Dependency>(null, extend));
+                _indexDependencies.AddRange(Enumerable.Repeat<Dependency>(null!, extend));
             }
         }
 
         private void TrackIndexDependency(int index)
         {
+            if (Effect.Current == null) return;
+
             EnsureDependencyIndex(index);
             var dep = _indexDependencies[index];
             if (dep == null)

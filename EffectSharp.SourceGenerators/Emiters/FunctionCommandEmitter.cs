@@ -47,7 +47,7 @@ namespace EffectSharp.SourceGenerators.Emitters
 
         static void EmitInitializer(ReactiveModelContext context, IndentedTextWriter writer)
         {
-            foreach (var commandContext in context.FunctionCommands)
+            foreach (var commandContext in context.FunctionCommands!)
             {
                 writer.WriteLine($"this.{commandContext.FieldName} = FunctionCommand." +
                     $"{commandContext.HelperFunctionName}{commandContext.GenericTypeArguments}(");
@@ -79,13 +79,13 @@ namespace EffectSharp.SourceGenerators.Emitters
                 }
 
                 if (!string.IsNullOrWhiteSpace(commandContext.CanExecute))
-                    WriteOption("canExecute", commandContext.CanExecute);
+                    WriteOption("canExecute", commandContext.CanExecute!);
 
                 if (!commandContext.AllowConcurrentExecution)
                     WriteOption("allowConcurrentExecution", "false");
 
                 if (commandContext.IsAsync && !string.IsNullOrWhiteSpace(commandContext.ExecutionScheduler))
-                    WriteOption("executionScheduler", commandContext.ExecutionScheduler);
+                    WriteOption("executionScheduler", commandContext.ExecutionScheduler!);
 
                 writer.WriteLine(");");
                 writer.Indent--;
@@ -96,7 +96,7 @@ namespace EffectSharp.SourceGenerators.Emitters
 
         static void EmitDisposer(ReactiveModelContext modelContext, IndentedTextWriter iw)
         {
-            foreach (var commandContext in modelContext.FunctionCommands)
+            foreach (var commandContext in modelContext.FunctionCommands!)
             {
                 iw.WriteLine($"this.{commandContext.FieldName}?.Dispose();");
                 iw.WriteLine($"this.{commandContext.FieldName} = null;");

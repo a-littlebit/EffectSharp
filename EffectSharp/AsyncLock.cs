@@ -16,7 +16,7 @@ namespace EffectSharp
         /// </summary>
         public AsyncLock()
         {
-            _semaphore = new SemaphoreSlim(1, 1);
+            _semaphore = new(1, 1);
         }
 
         /// <summary>
@@ -25,7 +25,7 @@ namespace EffectSharp
         /// otherwise attempts a reentrant increment on the provided scope.
         /// </summary>
         public async Task<Scope> EnterAsync(
-            Scope existingScope = null,
+            Scope? existingScope = null,
             CancellationToken cancellationToken = default)
         {
             if (existingScope != null)
@@ -48,7 +48,7 @@ namespace EffectSharp
         /// Synchronously enters the lock or reenters an existing <see cref="Scope"/>.
         /// If <paramref name="existingScope"/> is null, blocks until acquired; otherwise performs a reentrant increment.
         /// </summary>
-        public Scope Enter(Scope existingScope = null)
+        public Scope Enter(Scope? existingScope = null)
         {
             if (existingScope != null)
             {
@@ -69,7 +69,7 @@ namespace EffectSharp
         /// If <paramref name="scope"/> is null, attempts non-blocking acquisition; otherwise attempts reentrant increment.
         /// </summary>
         /// <returns>true if lock/reentry succeeded; false if lock is taken by another thread.</returns>
-        public bool TryEnter(ref Scope scope)
+        public bool TryEnter(ref Scope? scope)
         {
             if (scope != null)
             {
@@ -97,7 +97,7 @@ namespace EffectSharp
         /// Attempts to synchronously acquire the lock without blocking, returning a new scope if successful.
         /// This method does not support reentrancy and either returns a new ownership scope or null.
         /// </summary>
-        public Scope TryEnter()
+        public Scope? TryEnter()
         {
             // Attempt non-blocking acquisition.
             if (_semaphore.Wait(0))
@@ -124,7 +124,7 @@ namespace EffectSharp
             // ref count: number of outstanding "Enters" on this scope.
             // invariant: refCount >= 0. 0 means fully released.
             private int _refCount; // starts at 1 for a newly created scope
-            internal AsyncLock Owner;
+            internal AsyncLock? Owner;
 
             internal Scope(AsyncLock owner)
             {
@@ -176,7 +176,7 @@ namespace EffectSharp
                 if (newRefCount == 0)
                 {
                     // last Dispose, release the lock
-                    Owner.Exit();
+                    Owner!.Exit();
                     Owner = null;
                 }
                 else if (newRefCount < 0)

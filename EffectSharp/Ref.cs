@@ -18,20 +18,20 @@ namespace EffectSharp
         /// <summary>
         /// Raised before the value changes.
         /// </summary>
-        public event PropertyChangingEventHandler PropertyChanging;
+        public event PropertyChangingEventHandler? PropertyChanging;
         /// <summary>
         /// Raised after the value has changed.
         /// </summary>
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
 
-        private readonly Dependency _dependency = new Dependency();
+        private readonly Dependency _dependency = new();
         protected readonly IAtomic<T> _value;
         private readonly IEqualityComparer<T> _equalityComparer;
 
         /// <summary>
         /// Initializes a new reactive reference with an optional initial value and equality comparer.
         /// </summary>
-        public Ref(T initialValue = default, IEqualityComparer<T> equalityComparer = null)
+        public Ref(T initialValue = default!, IEqualityComparer<T>? equalityComparer = null)
         {
             _value = AtomicFactory<T>.Create(initialValue);
             _equalityComparer = equalityComparer ?? EqualityComparer<T>.Default;

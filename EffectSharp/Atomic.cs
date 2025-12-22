@@ -105,7 +105,7 @@ namespace EffectSharp
             return Interlocked.Add(ref _value, value);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null) return false;
             if (obj is AtomicInt other) return Value == other.Value;
@@ -190,7 +190,7 @@ namespace EffectSharp
             return Interlocked.Add(ref _value, value);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null) return false;
             if (obj is AtomicLong other) return Value == other.Value;
@@ -253,7 +253,7 @@ namespace EffectSharp
             return Interlocked.Exchange(ref _value, newValue ? 1 : 0) == 1;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null) return false;
             if (obj is AtomicBool other) return Value == other.Value;
@@ -317,7 +317,7 @@ namespace EffectSharp
             return Interlocked.Exchange(ref _value, newValue);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null) return false;
             if (obj is AtomicFloat other) return Value.Equals(other.Value);
@@ -381,7 +381,7 @@ namespace EffectSharp
             return Interlocked.Exchange(ref _value, newValue);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null) return false;
             if (obj is AtomicDouble other) return Value.Equals(other.Value);
@@ -442,7 +442,7 @@ namespace EffectSharp
             return (byte)Interlocked.Exchange(ref _value, newValue);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null) return false;
             if (obj is AtomicByte other) return Value == other.Value;
@@ -503,7 +503,7 @@ namespace EffectSharp
             return (short)Interlocked.Exchange(ref _value, newValue);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null) return false;
             if (obj is AtomicShort other) return Value == other.Value;
@@ -566,7 +566,7 @@ namespace EffectSharp
             return unchecked((uint)Interlocked.Exchange(ref _value, unchecked((int)newValue)));
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null) return false;
             if (obj is AtomicUInt other) return Value == other.Value;
@@ -629,7 +629,7 @@ namespace EffectSharp
             return unchecked((ulong)Interlocked.Exchange(ref _value, unchecked((long)newValue)));
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null) return false;
             if (obj is AtomicULong other) return Value == other.Value;
@@ -690,7 +690,7 @@ namespace EffectSharp
             return (char)Interlocked.Exchange(ref _value, newValue);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null) return false;
             if (obj is AtomicChar other) return Value == other.Value;
@@ -751,7 +751,7 @@ namespace EffectSharp
             return new DateTime(Interlocked.Exchange(ref _ticks, newValue.Ticks));
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null) return false;
             if (obj is AtomicDateTime other) return Value.Equals(other.Value);
@@ -812,7 +812,7 @@ namespace EffectSharp
             return new TimeSpan(Interlocked.Exchange(ref _ticks, newValue.Ticks));
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null) return false;
             if (obj is AtomicTimeSpan other) return Value.Equals(other.Value);
@@ -833,12 +833,12 @@ namespace EffectSharp
     /// <typeparam name="T">Complex value type or reference type</typeparam>
     public class AtomicReference<T> : IAtomic<T>
     {
-        private object _value;
+        private object? _value;
 
         /// <summary>
         /// Initialize AtomicBoxed with default value
         /// </summary>
-        public AtomicReference() : this(default) { }
+        public AtomicReference() : this(default!) { }
 
         /// <summary>
         /// Initialize AtomicBoxed with specific value
@@ -854,7 +854,7 @@ namespace EffectSharp
         /// </summary>
         public T Value
         {
-            get => (T)Volatile.Read(ref _value);
+            get => (T)Volatile.Read(ref _value)!;
             set => Interlocked.Exchange(ref _value, value);
         }
 
@@ -866,7 +866,7 @@ namespace EffectSharp
         /// <returns>True if exchange succeeded</returns>
         public bool CompareExchange(T newValue, T compareValue)
         {
-            return Interlocked.CompareExchange(ref _value, newValue, compareValue) == (object)compareValue;
+            return Interlocked.CompareExchange(ref _value, newValue, compareValue) == (object?)compareValue;
         }
 
         /// <summary>
@@ -877,7 +877,7 @@ namespace EffectSharp
             return (T)Interlocked.Exchange(ref _value, newValue);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null) return false;
             if (!(obj is AtomicReference<T> other)) return false;
@@ -905,40 +905,40 @@ namespace EffectSharp
             switch (typeof(T))
             {
                 case Type t when t == typeof(int):
-                    _creator = (initialValue) => (IAtomic<T>)new AtomicInt((int)(object)initialValue);
+                    _creator = (initialValue) => (IAtomic<T>)new AtomicInt((int)(object)initialValue!);
                     break;
                 case Type t when t == typeof(long):
-                    _creator = (initialValue) => (IAtomic<T>)new AtomicLong((long)(object)initialValue);
+                    _creator = (initialValue) => (IAtomic<T>)new AtomicLong((long)(object)initialValue!);
                     break;
                 case Type t when t == typeof(bool):
-                    _creator = (initialValue) => (IAtomic<T>)new AtomicBool((bool)(object)initialValue);
+                    _creator = (initialValue) => (IAtomic<T>)new AtomicBool((bool)(object)initialValue!);
                     break;
                 case Type t when t == typeof(float):
-                    _creator = (initialValue) => (IAtomic<T>)new AtomicFloat((float)(object)initialValue);
+                    _creator = (initialValue) => (IAtomic<T>)new AtomicFloat((float)(object)initialValue!);
                     break;
                 case Type t when t == typeof(double):
-                    _creator = (initialValue) => (IAtomic<T>)new AtomicDouble((double)(object)initialValue);
+                    _creator = (initialValue) => (IAtomic<T>)new AtomicDouble((double)(object)initialValue!);
                     break;
                 case Type t when t == typeof(byte):
-                    _creator = (initialValue) => (IAtomic<T>)new AtomicByte((byte)(object)initialValue);
+                    _creator = (initialValue) => (IAtomic<T>)new AtomicByte((byte)(object)initialValue!);
                     break;
                 case Type t when t == typeof(short):
-                    _creator = (initialValue) => (IAtomic<T>)new AtomicShort((short)(object)initialValue);
+                    _creator = (initialValue) => (IAtomic<T>)new AtomicShort((short)(object)initialValue!);
                     break;
                 case Type t when t == typeof(uint):
-                    _creator = (initialValue) => (IAtomic<T>)new AtomicUInt((uint)(object)initialValue);
+                    _creator = (initialValue) => (IAtomic<T>)new AtomicUInt((uint)(object)initialValue!);
                     break;
                 case Type t when t == typeof(ulong):
-                    _creator = (initialValue) => (IAtomic<T>)new AtomicULong((ulong)(object)initialValue);
+                    _creator = (initialValue) => (IAtomic<T>)new AtomicULong((ulong)(object)initialValue!);
                     break;
                 case Type t when t == typeof(char):
-                    _creator = (initialValue) => (IAtomic<T>)new AtomicChar((char)(object)initialValue);
+                    _creator = (initialValue) => (IAtomic<T>)new AtomicChar((char)(object)initialValue!);
                     break;
                 case Type t when t == typeof(DateTime):
-                    _creator = (initialValue) => (IAtomic<T>)new AtomicDateTime((DateTime)(object)initialValue);
+                    _creator = (initialValue) => (IAtomic<T>)new AtomicDateTime((DateTime)(object)initialValue!);
                     break;
                 case Type t when t == typeof(TimeSpan):
-                    _creator = (initialValue) => (IAtomic<T>)new AtomicTimeSpan((TimeSpan)(object)initialValue);
+                    _creator = (initialValue) => (IAtomic<T>)new AtomicTimeSpan((TimeSpan)(object)initialValue!);
                     break;
                 default:
                     _creator = (initialValue) => new AtomicReference<T>(initialValue);
@@ -951,7 +951,7 @@ namespace EffectSharp
         /// </summary>
         /// <param name="initialValue">Initial value (default: default(T))</param>
         /// <returns>Optimal <see cref="IAtomic{T}"/> implementation for <typeparamref name="T"/>.</returns>
-        public static IAtomic<T> Create(T initialValue = default)
+        public static IAtomic<T> Create(T initialValue = default!)
         {
             return _creator(initialValue);
         }

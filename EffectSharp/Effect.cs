@@ -12,34 +12,34 @@ namespace EffectSharp
     /// </summary>
     public class Effect : IDisposable
     {
-        internal static readonly ThreadLocal<Effect> _current = new ThreadLocal<Effect>();
+        internal static readonly ThreadLocal<Effect?> _current = new();
 
         /// <summary>
         /// Gets the effect currently being executed (tracking dependencies), if any.
         /// </summary>
-        public static Effect Current => _current.Value;
+        public static Effect? Current => _current.Value;
 
         private readonly Action _action;
 
-        private readonly Action<Effect> _scheduler;
+        private readonly Action<Effect>? _scheduler;
 
         private volatile bool _isDisposed = false;
 
-        private readonly AsyncLock _lock = new AsyncLock();
+        private readonly AsyncLock _lock = new();
 
         // Allows direct access to the locked effect API during execution.
-        private readonly ThreadLocal<AsyncLock.Scope> _executionScope = new ThreadLocal<AsyncLock.Scope>();
+        private readonly ThreadLocal<AsyncLock.Scope?> _executionScope = new();
 
         /// <summary>
         /// Gets the custom scheduler used to enqueue this effect, if provided.
         /// </summary>
-        public Action<Effect> Scheduler => _scheduler;
+        public Action<Effect>? Scheduler => _scheduler;
         /// <summary>
         /// Indicates whether this effect has been disposed.
         /// </summary>
         public bool IsDisposed => _isDisposed;
 
-        private readonly HashSet<Dependency> _dependencies = new HashSet<Dependency>();
+        private readonly HashSet<Dependency> _dependencies = new();
 
         /// <summary>
         /// Creates a new reactive effect that tracks dependencies and re-executes when they change.
@@ -47,7 +47,7 @@ namespace EffectSharp
         /// <param name="action">The effect body to execute.</param>
         /// <param name="scheduler">Optional scheduler to control execution; defaults to internal batching.</param>
         /// <param name="lazy">If false, executes immediately; if true, delays until scheduled.</param>
-        public Effect(Action action, Action<Effect> scheduler = null, bool lazy = false)
+        public Effect(Action action, Action<Effect>? scheduler = null, bool lazy = false)
         {
             _action = action;
             _scheduler = scheduler;
@@ -66,7 +66,7 @@ namespace EffectSharp
         /// Executes the effect body, tracking dependencies encountered during execution.
         /// </summary>
         /// <param name="existingScope">Optional existing lock scope.</param>
-        public void Execute(AsyncLock.Scope existingScope = null)
+        public void Execute(AsyncLock.Scope? existingScope = null)
         {
             if (_executionScope.Value != null)
             {
@@ -156,7 +156,7 @@ namespace EffectSharp
         /// Stops the effect and unsubscribes from all tracked dependencies.
         /// </summary>
         /// <param name="existingScope">Optional existing lock scope.</param>
-        public void Stop(AsyncLock.Scope existingScope = null)
+        public void Stop(AsyncLock.Scope? existingScope = null)
         {
             using (var scope = _lock.Enter(existingScope ?? _executionScope.Value))
             {
@@ -180,14 +180,14 @@ namespace EffectSharp
         /// </summary>
         public void Dispose()
         {
-            Dispose(_executionScope.Value);
+            Dispose(null);
         }
 
         /// <summary>
         /// Disposes the effect with an existing lock scope.
         /// </summary>
         /// <param name="existingScope">Existing lock scope.</param>
-        public void Dispose(AsyncLock.Scope existingScope)
+        public void Dispose(AsyncLock.Scope? existingScope)
         {
             using (var scope = _lock.Enter(existingScope ?? _executionScope.Value))
             {

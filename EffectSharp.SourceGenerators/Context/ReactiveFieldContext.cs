@@ -12,13 +12,13 @@ namespace EffectSharp.SourceGenerators.Context
     {
         public IFieldSymbol FieldSymbol { get; }
 
-        public AttributeData ReactiveFieldAttribute { get; }
+        public AttributeData? AttributeData { get; }
 
         public bool IsAtomic { get; }
 
         public ITypeSymbol UnderlyingType { get; }
 
-        public string EqualsMethod { get; }
+        public string? EqualsMethod { get; }
 
         public string PropertyName =>
             NameHelper.ToPascalCase(
@@ -44,7 +44,7 @@ namespace EffectSharp.SourceGenerators.Context
         public ReactiveFieldContext(IFieldSymbol field, ReactiveModelContext modelContext)
         {
             FieldSymbol = field;
-            ReactiveFieldAttribute = field.GetAttributeData("ReactiveField");
+            AttributeData = field.GetAttributeData("ReactiveField");
             IsAtomic = false;
             UnderlyingType = field.Type;
 
@@ -55,7 +55,7 @@ namespace EffectSharp.SourceGenerators.Context
                 UnderlyingType = atomicArg ?? field.Type;
             }
 
-            EqualsMethod = ReactiveFieldAttribute?.GetNamedArgument(
+            EqualsMethod = AttributeData?.GetNamedArgument(
                 "EqualsMethod",
                 "global::System.Collections.Generic.EqualityComparer<T>.Default");
         }

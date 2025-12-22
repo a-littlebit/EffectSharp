@@ -43,10 +43,10 @@ namespace EffectSharp.SourceGenerators.Emitters
 
         static void EmitInitializer(ReactiveModelContext modelContext, IndentedTextWriter writer)
         {
-            foreach (var watchContext in modelContext.WatchContexts)
+            foreach (var watchContext in modelContext.WatchContexts!)
             {
                 var valuesExpr = string.Join(", ", watchContext.Values);
-                if (watchContext.Values.Count > 1)
+                if (watchContext.Values!.Count > 1)
                     valuesExpr = "(" + valuesExpr + ")";
                 writer.WriteLine($"this.{watchContext.FieldName} = Reactive.Watch(() => {valuesExpr},");
                 writer.Indent++;
@@ -66,11 +66,11 @@ namespace EffectSharp.SourceGenerators.Emitters
                 if (watchContext.Immediate) WriteOption("immediate", "true");
                 if (watchContext.Deep) WriteOption("deep", "true");
                 if (watchContext.Once) WriteOption("once", "true");
-                if (!string.IsNullOrWhiteSpace(watchContext.Scheduler)) WriteOption("scheduler", watchContext.Scheduler);
+                if (!string.IsNullOrWhiteSpace(watchContext.Scheduler)) WriteOption("scheduler", watchContext.Scheduler!);
                 if (!watchContext.SuppressEquality)
                     WriteOption("suppressEquality", "false");
                 else if (!string.IsNullOrWhiteSpace(watchContext.EqualityComparer))
-                    WriteOption("equalityComparer", watchContext.EqualityComparer);
+                    WriteOption("equalityComparer", watchContext.EqualityComparer!);
 
                 writer.WriteLine(");");
                 writer.Indent--;
@@ -80,7 +80,7 @@ namespace EffectSharp.SourceGenerators.Emitters
 
         static void EmitDisposer(ReactiveModelContext modelContext, IndentedTextWriter writer)
         {
-            foreach (var watchContext in modelContext.WatchContexts)
+            foreach (var watchContext in modelContext.WatchContexts!)
             {
                 writer.WriteLine($"this.{watchContext.FieldName}?.Dispose();");
                 writer.WriteLine($"this.{watchContext.FieldName} = null;");

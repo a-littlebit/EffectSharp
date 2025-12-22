@@ -8,18 +8,18 @@ namespace EffectSharp.SourceGenerators.Context
     internal class ComputedListContext
     {
         public IMethodSymbol MethodSymbol { get; }
-        public AttributeData AttributeData { get; }
-        public INamedTypeSymbol ElementType { get; }
-        public INamedTypeSymbol ListType { get; }
-        public string PropertyName { get; }
+        public AttributeData? AttributeData { get; }
+        public INamedTypeSymbol? ElementType { get; }
+        public INamedTypeSymbol? ListType { get; }
+        public string? PropertyName { get; }
 
-        public string FieldName { get; }
+        public string? FieldName { get; }
 
-        public string EffectFieldName => FieldName + "_bindEffect";
+        public string? EffectFieldName => FieldName == null ? null : FieldName + "_bindEffect";
 
-        public string KeySelector { get; }
+        public string? KeySelector { get; }
 
-        public string EqualityComparer { get; }
+        public string? EqualityComparer { get; }
 
         public ComputedListContext(IMethodSymbol method, ReactiveModelContext modelContext)
         {

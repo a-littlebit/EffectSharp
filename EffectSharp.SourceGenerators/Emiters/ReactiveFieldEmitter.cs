@@ -25,7 +25,7 @@ namespace EffectSharp.SourceGenerators.Emitters
             context.ReactiveFields = context.ModelSymbol.GetMembers()
                               .OfType<IFieldSymbol>()
                               .Select(f => new ReactiveFieldContext(f, context))
-                              .Where(f => f.ReactiveFieldAttribute != null)
+                              .Where(f => f.AttributeData != null)
                               .ToList();
 
             EmitDependencyFields(context, iw);
@@ -39,7 +39,7 @@ namespace EffectSharp.SourceGenerators.Emitters
             ReactiveModelContext context,
             IndentedTextWriter iw)
         {
-            foreach (var field in context.ReactiveFields)
+            foreach (var field in context.ReactiveFields!)
             {
                 var fieldName = field.FieldSymbol.Name;
                 iw.WriteLine(
@@ -54,7 +54,7 @@ namespace EffectSharp.SourceGenerators.Emitters
             ReactiveModelContext context,
             IndentedTextWriter iw)
         {
-            foreach (var fieldContext in context.ReactiveFields)
+            foreach (var fieldContext in context.ReactiveFields!)
             {
                 var field = fieldContext.FieldSymbol;
                 var fieldName = field.Name;
@@ -133,7 +133,7 @@ namespace EffectSharp.SourceGenerators.Emitters
             iw.WriteLine("{");
             iw.Indent++;
 
-            foreach (var fieldContext in context.ReactiveFields)
+            foreach (var fieldContext in context.ReactiveFields!)
             {
                 var field = fieldContext.FieldSymbol;
                 var readExpression = fieldContext.GetReadExpression();

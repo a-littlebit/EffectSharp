@@ -16,25 +16,25 @@ namespace EffectSharp
     {
         private readonly IAtomic<T> _value;
         private int _dirtyFlag = 2; // 0: clean, 1: computing, 2: dirty
-        private readonly Action<T> _setter;
-        private readonly Dependency _dependency = new Dependency();
+        private readonly Action<T>? _setter;
+        private readonly Dependency _dependency = new();
         private readonly Effect _effect;
 
         /// <summary>
         /// Raised before the computed <see cref="Value"/> changes.
         /// </summary>
-        public event PropertyChangingEventHandler PropertyChanging;
+        public event PropertyChangingEventHandler? PropertyChanging;
         /// <summary>
         /// Raised after the computed <see cref="Value"/> has changed.
         /// </summary>
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
 
         /// <summary>
         /// Creates a computed reactive value.
         /// </summary>
         /// <param name="getter">Function that computes the value based on tracked dependencies.</param>
         /// <param name="setter">Optional setter to support assignment to <see cref="Value"/>.</param>
-        public Computed(Func<T> getter, Action<T> setter = null)
+        public Computed(Func<T> getter, Action<T>? setter = null)
         {
             _value = AtomicFactory<T>.Create();
             _setter = setter;

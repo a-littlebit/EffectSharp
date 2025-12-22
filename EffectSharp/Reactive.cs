@@ -26,7 +26,7 @@ namespace EffectSharp
         public static T Create<T>() where T : class
         {
             var proxy = DispatchProxy.Create<T, ReactiveProxy<T>>();
-            (proxy as ReactiveProxy<T>).InitializeForValues();
+            (proxy as ReactiveProxy<T>)!.InitializeForValues();
             return proxy;
         }
 
@@ -42,7 +42,7 @@ namespace EffectSharp
         {
             if (instance == null) throw new ArgumentNullException(nameof(instance));
             var proxy = DispatchProxy.Create<T, ReactiveProxy<T>>();
-            (proxy as ReactiveProxy<T>).InitializeForTarget(instance);
+            (proxy as ReactiveProxy<T>)!.InitializeForTarget(instance);
             return proxy;
         }
 
@@ -145,7 +145,7 @@ namespace EffectSharp
         /// <param name="initialValue">Initial value stored in the reference.</param>
         /// <param name="equalityComparer">Optional equality comparer used to suppress no-op updates.</param>
         /// <returns>A new <see cref="Ref{T}"/>.</returns>
-        public static Ref<T> Ref<T>(T initialValue = default, IEqualityComparer<T> equalityComparer = null)
+        public static Ref<T> Ref<T>(T initialValue = default!, IEqualityComparer<T>? equalityComparer = null)
         {
             return new Ref<T>(initialValue, equalityComparer);
         }
@@ -158,7 +158,7 @@ namespace EffectSharp
         /// <param name="scheduler">Optional scheduler invoked with the effect instance to control when it runs.</param>
         /// <param name="lazy">If true, defers the first execution until explicitly scheduled.</param>
         /// <returns>The created effect.</returns>
-        public static Effect Effect(Action action, Action<Effect> scheduler = null, bool lazy = false)
+        public static Effect Effect(Action action, Action<Effect>? scheduler = null, bool lazy = false)
         {
             return new Effect(action, scheduler, lazy);
         }
@@ -170,7 +170,7 @@ namespace EffectSharp
         /// <param name="getter">Function that produces the value and participates in dependency tracking.</param>
         /// <param name="setter">Optional setter invoked when the computed is assigned.</param>
         /// <returns>A new computed value.</returns>
-        public static Computed<T> Computed<T>(Func<T> getter, Action<T> setter = null)
+        public static Computed<T> Computed<T>(Func<T> getter, Action<T>? setter = null)
         {
             return new Computed<T>(getter, setter);
         }
@@ -204,9 +204,9 @@ namespace EffectSharp
             bool immediate = false,
             bool deep = false,
             bool once = false,
-            Action<Effect> scheduler = null,
+            Action<Effect>? scheduler = null,
             bool suppressEquality = true,
-            IEqualityComparer<T> equalityComparer = null)
+            IEqualityComparer<T>? equalityComparer = null)
         {
             return Watcher.Watch(getter, callback, immediate, deep, once, scheduler, suppressEquality, equalityComparer);
         }
@@ -240,9 +240,9 @@ namespace EffectSharp
             bool immediate = false,
             bool deep = false,
             bool once = false,
-            Action<Effect> scheduler = null,
+            Action<Effect>? scheduler = null,
             bool suppressEquality = true,
-            IEqualityComparer<T> equalityComparer = null)
+            IEqualityComparer<T>? equalityComparer = null)
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
             return Watcher.Watch(() => source.Value, callback, immediate, deep, once, scheduler, suppressEquality, equalityComparer);
@@ -280,8 +280,8 @@ namespace EffectSharp
             this ObservableCollection<T> observableCollection,
             Func<TList> source,
             Func<T, TKey> keySelector,
-            IEqualityComparer<TKey> equalityComparer = null,
-            Action<Effect> scheduler = null)
+            IEqualityComparer<TKey>? equalityComparer = null,
+            Action<Effect>? scheduler = null)
             where TList : IList<T>
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
@@ -321,8 +321,8 @@ namespace EffectSharp
         public static Effect BindTo<T, TList>(
             this ObservableCollection<T> observableCollection,
             Func<TList> source,
-            IEqualityComparer<T> equalityComparer = null,
-            Action<Effect> scheduler = null)
+            IEqualityComparer<T>? equalityComparer = null,
+            Action<Effect>? scheduler = null)
             where TList : IList<T>
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
@@ -350,7 +350,7 @@ namespace EffectSharp
         public static ReactiveCollection<T> ComputedList<T, TList, TKey>(
             Func<TList> getter,
             Func<T, TKey> keySelector,
-            IEqualityComparer<TKey> equalityComparer = null)
+            IEqualityComparer<TKey>? equalityComparer = null)
             where TList : IList<T>
         {
             var collection = new ReactiveCollection<T>();
@@ -370,7 +370,7 @@ namespace EffectSharp
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="getter"/> is null.</exception>
         public static ReactiveCollection<T> ComputedList<T, TList>(
             Func<TList> getter,
-            IEqualityComparer<T> equalityComparer = null)
+            IEqualityComparer<T>? equalityComparer = null)
             where TList : IList<T>
         {
             var collection = new ReactiveCollection<T>();

@@ -9,8 +9,8 @@ namespace EffectSharp.SourceGenerators.Context
     internal class ComputedContext
     {
         public IMethodSymbol MethodSymbol { get; }
-        public AttributeData AttributeData { get; }
-        public string Setter { get; }
+        public AttributeData? AttributeData { get; }
+        public string? Setter { get; }
 
         public string ValueTypeName => MethodSymbol.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 

@@ -12,7 +12,7 @@ namespace EffectSharp.SourceGenerators.Context
 
         public bool IsValid { get; }
 
-        public AttributeData AttributeData { get; }
+        public AttributeData? AttributeData { get; }
 
         public string PropertyName => MethodSymbol.Name.EndsWith("Command") ?
             MethodSymbol.Name.Substring(0, MethodSymbol.Name.Length - "Command".Length) :
@@ -26,9 +26,9 @@ namespace EffectSharp.SourceGenerators.Context
 
         public bool IsAsync { get; }
 
-        public INamedTypeSymbol ParameterType { get; }
+        public INamedTypeSymbol? ParameterType { get; }
 
-        public INamedTypeSymbol ResultType { get; }
+        public INamedTypeSymbol? ResultType { get; }
 
         public string GenericTypeArguments =>
             ResultType != null ?
@@ -39,11 +39,11 @@ namespace EffectSharp.SourceGenerators.Context
 
         public int CancellationTokenParameterIndex { get; }
 
-        public string CanExecute { get; set; }
+        public string? CanExecute { get; set; }
 
         public bool AllowConcurrentExecution { get; }
 
-        public string ExecutionScheduler { get; }
+        public string? ExecutionScheduler { get; }
 
         public FunctionCommandContext(IMethodSymbol method, ReactiveModelContext modelContext)
         {

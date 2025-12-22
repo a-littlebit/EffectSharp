@@ -15,18 +15,18 @@ namespace EffectSharp.SourceGenerators.Context
 
         public INamedTypeSymbol ModelSymbol { get; }
 
-        internal List<ReactiveFieldContext> ReactiveFields { get; set; }
+        internal List<ReactiveFieldContext>? ReactiveFields { get; set; }
 
         public List<Action<ReactiveModelContext, IndentedTextWriter>> Initializers { get; } = new();
         public List<Action<ReactiveModelContext, IndentedTextWriter>> Disposers { get; } = new();
 
-        internal List<FunctionCommandContext> FunctionCommands { get; set; }
+        internal List<FunctionCommandContext>? FunctionCommands { get; set; }
 
-        internal List<ComputedContext> ComputedContexts { get; set; }
+        internal List<ComputedContext>? ComputedContexts { get; set; }
 
-        internal List<ComputedListContext> ComputedListContexts { get; set; }
+        internal List<ComputedListContext>? ComputedListContexts { get; set; }
 
-        internal List<WatchContext> WatchContexts { get; set; }
+        internal List<WatchContext>? WatchContexts { get; set; }
 
         public ReactiveModelContext(
             SourceProductionContext productionContext,

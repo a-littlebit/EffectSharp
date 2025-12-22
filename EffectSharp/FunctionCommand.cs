@@ -18,7 +18,7 @@ namespace EffectSharp
         /// <summary>
         /// Raised when command execution throws an exception.
         /// </summary>
-        event EventHandler<FunctionCommandExecutionFailedEventArgs<TParam>> ExecutionFailed;
+        event EventHandler<FunctionCommandExecutionFailedEventArgs<TParam>>? ExecutionFailed;
 
         /// <summary>
         /// Returns whether the command can execute with the given parameter.
@@ -69,17 +69,17 @@ namespace EffectSharp
         private readonly bool _allowConcurrentExecution;
 
         private readonly Func<TDependency> _dependencyGetter;
-        private readonly Effect _effect;
-        private AtomicIntRef _executingCount = new AtomicIntRef(0);
+        private readonly Effect? _effect;
+        private AtomicIntRef _executingCount = new(0);
 
         /// <summary>
         /// Raised when command executability changes.
         /// </summary>
-        public event EventHandler CanExecuteChanged;
+        public event EventHandler? CanExecuteChanged;
         /// <summary>
         /// Raised when execution fails with an exception.
         /// </summary>
-        public event EventHandler<FunctionCommandExecutionFailedEventArgs<TParam>> ExecutionFailed;
+        public event EventHandler<FunctionCommandExecutionFailedEventArgs<TParam>>? ExecutionFailed;
 
         /// <summary>
         /// Read-only count of ongoing executions.
@@ -87,8 +87,8 @@ namespace EffectSharp
         public IReadOnlyRef<int> ExecutingCount => _executingCount;
 
         protected FunctionCommandBase(
-            Func<TParam, TDependency, bool> canExecute = null,
-            Func<TDependency> dependencySelector = null,
+            Func<TParam, TDependency, bool>? canExecute = null,
+            Func<TDependency>? dependencySelector = null,
             bool allowConcurrentExecution = false)
         {
             _canExecute = canExecute ?? ((param, dep) => true);
@@ -106,14 +106,14 @@ namespace EffectSharp
             }
             else
             {
-                _dependencyGetter = () => default;
+                _dependencyGetter = () => default!;
             }
         }
 
         /// <summary>
         /// Casts and validates the command parameter.
         /// </summary>
-        protected TParam CastParameter(object parameter)
+        protected TParam CastParameter(object? parameter)
         {
             if (parameter != null && !(parameter is TParam))
                 throw new ArgumentException($"Parameter must be of type {typeof(TParam).FullName}.", nameof(parameter));
@@ -121,7 +121,7 @@ namespace EffectSharp
             if (parameter == null && default(TParam) != null)
                 throw new ArgumentNullException(nameof(parameter), $"Parameter of type {typeof(TParam).FullName} cannot be null.");
 
-            return (TParam)parameter;
+            return (TParam)parameter!;
         }
 
         /// <summary>
@@ -146,7 +146,7 @@ namespace EffectSharp
             ExecutionFailed?.Invoke(this, args);
         }
 
-        public bool CanExecute(object parameter)
+        public bool CanExecute(object? parameter)
         {
             return CanExecute(CastParameter(parameter));
         }
@@ -206,7 +206,7 @@ namespace EffectSharp
         /// <summary>
         /// Non-generic ICommand entry point.
         /// </summary>
-        public abstract void Execute(object parameter);
+        public abstract void Execute(object? parameter);
 
         /// <summary>
         /// Disposes internal reactive resources.
@@ -226,8 +226,8 @@ namespace EffectSharp
 
         public FunctionCommand(
             Func<TParam, TDependency, TResult> execute,
-            Func<TParam, TDependency, bool> canExecute = null,
-            Func<TDependency> dependencySelector = null,
+            Func<TParam, TDependency, bool>? canExecute = null,
+            Func<TDependency>? dependencySelector = null,
             bool allowConcurrentExecution = false)
             : base(
                   canExecute,
@@ -237,7 +237,7 @@ namespace EffectSharp
             _execute = execute ?? throw new ArgumentNullException(nameof(execute));
         }
 
-        public override void Execute(object parameter)
+        public override void Execute(object? parameter)
         {
             try
             {
@@ -245,7 +245,8 @@ namespace EffectSharp
             }
             catch (Exception ex)
             {
-                OnExecutionFailed(new FunctionCommandExecutionFailedEventArgs<TParam>(ex, (TParam)parameter));
+                var paramValue = parameter is TParam p ? p : default!;
+                OnExecutionFailed(new FunctionCommandExecutionFailedEventArgs<TParam>(ex, paramValue));
             }
         }
 
@@ -276,19 +277,19 @@ namespace EffectSharp
     public class AsyncFunctionCommand<TParam, TDependency, TResult> : FunctionCommandBase<TParam, TDependency, TResult>, IAsyncFunctionCommand<TParam, TResult>
     {
         private readonly Func<TParam, TDependency, CancellationToken, Task<TResult>> _executeAsync;
-        private readonly TaskScheduler _executionScheduler;
+        private readonly TaskScheduler? _executionScheduler;
 
         /// <summary>
         /// Optional task scheduler used to run the asynchronous execution.
         /// </summary>
-        public TaskScheduler ExecutionScheduler => _executionScheduler;
+        public TaskScheduler? ExecutionScheduler => _executionScheduler;
 
         public AsyncFunctionCommand(
             Func<TParam, TDependency, CancellationToken, Task<TResult>> executeAsync,
-            Func<TParam, TDependency, bool> canExecute = null,
-            Func<TDependency> dependencySelector = null,
+            Func<TParam, TDependency, bool>? canExecute = null,
+            Func<TDependency>? dependencySelector = null,
             bool allowConcurrentExecution = false,
-            TaskScheduler executionScheduler = null)
+            TaskScheduler? executionScheduler = null)
             : base(
                   canExecute,
                   dependencySelector,
@@ -297,7 +298,7 @@ namespace EffectSharp
             _executeAsync = executeAsync ?? throw new ArgumentNullException(nameof(executeAsync));
             _executionScheduler = executionScheduler;
         }
-        public override async void Execute(object parameter)
+        public override async void Execute(object? parameter)
         {
             try
             {
@@ -305,7 +306,8 @@ namespace EffectSharp
             }
             catch (Exception ex)
             {
-                OnExecutionFailed(new FunctionCommandExecutionFailedEventArgs<TParam>(ex, (TParam)parameter));
+                var paramValue = parameter is TParam p ? p : default!;
+                OnExecutionFailed(new FunctionCommandExecutionFailedEventArgs<TParam>(ex, paramValue));
             }
         }
 
@@ -348,8 +350,8 @@ namespace EffectSharp
     {
         public FunctionCommand(
             Func<TParam, bool, bool> execute,
-            Func<TParam, bool, bool> canExecute = null,
-            Func<bool> dependencySelector = null,
+            Func<TParam, bool, bool>? canExecute = null,
+            Func<bool>? dependencySelector = null,
             bool allowConcurrentExecution = false)
             : base(
                   execute,
@@ -367,10 +369,10 @@ namespace EffectSharp
     {
         public AsyncFunctionCommand(
             Func<TParam, bool, CancellationToken, Task<bool>> executeAsync,
-            Func<TParam, bool, bool> canExecute = null,
-            Func<bool> dependencySelector = null,
+            Func<TParam, bool, bool>? canExecute = null,
+            Func<bool>? dependencySelector = null,
             bool allowConcurrentExecution = false,
-            TaskScheduler executionScheduler = null)
+            TaskScheduler? executionScheduler = null)
             : base(
                   executeAsync,
                   canExecute,
@@ -432,8 +434,8 @@ namespace EffectSharp
         /// <returns>A new instance of <see cref="FunctionCommand{TParam, TDependency, TResult}"/>.</returns>
         public static FunctionCommand<TParam, TDependency, TResult> Create<TParam, TDependency, TResult>(
             Func<TParam, TDependency, TResult> execute,
-            Func<TParam, TDependency, bool> canExecute,
-            Func<TDependency> dependencySelector,
+            Func<TParam, TDependency, bool>? canExecute,
+            Func<TDependency>? dependencySelector,
             bool allowConcurrentExecution = true)
         {
             return new FunctionCommand<TParam, TDependency, TResult>(
@@ -458,7 +460,7 @@ namespace EffectSharp
         /// <returns>A new instance of <see cref="FunctionCommand{TParam, TDependency, TResult}"/>.</returns>
         public static IFunctionCommand<TParam, TResult> Create<TParam, TResult>(
             Func<TParam, TResult> execute,
-            Func<bool> canExecute = null,
+            Func<bool>? canExecute = null,
             bool allowConcurrentExecution = true)
         {
             if (canExecute == null)
@@ -487,7 +489,7 @@ namespace EffectSharp
         /// <returns>A new instance of <see cref="FunctionCommand{TParam, TDependency, TResult}"/>.</returns>
         public static IFunctionCommand<TParam> Create<TParam>(
             Action<TParam> execute,
-            Func<bool> canExecute = null,
+            Func<bool>? canExecute = null,
             bool allowConcurrentExecution = true)
         {
             if (canExecute == null)
@@ -578,10 +580,10 @@ namespace EffectSharp
         /// <returns>A new instance of <see cref="AsyncFunctionCommand{TParam, TDependency, TResult}"/>.</returns>
         public static AsyncFunctionCommand<TParam, TDependency, TResult> CreateFromTask<TParam, TDependency, TResult>(
             Func<TParam, TDependency, CancellationToken, Task<TResult>> executeAsync,
-            Func<TParam, TDependency, bool> canExecute,
-            Func<TDependency> dependencySelector,
+            Func<TParam, TDependency, bool>? canExecute,
+            Func<TDependency>? dependencySelector,
             bool allowConcurrentExecution = true,
-            TaskScheduler executionScheduler = null)
+            TaskScheduler? executionScheduler = null)
         {
             return new AsyncFunctionCommand<TParam, TDependency, TResult>(
                 executeAsync,
@@ -607,9 +609,9 @@ namespace EffectSharp
         /// <returns>A new instance of <see cref="AsyncFunctionCommand{TParam, TDependency, TResult}"/>.</returns>
         public static IAsyncFunctionCommand<TParam, TResult> CreateFromTask<TParam, TResult>(
             Func<TParam, CancellationToken, Task<TResult>> executeAsync,
-            Func<bool> canExecute = null,
+            Func<bool>? canExecute = null,
             bool allowConcurrentExecution = true,
-            TaskScheduler executionScheduler = null)
+            TaskScheduler? executionScheduler = null)
         {
             if (canExecute == null)
             {
@@ -638,9 +640,9 @@ namespace EffectSharp
         /// <returns>A new instance of <see cref="AsyncFunctionCommand{TParam, TDependency, TResult}"/>.</returns>
         public static IAsyncFunctionCommand<TParam> CreateFromTask<TParam>(
             Func<TParam, CancellationToken, Task> executeAsync,
-            Func<bool> canExecute = null,
+            Func<bool>? canExecute = null,
             bool allowConcurrentExecution = true,
-            TaskScheduler executionScheduler = null)
+            TaskScheduler? executionScheduler = null)
         {
             if (canExecute == null)
             {
@@ -677,7 +679,7 @@ namespace EffectSharp
             Func<TParam, CancellationToken, Task<TResult>> executeAsync,
             Func<TParam, bool> canExecute,
             bool allowConcurrentExecution = true,
-            TaskScheduler executionScheduler = null)
+            TaskScheduler? executionScheduler = null)
         {
             return new AsyncFunctionCommand<TParam, bool, TResult>(
                 (param, can, token) => executeAsync(param, token),
@@ -705,7 +707,7 @@ namespace EffectSharp
             Func<TParam, CancellationToken, Task> executeAsync,
             Func<TParam, bool> canExecute,
             bool allowConcurrentExecution = true,
-            TaskScheduler executionScheduler = null)
+            TaskScheduler? executionScheduler = null)
         {
             return new AsyncFunctionCommand<TParam>(
                 async (param, can, token) =>

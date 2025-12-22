@@ -37,7 +37,7 @@ namespace EffectSharp
             }
         }
 
-        private static Func<object, object, bool> GetEqualsFunc(Type comparerType, object[] constructorArgs, Type propertyType)
+        private static Func<object?, object?, bool> GetEqualsFunc(Type? comparerType, object?[]? constructorArgs, Type propertyType)
         {
             if (comparerType == null)
             {
@@ -58,29 +58,29 @@ namespace EffectSharp
                 if (!interfaceType.IsAssignableFrom(comparerType))
                     throw new ArgumentException($"Type '{comparerType.FullName}' does not implement IEqualityComparer<{propertyType.Name}>.");
                 var equalsMethod = interfaceType.GetMethod(nameof(IEqualityComparer<object>.Equals));
-                return (a, b) => (bool)equalsMethod.Invoke(instance, new object[] { a, b });
+                return (a, b) => (bool)equalsMethod.Invoke(instance, new[] { a, b });
             }
         }
 
-        private Dependency[] _dependencies;
-        private object[] _values;
-        private T _target;
+        private Dependency[]? _dependencies;
+        private object?[]? _values;
+        private T? _target;
 
-        private static readonly ThreadLocal<bool> _isInitializing = new ThreadLocal<bool>();
+        private static readonly ThreadLocal<bool> _isInitializing = new();
 
         /// <summary>
         /// Raised before a reactive property value changes.
         /// </summary>
-        public event PropertyChangingEventHandler PropertyChanging;
+        public event PropertyChangingEventHandler? PropertyChanging;
         /// <summary>
         /// Raised after a reactive property value has changed.
         /// </summary>
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
 
         /// <summary>
         /// The underlying target instance if initialized via <see cref="InitializeForTarget(T)"/>; otherwise null.
         /// </summary>
-        public T Target => _target;
+        public T? Target => _target;
 
         public ReactiveProxy()
         {
@@ -109,7 +109,7 @@ namespace EffectSharp
                     var prop = _propertyCache[i];
                     var reactiveAttr = _reactivePropertyCache[i];
 
-                    object initialValue;
+                    object? initialValue;
                     if (reactiveAttr.Deep && prop.PropertyType.IsInterface)
                         initialValue = Reactive.Create(prop.PropertyType);
                     else
@@ -171,12 +171,12 @@ namespace EffectSharp
             ThrowIfNotInitialized();
             for (int i = 0; i < _propertyCache.Length; i++)
             {
-                _dependencies[i]?.Track();
-                object value;
+                _dependencies![i]?.Track();
+                object? value;
                 if (_target != null)
                     value = _propertyCache[i].GetValue(_target);
                 else
-                    value = Volatile.Read(ref _values[i]);
+                    value = Volatile.Read(ref _values![i]);
                 if (value != null && value is IReactive reactiveValue)
                 {
                     reactiveValue.TrackDeep();
@@ -190,7 +190,7 @@ namespace EffectSharp
         /// <param name="propertyName">The property name.</param>
         /// <param name="targetMethod">Optional target method used when delegating to target for non-tracked access.</param>
         /// <returns>The property value.</returns>
-        public object GetPropertyValue(string propertyName, MethodInfo targetMethod = null)
+        public object? GetPropertyValue(string propertyName, MethodInfo? targetMethod = null)
         {
             ThrowIfNotInitialized();
             if (!_propertyOffset.TryGetValue(propertyName, out var offset))
@@ -201,14 +201,14 @@ namespace EffectSharp
                 }
                 throw new ArgumentException($"Property '{propertyName}' not found.");
             }
-            _dependencies[offset]?.Track();
+            _dependencies![offset]?.Track();
             if (_target != null)
             {
                 return _propertyCache[offset].GetValue(_target);
             }
             else
             {
-                return Volatile.Read(ref _values[offset]);
+                return Volatile.Read(ref _values![offset]);
             }
         }
 
@@ -218,30 +218,30 @@ namespace EffectSharp
         /// <param name="propertyName">The property name.</param>
         /// <param name="value">The value to set.</param>
         /// <param name="targetMethod">Optional target method used when delegating to target for non-tracked access.</param>
-        public void SetPropertyValue(string propertyName, object value, MethodInfo targetMethod = null)
+        public void SetPropertyValue(string propertyName, object? value, MethodInfo? targetMethod = null)
         {
             ThrowIfNotInitialized();
             if (!_propertyOffset.TryGetValue(propertyName, out var offset))
             {
                 if (_target != null && targetMethod != null)
                 {
-                    targetMethod.Invoke(_target, new object[] { value });
+                    targetMethod.Invoke(_target, new object?[] { value });
                     return;
                 }
                 throw new ArgumentException($"Property '{propertyName}' not found.");
             }
 
-            object currentValue;
+            object? currentValue;
             if (_target != null)
                 currentValue = _propertyCache[offset].GetValue(_target);
             else
-                currentValue = Volatile.Read(ref _values[offset]);
-            if (_reactivePropertyCache[offset].EqualsFunc(currentValue, value))
+                currentValue = Volatile.Read(ref _values![offset]);
+            if (_reactivePropertyCache[offset].EqualsFunc!(currentValue, value))
             {
                 return;
             }
 
-            Dependency dependency = _dependencies[offset];
+            Dependency dependency = _dependencies![offset];
 
             if (dependency != null)
                 PropertyChanging?.Invoke(this, new PropertyChangingEventArgs(propertyName));
@@ -249,7 +249,7 @@ namespace EffectSharp
             if (_target != null)
                 _propertyCache[offset].SetValue(_target, value);
             else
-                Interlocked.Exchange(ref _values[offset], value);
+                Interlocked.Exchange(ref _values![offset], value);
 
             if (dependency != null)
             {
@@ -271,7 +271,7 @@ namespace EffectSharp
         /// <param name="targetMethod">Method invoked on the proxy.</param>
         /// <param name="args">Arguments for the method.</param>
         /// <returns>Return value from the invocation.</returns>
-        protected override object Invoke(MethodInfo targetMethod, object[] args)
+        protected override object? Invoke(MethodInfo targetMethod, object[] args)
         {
             if (!targetMethod.IsSpecialName)
             {

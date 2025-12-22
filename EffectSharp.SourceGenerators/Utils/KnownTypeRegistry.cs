@@ -31,7 +31,9 @@ namespace EffectSharp.SourceGenerators.Utils
                     var builder = ImmutableDictionary.CreateBuilder<string, INamedTypeSymbol>(StringComparer.Ordinal);
                     foreach (var metadataName in _requirements)
                     {
-                        builder[metadataName] = c.GetTypeByMetadataName(metadataName);
+                        var type = c.GetTypeByMetadataName(metadataName);
+                        if (type != null)
+                            builder[metadataName] = type;
                     }
                     return new KnownTypes(builder.ToImmutable());
                 });

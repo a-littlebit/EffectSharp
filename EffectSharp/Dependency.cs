@@ -12,8 +12,7 @@ namespace EffectSharp
     /// </summary>
     public class Dependency
     {
-        private readonly ConcurrentDictionary<Effect, bool> _subscribers
-            = new ConcurrentDictionary<Effect, bool>();
+        private readonly ConcurrentDictionary<Effect, bool> _subscribers = new();
 
         /// <summary>
         /// Adds an effect as a subscriber to this dependency.
@@ -39,7 +38,7 @@ namespace EffectSharp
         /// Tracks the current effect, subscribing it to this dependency if present.
         /// </summary>
         /// <returns>The current effect or null if none.</returns>
-        public Effect Track()
+        public Effect? Track()
         {
             var currentEffect = Effect.Current;
             if (currentEffect != null)

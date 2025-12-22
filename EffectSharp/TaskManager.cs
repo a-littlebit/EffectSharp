@@ -14,20 +14,20 @@ namespace EffectSharp
     public static class TaskManager
     {
 
-        private static volatile TaskBatcher<Effect> _effectBatcher = null;
-        private static readonly object _effectBatcherLock = new object();
+        private static volatile TaskBatcher<Effect>? _effectBatcher = null;
+        private static readonly object _effectBatcherLock = new();
 
-        private static volatile TaskBatcher<NotificationTask> _notificationBatcher = null;
-        private static readonly object _notificationBatcherLock = new object();
+        private static volatile TaskBatcher<NotificationTask>? _notificationBatcher = null;
+        private static readonly object _notificationBatcherLock = new();
 
         /// <summary>
         /// Gets the batcher responsible for processing queued <see cref="Effect"/> triggers.
         /// </summary>
-        public static TaskBatcher<Effect> EffectBatcher => _effectBatcher;
+        public static TaskBatcher<Effect>? EffectBatcher => _effectBatcher;
         /// <summary>
         /// Gets the batcher responsible for processing queued property change notifications.
         /// </summary>
-        public static TaskBatcher<NotificationTask> NotificationBatcher => _notificationBatcher;
+        public static TaskBatcher<NotificationTask>? NotificationBatcher => _notificationBatcher;
 
         /// <summary>
         /// Create a <see cref="TaskBatcher{Effect}"/> for effect execution scheduling using the specified supplier function
@@ -67,7 +67,7 @@ namespace EffectSharp
                 batcher.BatchProcessingFailed += TraceEffectFailure;
                 return batcher;
             });
-            return _effectBatcher;
+            return _effectBatcher!;
         }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace EffectSharp
                 batcher.BatchProcessingFailed += TraceNotificationFailure;
                 return batcher;
             });
-            return _notificationBatcher;
+            return _notificationBatcher!;
         }
 
         /// <summary>
@@ -177,12 +177,7 @@ namespace EffectSharp
         /// </summary>
         public static void QueueNotification(object model, string propertyName, Action<PropertyChangedEventArgs> notifier)
         {
-            var task = new NotificationTask
-            {
-                Model = model,
-                PropertyName = propertyName,
-                Notifier = notifier
-            };
+            var task = new NotificationTask(model, propertyName, notifier);
             GetOrCreateDefaultNotificationBatcher().Enqueue(task);
         }
 
@@ -228,14 +223,31 @@ namespace EffectSharp
         /// <summary>
         /// The object whose property changed.
         /// </summary>
-        public object Model { get; set; }
+        public object Model { get; }
         /// <summary>
         /// The name of the property that changed.
         /// </summary>
-        public string PropertyName { get; set; }
+        public string PropertyName { get; }
         /// <summary>
         /// The action to invoke with the <see cref="PropertyChangedEventArgs"/>.
         /// </summary>
-        public Action<PropertyChangedEventArgs> Notifier { get; set; }
+        public Action<PropertyChangedEventArgs> Notifier { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the NotificationTask class to handle property change notifications for a
+        /// specified model and property.
+        /// </summary>
+        /// <param name="model">The object instance whose property changes are being monitored. Cannot be null.</param>
+        /// <param name="propertyName">The name of the property to observe for changes. Cannot be null or empty.</param>
+        /// <param name="notifier">
+        /// An action delegate that is invoked when the specified property changes. Receives a PropertyChangedEventArgs
+        /// describing the change. Cannot be null.
+        /// </param>
+        public NotificationTask(object model, string propertyName, Action<PropertyChangedEventArgs> notifier)
+        {
+            Model = model;
+            PropertyName = propertyName;
+            Notifier = notifier;
+        }
     }
 }

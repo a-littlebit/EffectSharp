@@ -9,8 +9,8 @@ namespace EffectSharp.SourceGenerators.Context
     internal class WatchContext
     {
         public IMethodSymbol MethodSymbol { get; }
-        public AttributeData AttributeData { get; }
-        public List<string> Values { get; }
+        public AttributeData? AttributeData { get; }
+        public List<string>? Values { get; }
 
         public bool IsValid { get;  }
         public string FieldName => $"_{NameHelper.ToCamelCase(MethodSymbol.Name)}_watchEffect";
@@ -23,11 +23,11 @@ namespace EffectSharp.SourceGenerators.Context
 
         public bool Once { get; set; }
 
-        public string Scheduler { get; set; }
+        public string? Scheduler { get; set; }
 
         public bool SuppressEquality { get; set; }
 
-        public string EqualityComparer { get; set; }
+        public string? EqualityComparer { get; set; }
 
         public WatchContext(IMethodSymbol methodSymbol, ReactiveModelContext modelContext)
         {

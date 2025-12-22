@@ -18,7 +18,7 @@ namespace EffectSharp
         private readonly Dictionary<TKey, (TValue, Dependency)> _innerDictionary;
 
         // dependency to track changes to the entire set of keys
-        private readonly Dependency _keySetDependency = new Dependency();
+        private readonly Dependency _keySetDependency = new();
 
         public const string KeySetPropertyName = "KeySet[]";
 
@@ -211,7 +211,7 @@ namespace EffectSharp
                 // otherwise, track the KeySet
                 _keySetDependency.Track();
                 // set default value
-                value = default;
+                value = default!;
                 return false;
             }
         }

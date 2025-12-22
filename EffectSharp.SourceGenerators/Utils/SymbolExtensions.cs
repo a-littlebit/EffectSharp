@@ -18,7 +18,7 @@ namespace EffectSharp.SourceGenerators.Utils
 
         public static bool IsAssignableTo(
             this ITypeSymbol type,
-            INamedTypeSymbol targetType)
+            INamedTypeSymbol? targetType)
         {
             if (type == null || targetType == null)
                 return false;
@@ -49,7 +49,7 @@ namespace EffectSharp.SourceGenerators.Utils
             this ITypeSymbol type,
             INamedTypeSymbol genericDefinition,
             int argumentIndex,
-            out INamedTypeSymbol typeArgument)
+            out INamedTypeSymbol? typeArgument)
         {
             typeArgument = null;
 
@@ -97,8 +97,11 @@ namespace EffectSharp.SourceGenerators.Utils
         {
             foreach (var attr in symbol.GetAttributes())
             {
-                var className = attr.AttributeClass.Name;
-                var classNamespace = attr.AttributeClass.ContainingNamespace.ToDisplayString();
+                var attrClass = attr.AttributeClass;
+                if (attrClass == null)
+                    continue;
+                var className = attrClass.Name;
+                var classNamespace = attrClass.ContainingNamespace.ToDisplayString();
 
                 if ((className == attributeName ||
                     className == attributeName + "Attribute")
@@ -111,15 +114,19 @@ namespace EffectSharp.SourceGenerators.Utils
             return false;
         }
 
-        public static AttributeData GetAttributeData(
+        public static AttributeData? GetAttributeData(
             this ISymbol symbol,
             string attributeName,
             string containingNamespace = "EffectSharp.SourceGenerators")
         {
             foreach (var attr in symbol.GetAttributes())
             {
-                var className = attr.AttributeClass.Name;
-                var classNamespace = attr.AttributeClass.ContainingNamespace.ToDisplayString();
+                var attrClass = attr.AttributeClass;
+                if (attrClass == null)
+                    continue;
+
+                var className = attrClass.Name;
+                var classNamespace = attrClass.ContainingNamespace.ToDisplayString();
 
                 if ((className == attributeName ||
                     className == attributeName + "Attribute")
@@ -134,7 +141,7 @@ namespace EffectSharp.SourceGenerators.Utils
         public static T GetNamedArgument<T>(
             this AttributeData attributeData,
             string argumentName,
-            T defaultValue = default)
+            T defaultValue = default!)
         {
             var namedArg = attributeData.NamedArguments
                 .FirstOrDefault(kv => kv.Key == argumentName);
@@ -175,7 +182,7 @@ namespace EffectSharp.SourceGenerators.Utils
             }
         }
 
-        public static string ComposeTypeHeader(this INamedTypeSymbol type, string baseList = null)
+        public static string ComposeTypeHeader(this INamedTypeSymbol type, string? baseList = null)
         {
             var accessibility = type.DeclaredAccessibility switch
             {
@@ -222,10 +229,10 @@ namespace EffectSharp.SourceGenerators.Utils
             }
         }
 
-        public static TMember GetMemberInHierarchy<TMember>(this INamedTypeSymbol model, string memberName)
+        public static TMember? GetMemberInHierarchy<TMember>(this INamedTypeSymbol model, string memberName)
             where TMember : class, ISymbol
         {
-            INamedTypeSymbol current = model;
+            INamedTypeSymbol? current = model;
             while (current != null)
             {
                 var member = current.GetMembers().OfType<TMember>().Where(m => m.Name == memberName).FirstOrDefault();
@@ -236,7 +243,7 @@ namespace EffectSharp.SourceGenerators.Utils
             return null;
         }
 
-        public static bool ReturnsTaskLike(this IMethodSymbol method, KnownTypes knownTypes, out INamedTypeSymbol resultType)
+        public static bool ReturnsTaskLike(this IMethodSymbol method, KnownTypes knownTypes, out INamedTypeSymbol? resultType)
         {
             var returnType = method.ReturnType;
 

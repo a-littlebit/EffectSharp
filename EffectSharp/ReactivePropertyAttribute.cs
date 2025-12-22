@@ -16,7 +16,7 @@ namespace EffectSharp
         /// If not specified and the property type is a value type, the runtime default of that type is used.
         /// This setting is ignored when the proxy delegates to a target via <see cref="ReactiveProxy{T}.InitializeForTarget(T)"/>.
         /// </summary>
-        public object Default { get; set; }
+        public object? Default { get; set; }
 
         /// <summary>
         /// Indicates whether the property participates in dependency tracking and change notifications.
@@ -36,17 +36,17 @@ namespace EffectSharp
         /// <summary>
         /// Optional equality comparer for change detection; if omitted, <see cref="EqualityComparer{T}.Default"/> is used.
         /// </summary>
-        public Type EqualityComparer { get; set; }
+        public Type? EqualityComparer { get; set; }
 
         /// <summary>
         /// Constructor arguments for the equality comparer.
         /// </summary>
-        public object[] EqualityComparerConstructorArgs { get; set; }
+        public object?[]? EqualityComparerConstructorArgs { get; set; }
 
         /// <summary>
         /// An equality function for change detection.
         /// </summary>
-        public Func<object, object, bool> EqualsFunc { get; set; }
+        public Func<object?, object?, bool>? EqualsFunc { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the attribute.
@@ -56,7 +56,7 @@ namespace EffectSharp
         /// <param name="deep">Whether to create a nested reactive proxy for interface-typed properties during value initialization; defaults to <c>false</c>.</param>
         /// <param name="equalityComparer">Optional equality comparer for change detection; if omitted, <see cref="EqualityComparer{T}.Default" /> is used.</param>
         /// <param name="equalityComparerConstructorArgs">Constructor arguments for the equality comparer.</param>
-        public ReactivePropertyAttribute(object defaultValue = null, bool reactive = true, bool deep = false, Type equalityComparer = null, object[] equalityComparerConstructorArgs = null)
+        public ReactivePropertyAttribute(object? defaultValue = null, bool reactive = true, bool deep = false, Type? equalityComparer = null, object?[]? equalityComparerConstructorArgs = null)
         {
             Default = defaultValue;
             Reactive = reactive;

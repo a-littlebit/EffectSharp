@@ -19,13 +19,13 @@ namespace EffectSharp
         private Func<CancellationToken, Task> _throttler; // Asynchronous delay function for interval waiting
         private TaskScheduler _scheduler; // Task scheduler (supports dynamic switching with eventual consistency)
         private readonly SemaphoreSlim _consumerSemaphore;
-        private readonly ConcurrentQueue<(T Item, long Sequence)> _taskQueue = new ConcurrentQueue<(T Item, long Sequence)>(); // Task queue with sequence numbers for NextTick tracking
+        private readonly ConcurrentQueue<(T Item, long Sequence)> _taskQueue = new(); // Task queue with sequence numbers for NextTick tracking
 
         private int _startLoopFlag; // Flag to ensure single batch processing loop
-        private CancellationTokenSource _currentDelayCts; // Cancellation source for the current interval delay
+        private CancellationTokenSource? _currentDelayCts; // Cancellation source for the current interval delay
         private long _enqueueCounter; // Atomic counter for generating unique task sequence numbers
         private long _dequeuedCounter; // Atomic counter for the highest dequeued sequence number
-        private TickState _tickState = new TickState(); // State for NextTick tracking
+        private TickState _tickState = new(0); // State for NextTick tracking
         private int _disposed; // Flag to track disposal state
         #endregion
 
@@ -34,7 +34,7 @@ namespace EffectSharp
         {
             internal readonly long ProcessedSequence;
             internal readonly TaskCompletionSource<bool> NextTickTcs;
-            internal TickState(long processedSequence = 0)
+            internal TickState(long processedSequence)
             {
                 ProcessedSequence = processedSequence;
                 NextTickTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -46,12 +46,12 @@ namespace EffectSharp
         /// <summary>
         /// Raised when processing a batch fails with an exception.
         /// </summary>
-        public event EventHandler<BatchProcessingFailedEventArgs<T>> BatchProcessingFailed;
+        public event EventHandler<BatchProcessingFailedEventArgs<T>>? BatchProcessingFailed;
 
         /// <summary>
         /// Raised when an exception occurs in the throttler function.
         /// </summary>
-        public event EventHandler<ThrottlerExceptionEventArgs> ThrottlerExceptionOccurred;
+        public event EventHandler<ThrottlerExceptionEventArgs>? ThrottlerExceptionOccurred;
         #endregion
 
         #region Constructor
@@ -453,7 +453,7 @@ namespace EffectSharp
             await AfterBatchProcess(lastDequeuedSeq, dequeuedSeq, batch).ConfigureAwait(false);
         }
 
-        private async Task AfterBatchProcess(long beforeProcessSeq, long processedSeq, List<T> batch = null, Exception ex = null)
+        private async Task AfterBatchProcess(long beforeProcessSeq, long processedSeq, List<T>? batch = null, Exception? ex = null)
         {
             // Release the semaphore to allow other batch processing tasks
             _consumerSemaphore.Release();
@@ -480,7 +480,7 @@ namespace EffectSharp
             {
                 try
                 {
-                    BatchProcessingFailed?.Invoke(this, new BatchProcessingFailedEventArgs<T>(ex, batch));
+                    BatchProcessingFailed?.Invoke(this, new BatchProcessingFailedEventArgs<T>(ex, batch!));
                 }
                 catch (Exception handlerEx)
                 {

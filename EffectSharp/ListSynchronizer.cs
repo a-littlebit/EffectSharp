@@ -33,7 +33,7 @@ namespace EffectSharp
             this ObservableCollection<T> source,
             IList<T> target,
             Func<T, K> keySelector,
-            IEqualityComparer<K> keyComparer = null)
+            IEqualityComparer<K>? keyComparer = null)
         {
             // Validation
             if (source == null) throw new ArgumentNullException(nameof(source));
@@ -382,7 +382,7 @@ namespace EffectSharp
             this ObservableCollection<T> source,
             IList<T> target,
             Func<T, K> keySelector,
-            IEqualityComparer<K> keyComparer = null)
+            IEqualityComparer<K>? keyComparer = null)
         {
             // Validation
             if (source == null) throw new ArgumentNullException(nameof(source));

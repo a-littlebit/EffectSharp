@@ -12,13 +12,13 @@ namespace EffectSharp.SourceGenerators.Utils
             _map = map;
         }
 
-        public INamedTypeSymbol Get(string key)
+        public INamedTypeSymbol? Get(string key)
         {
             _map.TryGetValue(key, out var value);
             return value;
         }
 
-        public bool TryGet(string key, out INamedTypeSymbol symbol)
+        public bool TryGet(string key, out INamedTypeSymbol? symbol)
             => _map.TryGetValue(key, out symbol);
     }
 }
