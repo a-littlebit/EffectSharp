@@ -139,7 +139,7 @@ namespace EffectSharp.Tests
         [Fact]
         public void Effect_WhenCallingLockedApiDuringExecution_DoesNotDeadlock()
         {
-            var eff = new Effect(() => Effect.Current.Stop());
+            var eff = new Effect(() => Effect.Current!.Stop());
             eff.Dispose();
         }
     }
