@@ -195,6 +195,9 @@ namespace EffectSharp
 
             // LIS indices
             var lisIndices = ComputeLisIndices(sourceToTarget);
+            if (lisIndices.Length == sourceToTarget.Length)
+                return; // already sorted
+
             // LIS target indices
             var lis = lisIndices.Select(i => sourceToTarget[i]).ToArray();
             // LIS gap pointers
@@ -266,28 +269,43 @@ namespace EffectSharp
         private static int[] ComputeLisIndices(int[] arr)
         {
             int n = arr.Length;
+            if (n == 0)
+                return Array.Empty<int>();
+
             var parent = new int[n];
-            var piles = new List<int>();      // stores index of arr which is the pile top
-            var pileIndex = new int[n];       // pileIndex[i] = which pile arr[i] is placed on
+            var piles = new List<int>(n);
+            var pileIndex = new int[n];
 
             for (int i = 0; i < n; i++)
             {
                 int x = arr[i];
-                // binary search on piles by arr[piles[mid]] < x
-                int lo = 0, hi = piles.Count;
-                while (lo < hi)
-                {
-                    int mid = (lo + hi) / 2;
-                    if (arr[piles[mid]] < x) lo = mid + 1;
-                    else hi = mid;
-                }
 
-                if (lo == piles.Count)
+                int lo;
+                if (piles.Count == 0 || arr[piles[piles.Count - 1]] < x)
                 {
+                    // fast path: arr is monotonically increasing
+                    lo = piles.Count;
                     piles.Add(i);
+                }
+                else if (x <= arr[piles[0]])
+                {
+                    // fast path: arr is monotonically decreasing
+                    lo = 0;
+                    piles[0] = i;
                 }
                 else
                 {
+                    // binary search
+                    int hi = piles.Count;
+                    lo = 0;
+                    while (lo < hi)
+                    {
+                        int mid = (lo + hi) >> 1;
+                        if (arr[piles[mid]] < x)
+                            lo = mid + 1;
+                        else
+                            hi = mid;
+                    }
                     piles[lo] = i;
                 }
 
@@ -295,19 +313,19 @@ namespace EffectSharp
                 parent[i] = lo > 0 ? piles[lo - 1] : -1;
             }
 
-            if (piles.Count == 0) return Array.Empty<int>();
-
-            // Reconstruct LIS indices
-            var lisIndices = new int[piles.Count];
-            int fillIndex = piles.Count;
-            int cur = piles[piles.Count - 1];
-            while (cur != -1)
+            // reconstruct
+            int len = piles.Count;
+            var lis = new int[len];
+            int cur = piles[len - 1];
+            for (int k = len - 1; k >= 0; k--)
             {
-                lisIndices[--fillIndex] = cur;
+                lis[k] = cur;
                 cur = parent[cur];
             }
-            return lisIndices;
+
+            return lis;
         }
+
 
         /// <summary>
         /// Moves an array item from one index to another.
