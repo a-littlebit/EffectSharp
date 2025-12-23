@@ -273,31 +273,31 @@ namespace EffectSharp
                 return Array.Empty<int>();
 
             var parent = new int[n];
-            var piles = new List<int>(n);
-            var pileIndex = new int[n];
+            var piles = new List<int>(1);
 
-            for (int i = 0; i < n; i++)
+            parent[0] = -1;
+            piles.Add(0);
+
+            for (int i = 1; i < n; i++)
             {
                 int x = arr[i];
 
-                int lo;
-                if (piles.Count == 0 || arr[piles[piles.Count - 1]] < x)
+                if (arr[piles[piles.Count - 1]] < x)
                 {
                     // fast path: arr is monotonically increasing
-                    lo = piles.Count;
+                    parent[i] = piles[piles.Count - 1];
                     piles.Add(i);
                 }
                 else if (x <= arr[piles[0]])
                 {
                     // fast path: arr is monotonically decreasing
-                    lo = 0;
+                    parent[i] = -1;
                     piles[0] = i;
                 }
                 else
                 {
                     // binary search
-                    int hi = piles.Count;
-                    lo = 0;
+                    int lo = 1, hi = piles.Count - 1;
                     while (lo < hi)
                     {
                         int mid = (lo + hi) >> 1;
@@ -306,11 +306,9 @@ namespace EffectSharp
                         else
                             hi = mid;
                     }
+                    parent[i] = piles[lo - 1];
                     piles[lo] = i;
                 }
-
-                pileIndex[i] = lo;
-                parent[i] = lo > 0 ? piles[lo - 1] : -1;
             }
 
             // reconstruct
