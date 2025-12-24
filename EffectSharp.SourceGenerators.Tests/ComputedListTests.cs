@@ -150,5 +150,28 @@ public partial class Sample
             Assert.NotNull(diag);
             Assert.Equal(DiagnosticSeverity.Error, diag!.Severity);
         }
+
+        [Fact]
+        public void Reports_EFSP4002_When_ComputedList_Has_Parameters()
+        {
+            var src = @"
+using System.Collections.Generic;
+using EffectSharp.SourceGenerators;
+
+[ReactiveModel]
+public partial class Sample
+{
+    [ComputedList]
+    public List<int> Items(int x) => null;
+}
+";
+            var (comp, result, _) = GeneratorTestHelper.RunGenerator(
+                GeneratorTestHelper.EffectSharpAttributeStubs,
+                GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
+                src);
+            var diag = GeneratorTestHelper.AllDiags(result).FirstOrDefault(d => d.Id == "EFSP4002");
+            Assert.NotNull(diag);
+            Assert.Equal(DiagnosticSeverity.Error, diag!.Severity);
+        }
     }
 }

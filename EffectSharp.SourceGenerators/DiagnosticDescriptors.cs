@@ -52,6 +52,14 @@ namespace EffectSharp.SourceGenerators
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
+        public static readonly DiagnosticDescriptor ComputedListMethodTooManyParameters = new(
+            id: "EFSP4002",
+            title: "ComputedList method has parameters",
+            messageFormat: "Method '{0}' is marked with [ComputedList] but has one or more parameters. ComputedList methods cannot have parameters.",
+            category: "EffectSharp.ComputedList",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
         public static readonly DiagnosticDescriptor DeepTargetMustBeReactive = new(
             id: "EFSP5001",
             title: "[Deep] target must be reactive",
