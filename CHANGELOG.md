@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Keep a Changelog and uses Semantic Versioning (when versions are published). For now, changes are grouped by version and date.
 
+## Unreleased
+
+### Added
+
+- Source generator now supports specifying custom fields/properties to be included in deep tracking via `[Deep]` attribute.
+- Added constructor overloads to source generator attributes for more convenient usage.
+
+### Fixed
+
+- `ReactiveDictionary<TKey,TValue>`: fixed `Count` property not tracking dependencies properly.
+- Fixed potential filename conflict when mark [ReactiveModel] on multiple classes with the same name but different count of generic parameters.
+
+### Enhancement
+
+- Improved diff algorithm performance scenario when few changes occur in large lists.
+
 ## 1.3.1 - 2025-12-22
 
 ### Added
@@ -40,7 +56,7 @@ This project adheres to Keep a Changelog and uses Semantic Versioning (when vers
 
 - `WatchOptions<T>` class removed; use named parameters on `Reactive.Watch` instead.
 
-### Optimizations
+### Enhancement
 
 - The default `TaskManager.NotificationBatcher` now uses a new throttling strategy that waits for the current effect batch to complete before processing notifications, reducing redundant effect executions during high-frequency updates.
 - `Reactive.BindTo(...)` disables equality comparison in `Reactive.Watch` - the diffing algorithm will handle it.
