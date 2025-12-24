@@ -85,7 +85,14 @@ namespace EffectSharp
         /// <summary>
         /// Gets the number of elements contained in the dictionary.
         /// </summary>
-        public int Count => _innerDictionary.Count;
+        public int Count
+        {
+            get
+            {
+                _keySetDependency.Track();
+                return _innerDictionary.Count;
+            }
+        }
 
         /// <summary>
         /// Indicates whether the dictionary is read-only.
