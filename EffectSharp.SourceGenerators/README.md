@@ -174,8 +174,8 @@ Options:
 - `Deep` (bool, default `false`): if `true`, tracks deep changes on `IReactive` properties.
 - `Once` (bool, default `false`): if `true`, runs the watcher only once when any of the values change.
 - `Scheduler` (string): `Action<Effect>` scheduler expression to schedule watcher execution.
-- `SupressEquality` (bool, default `true`): if `true`, the watcher will not run if the new and old values are equal.
-- `EqualityComparer` (string, default `null`): `EqualityComparer<T>` expression used to compare new and old values when `SupressEquality` is `true`.
+- `SuppressEquality` (bool, default `true`): if `true`, the watcher will not run if the new and old values are equal.
+- `EqualityComparer` (string, default `null`): `EqualityComparer<T>` expression used to compare new and old values when `SuppressEquality` is `true`.
 
 Supported method shapes:
 - `()`, `(newValue)` or `(newValue, oldValue)`
