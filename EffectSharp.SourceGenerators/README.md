@@ -180,7 +180,10 @@ Options:
 Supported method shapes:
 - `()`, `(newValue)` or `(newValue, oldValue)`
 - When multiple values are watched, use a tuple for the value parameters.
-- 
+
+### `[Deep]` (field, property or computed/computed-list method)
+Marks a member whose value should participate in deep tracking; the value must be or may be `IReactive`.
+ 
 ## Resource Disposal
 
 The generator emits a unified disposal method to release reactive resources created during initialization:
