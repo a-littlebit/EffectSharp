@@ -70,7 +70,7 @@ namespace EffectSharp.SourceGenerators.Tests
             // Always include the assembly containing object as a fallback
             yield return MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
             // And the C# assembly for attributes usage if needed
-            yield return MetadataReference.CreateFromFile(typeof(System.Linq.Enumerable).Assembly.Location);
+            yield return MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location);
         }
 
         public static IEnumerable<Diagnostic> AllDiags(GeneratorDriverRunResult result)

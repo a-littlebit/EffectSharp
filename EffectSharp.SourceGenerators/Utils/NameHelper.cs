@@ -1,4 +1,3 @@
-﻿using System;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 
@@ -8,75 +7,46 @@ namespace EffectSharp.SourceGenerators.Utils
     {
         public static string RemoveLeadingUnderscore(string name)
         {
-            if (string.IsNullOrEmpty(name))
-                return name;
-
-            if (name[0] == '_')
-                return name.Substring(1);
-
-            return name;
+            if (string.IsNullOrEmpty(name)) return name;
+            return name[0] == '_' ? name.Substring(1) : name;
         }
 
-        public static string ToPascalCase(string name)
+        public static string ToPascal(string name)
         {
-            if (string.IsNullOrEmpty(name))
-                return name;
-
-            if (name.Length == 1)
-                return char.ToUpperInvariant(name[0]).ToString();
-
+            if (string.IsNullOrEmpty(name)) return name;
+            if (name.Length == 1) return char.ToUpperInvariant(name[0]).ToString();
             return char.ToUpperInvariant(name[0]) + name.Substring(1);
         }
 
-        public static string ToCamelCase(string name)
+        public static string ToCamel(string name)
         {
-            if (string.IsNullOrEmpty(name))
-                return name;
-
-            if (char.IsLower(name[0]))
-                return name;
-
-            char[] chars = name.ToCharArray();
-
+            if (string.IsNullOrEmpty(name)) return name;
+            if (char.IsLower(name[0])) return name;
+            var chars = name.ToCharArray();
             for (int i = 0; i < chars.Length; i++)
             {
                 if (i == 0 || i == chars.Length - 1 || (char.IsUpper(chars[i]) && char.IsUpper(chars[i + 1])))
                 {
                     chars[i] = char.ToLowerInvariant(chars[i]);
                 }
-                else
-                {
-                    break;
-                }
+                else break;
             }
-
             return new string(chars);
         }
 
         public static string GetReactiveHintFileName(INamedTypeSymbol symbol)
         {
-            // Build a readable unique hint name: Namespace.Type.NestedType
-            string ns = symbol.ContainingNamespace?.IsGlobalNamespace == false
-                ? symbol.ContainingNamespace.ToDisplayString()
-                : string.Empty;
+            var ns = symbol.ContainingNamespace?.IsGlobalNamespace == false ? symbol.ContainingNamespace.ToDisplayString() : string.Empty;
+            var types = symbol.GetContainingTypes().Reverse().Select(t => t.Name).Concat(new[] { symbol.Name });
+            var qualified = string.Join(".", new[] { ns }.Concat(types).Where(s => !string.IsNullOrEmpty(s)));
 
-            var types = Enumerable.Repeat(symbol, 1)
-                .Concat(symbol.GetContainingTypes())
-                .Reverse() // outermost → innermost
-                .Select(s => s.Name);
+            qualified = qualified.Replace('`', '_')
+                                 .Replace('<', '_')
+                                 .Replace('>', '_')
+                                 .Replace(',', '_')
+                                 .Replace(' ', '_');
 
-            string qualified = string.Join(".", new[] { ns }
-                .Concat(types).Where(s => !string.IsNullOrWhiteSpace(s)));
-
-            // Sanitize a few potentially problematic characters, keep '.' for readability
-            qualified = qualified
-                .Replace('`', '_')
-                .Replace('<', '_')
-                .Replace('>', '_')
-                .Replace(',', '_')
-                .Replace(' ', '_');
-
-            if (string.IsNullOrWhiteSpace(qualified))
+            if (string.IsNullOrEmpty(qualified))
                 qualified = symbol.Name.Replace('`', '_');
 
             return qualified + ".ReactiveModel.g.cs";

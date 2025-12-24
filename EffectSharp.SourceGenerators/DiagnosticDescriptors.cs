@@ -1,21 +1,9 @@
-﻿using Microsoft.CodeAnalysis;
-using System;
-using System.Linq;
+using Microsoft.CodeAnalysis;
 
-namespace EffectSharp.SourceGenerators.Utils
+namespace EffectSharp.SourceGenerators
 {
-    internal static class DiagnosticHelper
+    internal static class DiagnosticDescriptors
     {
-        public static void Report(
-            this SourceProductionContext context,
-            DiagnosticDescriptor descriptor,
-            ISymbol symbol,
-            params object[] messageArgs)
-        {
-            var diagnostic = Diagnostic.Create(descriptor, symbol?.Locations.FirstOrDefault(), messageArgs);
-            context.ReportDiagnostic(diagnostic);
-        }
-
         public static readonly DiagnosticDescriptor FunctionCommandTooManyParameters = new(
             id: "EFSP1001",
             title: "FunctionCommand method has too many parameters",
