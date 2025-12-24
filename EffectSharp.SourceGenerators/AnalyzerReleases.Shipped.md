@@ -37,5 +37,5 @@ EFSP4001 | EffectSharp.ComputedList | Error | ComputedList has invalid return ty
 
 #### EFSP4001: ComputedList has invalid return type
 - Category: EffectSharp.ComputedList
-- Security: Error
+- Severity: Error
 - Description: Methods annotated with [ComputedList] must return a type assignable to IList<T>.
