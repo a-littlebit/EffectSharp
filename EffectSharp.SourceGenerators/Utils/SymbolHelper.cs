@@ -121,6 +121,13 @@ namespace EffectSharp.SourceGenerators.Utils
                     return typed;
                 return defaultValue;
             }
+            if (TryGetConstructorArgument(attr, name, out var ctorValue))
+            {
+                provided = true;
+                if (ctorValue is T typed)
+                    return typed;
+                return defaultValue;
+            }
             provided = false;
             return defaultValue;
         }
@@ -146,7 +153,52 @@ namespace EffectSharp.SourceGenerators.Utils
                 }
                 return builder.ToImmutable();
             }
+
+            if (TryGetConstructorArgument(attr, name, out var ctorValue))
+            {
+                if (ctorValue is ImmutableArray<TypedConstant> typedArray && !typedArray.IsDefaultOrEmpty)
+                {
+                    var builder = ImmutableArray.CreateBuilder<T>(typedArray.Length);
+                    foreach (var tc in typedArray)
+                    {
+                        if (tc.Value is T value)
+                            builder.Add(value);
+                    }
+                    return builder.ToImmutable();
+                }
+            }
+
             return ImmutableArray<T>.Empty;
+        }
+
+        private static bool TryGetConstructorArgument(AttributeData attr, string name, out object? value)
+        {
+            value = null;
+            var ctor = attr.AttributeConstructor;
+            if (ctor == null || ctor.Parameters.Length == 0)
+                return false;
+
+            for (int i = 0; i < ctor.Parameters.Length; i++)
+            {
+                var param = ctor.Parameters[i];
+                if (!string.Equals(param.Name, name, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (attr.ConstructorArguments.Length <= i)
+                    return false;
+
+                var tc = attr.ConstructorArguments[i];
+                if (tc.Kind == TypedConstantKind.Array)
+                {
+                    value = tc.Values;
+                    return true;
+                }
+
+                value = tc.Value;
+                return true;
+            }
+
+            return false;
         }
     }
 }

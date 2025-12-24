@@ -24,5 +24,12 @@ namespace EffectSharp.SourceGenerators
         /// Scheduler expression for async commands (e.g. "TaskScheduler.Default"). Ignored for sync methods.
         /// </summary>
         public string? ExecutionScheduler { get; set; } = "";
+
+        public FunctionCommandAttribute(string? canExecute = null, bool allowConcurrentExecution = true, string? executionScheduler = "")
+        {
+            CanExecute = canExecute;
+            AllowConcurrentExecution = allowConcurrentExecution;
+            ExecutionScheduler = executionScheduler;
+        }
     }
 }

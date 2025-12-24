@@ -44,5 +44,21 @@ namespace EffectSharp.SourceGenerators
         /// Optional equality comparer expression when equality checks are enabled.
         /// </summary>
         public string? EqualityComparer { get; set; } = "null";
+
+        public WatchAttribute(string[]? values = null, bool immediate = false, bool deep = false, bool once = false, string? scheduler = "null", bool suppressEquality = true, string? equalityComparer = "null")
+        {
+            Values = values;
+            Immediate = immediate;
+            Deep = deep;
+            Once = once;
+            Scheduler = scheduler;
+            SuppressEquality = suppressEquality;
+            EqualityComparer = equalityComparer;
+        }
+
+        public WatchAttribute(string value, bool immediate = false, bool deep = false, bool once = false, string? scheduler = "null", bool suppressEquality = true, string? equalityComparer = "null")
+            : this(new[] { value }, immediate, deep, once, scheduler, suppressEquality, equalityComparer)
+        {
+        }
     }
 }

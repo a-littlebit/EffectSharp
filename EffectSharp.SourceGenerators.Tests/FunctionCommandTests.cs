@@ -139,6 +139,36 @@ public partial class Sample
         }
 
         [Fact]
+        public void Honors_FunctionCommand_Constructor_Arguments()
+        {
+            var src = @"
+using System.Threading;
+using System.Threading.Tasks;
+using EffectSharp.SourceGenerators;
+
+[ReactiveModel]
+public partial class Sample
+{
+    [FunctionCommand(nameof(CanRun), false, ""TaskScheduler.Default"")]
+    public async Task DoAsync(CancellationToken ct) { await Task.Delay(1); }
+    public bool CanRun() => true;
+}
+";
+
+            var (comp, result, driver) = GeneratorTestHelper.RunGenerator(
+                GeneratorTestHelper.EffectSharpAttributeStubs,
+                GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
+                src);
+
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
+            Assert.NotNull(gen);
+            var text = gen.GetText()!.ToString();
+            Assert.Contains("canExecute: CanRun", text);
+            Assert.Contains("allowConcurrentExecution: false", text);
+            Assert.Contains("executionScheduler: TaskScheduler.Default", text);
+        }
+
+        [Fact]
         public void Reports_EFSP1001_When_FunctionCommand_Has_TooMany_Params()
         {
             var src = @"

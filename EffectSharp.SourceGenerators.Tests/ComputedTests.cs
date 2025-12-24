@@ -60,6 +60,32 @@ public partial class Sample
         }
 
         [Fact]
+        public void Honors_Computed_Constructor_Setter_Argument()
+        {
+            var src = @"
+using EffectSharp.SourceGenerators;
+
+[ReactiveModel]
+public partial class Sample
+{
+    [Computed(""SetTotal"")]
+    public int Total() => 42;
+    public void SetTotal(int v) { }
+}
+";
+
+            var (comp, result, driver) = GeneratorTestHelper.RunGenerator(
+                GeneratorTestHelper.EffectSharpAttributeStubs,
+                GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
+                src);
+
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
+            Assert.NotNull(gen);
+            var text = gen.GetText()!.ToString();
+            Assert.Contains("setter: SetTotal", text);
+        }
+
+        [Fact]
         public void Generates_Computed_Naming_Rules_ComputePrefix_To_Property()
         {
             var src = @"

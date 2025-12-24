@@ -43,7 +43,7 @@ namespace Example.Wpf.Counter
         [Computed]
         public Visibility ComputeErrorInfoVisibility() => ComputeIsThrottlingIntervalValid() ? Visibility.Collapsed : Visibility.Visible;
 
-        [Watch(Values = [$"{nameof(IncrementCount)}.Value"])]
+        [Watch($"{nameof(IncrementCount)}.Value")]
         public void OnDisplayCountChanged(int newCount, int oldCount)
         {
             _ = RestoreLater(2000, oldCount - newCount);
@@ -58,7 +58,7 @@ namespace Example.Wpf.Counter
         [ReactiveField]
         private int _maxCount = 0;
 
-        [Watch(Values = [nameof(Count)])]
+        [Watch(nameof(Count))]
         public void OnCountChanged(int newCount, int oldCount)
         {
             if (newCount < oldCount && oldCount > MaxCount)
@@ -69,7 +69,7 @@ namespace Example.Wpf.Counter
 
         public ReactiveCollection<CountRecord> CountRecords { get; } = [];
 
-        [Watch(Values = [nameof(MaxCount)])]
+        [Watch(nameof(MaxCount))]
         public void OnMaxCountChanged(int newMaxCount)
         {
             CountRecords.Add(new CountRecord

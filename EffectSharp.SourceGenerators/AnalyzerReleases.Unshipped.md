@@ -4,10 +4,16 @@
 ### New Rules
 Rule ID | Category | Severity | Notes
 --------|----------|----------|--------------------
+EFSP2002 | EffectSharp.Watch | Error | Watch must specify one or more values
 EFSP5001 | EffectSharp.Deep | Error | [Deep] target must be reactive
 EFSP5002 | EffectSharp.Deep | Error | [Deep] on method requires [Computed] or [ComputedList]
 
 ## Rule Details
+#### EFSP2002: Watch must specify one or more values
+- Category: EffectSharp.Watch
+- Severity: Error
+- Description: The [Watch] attribute must specify at least one value to watch.
+
 #### EFSP5001: [Deep] target must be reactive
 - Category: EffectSharp.Deep
 - Severity: Error

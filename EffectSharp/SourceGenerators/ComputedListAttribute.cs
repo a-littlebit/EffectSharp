@@ -18,5 +18,11 @@ namespace EffectSharp.SourceGenerators
         /// Optional equality comparer expression for items (e.g. "ItemComparer.Instance").
         /// </summary>
         public string? EqualityComparer { get; set; }
+
+        public ComputedListAttribute(string? keySelector = null, string? equalityComparer = null)
+        {
+            KeySelector = keySelector;
+            EqualityComparer = equalityComparer;
+        }
     }
 }

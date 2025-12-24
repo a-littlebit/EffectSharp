@@ -19,8 +19,19 @@ namespace EffectSharp.SourceGenerators
                     continue;
 
                 var values = SymbolHelper.GetArrayArgument<string>(attr, "Values");
+                if (values.Length == 0 && attr.ConstructorArguments.Length >= 1)
+                {
+                    var arg = attr.ConstructorArguments[0];
+                    if (arg.Kind == TypedConstantKind.Primitive && arg.Value is string single)
+                    {
+                        values = ImmutableArray.Create(single);
+                    }
+                }
                 if (values.Length == 0)
+                {
+                    diagnostics.Add(Diagnostic.Create(DiagnosticDescriptors.WatchMissingValues, method.Locations.FirstOrDefault(), method.Name));
                     continue;
+                }
 
                 if (method.Parameters.Length > 2)
                 {

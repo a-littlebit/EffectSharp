@@ -18,5 +18,10 @@ namespace EffectSharp.SourceGenerators
         /// Default equality comparison used when no custom method is provided; <c>T</c> is replaced with the field type.
         /// </summary>
         public const string DefaultEqualsMethod = "global::System.Collections.Generic.EqualityComparer<T>.Default";
+
+        public ReactiveFieldAttribute(string equalsMethod = DefaultEqualsMethod)
+        {
+            EqualsMethod = equalsMethod;
+        }
     }
 }

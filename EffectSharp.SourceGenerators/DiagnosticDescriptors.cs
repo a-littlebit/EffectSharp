@@ -28,6 +28,14 @@ namespace EffectSharp.SourceGenerators
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
+        public static readonly DiagnosticDescriptor WatchMissingValues = new(
+            id: "EFSP2002",
+            title: "Watch must specify one or more values",
+            messageFormat: "Method '{0}' is marked with [Watch] but does not specify any values",
+            category: "EffectSharp.Watch",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
         public static readonly DiagnosticDescriptor ComputedMethodTooManyParameters = new(
             id: "EFSP3001",
             title: "Computed method has parameters",

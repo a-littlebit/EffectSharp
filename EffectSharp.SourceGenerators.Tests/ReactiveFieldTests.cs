@@ -64,6 +64,33 @@ public partial class Sample
         }
 
         [Fact]
+        public void Honors_ReactiveField_Constructor_EqualsMethod()
+        {
+            var src = @"
+using EffectSharp.SourceGenerators;
+
+static class Cmp { public static bool AreEqual(int a, int b) => a == b; }
+
+[ReactiveModel]
+public partial class Sample
+{
+    [ReactiveField(""Cmp.AreEqual"")]
+    private int _x;
+}
+";
+
+            var (comp, result, driver) = GeneratorTestHelper.RunGenerator(
+                GeneratorTestHelper.EffectSharpAttributeStubs,
+                GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
+                src);
+
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
+            Assert.NotNull(gen);
+            var text = gen.GetText()!.ToString();
+            Assert.Contains("if (Cmp.AreEqual(_x, value))", text);
+        }
+
+        [Fact]
         public void Generates_ReactiveField_For_IAtomic_Value_Access()
         {
             var src = @"

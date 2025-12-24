@@ -68,6 +68,37 @@ public partial class Sample
         }
 
         [Fact]
+        public void Honors_ComputedList_Constructor_Arguments()
+        {
+            var src = @"
+using System.Collections.Generic;
+using EffectSharp.SourceGenerators;
+
+static class MyKeyComparer { public static System.Collections.Generic.IEqualityComparer<int> Instance => null; }
+
+[ReactiveModel]
+public partial class Sample
+{
+    [ComputedList(""item => item.Id"", ""MyKeyComparer.Instance"")]
+    public List<Item> Items() => new List<Item>();
+}
+
+public class Item { public int Id { get; set; } }
+";
+
+            var (comp, result, driver) = GeneratorTestHelper.RunGenerator(
+                GeneratorTestHelper.EffectSharpAttributeStubs,
+                GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
+                src);
+
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
+            Assert.NotNull(gen);
+            var text = gen.GetText()!.ToString();
+
+            Assert.Contains("this._computedItems.BindTo(() => this.Items(), item => item.Id, MyKeyComparer.Instance);", text);
+        }
+
+        [Fact]
         public void Accepts_ComputedList_ReturnType_From_Interface_Inheriting_IList()
         {
             var src = @"

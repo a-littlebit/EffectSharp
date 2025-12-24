@@ -86,12 +86,22 @@ namespace EffectSharp.SourceGenerators
     public sealed class ReactiveFieldAttribute : Attribute
     {
         public string EqualsMethod { get; set; } = ""global::System.Collections.Generic.EqualityComparer<T>.Default"";
+
+        public ReactiveFieldAttribute(string equalsMethod = ""global::System.Collections.Generic.EqualityComparer<T>.Default"")
+        {
+            EqualsMethod = equalsMethod;
+        }
     }
 
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public sealed class ComputedAttribute : Attribute
     {
         public string Setter { get; set; }
+
+        public ComputedAttribute(string setter = null)
+        {
+            Setter = setter;
+        }
     }
 
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
@@ -99,6 +109,12 @@ namespace EffectSharp.SourceGenerators
     {
         public string KeySelector { get; set; }
         public string EqualityComparer { get; set; }
+
+        public ComputedListAttribute(string keySelector = null, string equalityComparer = null)
+        {
+            KeySelector = keySelector;
+            EqualityComparer = equalityComparer;
+        }
     }
 
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
@@ -107,6 +123,13 @@ namespace EffectSharp.SourceGenerators
         public string CanExecute { get; set; }
         public bool AllowConcurrentExecution { get; set; } = true;
         public string ExecutionScheduler { get; set; } = """";
+
+        public FunctionCommandAttribute(string canExecute = null, bool allowConcurrentExecution = true, string executionScheduler = null)
+        {
+            CanExecute = canExecute;
+            AllowConcurrentExecution = allowConcurrentExecution;
+            ExecutionScheduler = executionScheduler;
+        }
     }
 
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
@@ -119,10 +142,32 @@ namespace EffectSharp.SourceGenerators
         public string Scheduler { get; set; } = ""null"";
         public bool SuppressEquality { get; set; } = true;
         public string EqualityComparer { get; set; } = ""null"";
+
+        public WatchAttribute(string[] values = null, bool immediate = false, bool deep = false, bool once = false, string scheduler = ""null"", bool suppressEquality = true, string equalityComparer = ""null"")
+        {
+            Values = values;
+            Immediate = immediate;
+            Deep = deep;
+            Once = once;
+            Scheduler = scheduler;
+            SuppressEquality = suppressEquality;
+            EqualityComparer = equalityComparer;
+        }
+
+        public WatchAttribute(string value, bool immediate = false, bool deep = false, bool once = false, string scheduler = ""null"", bool suppressEquality = true, string equalityComparer = ""null"")
+        {
+            Values = new[] { value };
+            Immediate = immediate;
+            Deep = deep;
+            Once = once;
+            Scheduler = scheduler;
+            SuppressEquality = suppressEquality;
+            EqualityComparer = equalityComparer;
+        }
     }
 
-        [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Method, AllowMultiple = false)]
-        public sealed class DeepAttribute : Attribute { }
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Method, AllowMultiple = false)]
+    public sealed class DeepAttribute : Attribute { }
 }
 ";
 

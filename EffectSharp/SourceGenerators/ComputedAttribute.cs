@@ -14,5 +14,10 @@ namespace EffectSharp.SourceGenerators
         /// Optional setter expression to allow assigning to the computed value (e.g. "SetFoo").
         /// </summary>
         public string? Setter { get; set; }
+
+        public ComputedAttribute(string? setter = null)
+        {
+            Setter = setter;
+        }
     }
 }
