@@ -140,31 +140,6 @@ namespace EffectSharp.SourceGenerators
                 iw.WriteLine("}");
                 iw.WriteLine();
             }
-
-            iw.WriteLine("public void TrackDeep()");
-            iw.WriteLine("{");
-            iw.Indent++;
-            foreach (var field in spec.ReactiveFields)
-            {
-                iw.WriteLine(field.DependencyFieldName + ".Track();");
-                if (field.MayBeReactive)
-                {
-                    iw.WriteLine("if (" + field.ReadExpression + " is IReactive r_" + field.BackingFieldName + ")");
-                    iw.WriteLine("{");
-                    iw.Indent++;
-                    iw.WriteLine("r_" + field.BackingFieldName + ".TrackDeep();");
-                    iw.Indent--;
-                    iw.WriteLine("}");
-                }
-                else if (field.MustBeReactive)
-                {
-                    iw.WriteLine(field.ReadExpression + ".TrackDeep();");
-                }
-                iw.WriteLine();
-            }
-            iw.Indent--;
-            iw.WriteLine("}");
-            iw.WriteLine();
         }
     }
 }

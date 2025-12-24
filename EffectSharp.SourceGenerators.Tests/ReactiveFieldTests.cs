@@ -115,7 +115,7 @@ public partial class Sample
             Assert.Contains("_rx_dependency.Track();", text);
             Assert.Contains("_obj_dependency.Track();", text);
             Assert.Contains("_str_dependency.Track();", text);
-            Assert.Contains("_rx.TrackDeep();", text);
+            Assert.Contains("_rx?.TrackDeep();", text);
             Assert.Contains("is IReactive r__obj", text);
             Assert.Contains("r__obj.TrackDeep();", text);
             Assert.DoesNotContain("is string r__str", text);

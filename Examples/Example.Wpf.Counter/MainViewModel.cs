@@ -7,8 +7,10 @@ namespace Example.Wpf.Counter
     [ReactiveModel]
     public partial class MainViewModel : IDisposable
     {
+        [Deep]
         public AtomicIntRef IncrementCount { get; } = new AtomicIntRef(0);
 
+        [Deep]
         public AtomicIntRef RestoreCount { get; } = new AtomicIntRef(0);
 
         [Computed]

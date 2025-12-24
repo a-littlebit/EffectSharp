@@ -11,6 +11,7 @@ namespace EffectSharp.SourceGenerators.Model
         public readonly ImmutableArray<ComputedListSpec> ComputedLists;
         public readonly ImmutableArray<FunctionCommandSpec> FunctionCommands;
         public readonly ImmutableArray<WatchSpec> Watches;
+        public readonly ImmutableArray<DeepTrackSpec> DeepTracks;
 
         public ModelSpec(
             TypeSpec type,
@@ -18,7 +19,8 @@ namespace EffectSharp.SourceGenerators.Model
             ImmutableArray<ComputedSpec> computeds,
             ImmutableArray<ComputedListSpec> computedLists,
             ImmutableArray<FunctionCommandSpec> functionCommands,
-            ImmutableArray<WatchSpec> watches)
+            ImmutableArray<WatchSpec> watches,
+            ImmutableArray<DeepTrackSpec> deepTracks)
         {
             Type = type;
             ReactiveFields = reactiveFields;
@@ -26,6 +28,7 @@ namespace EffectSharp.SourceGenerators.Model
             ComputedLists = computedLists;
             FunctionCommands = functionCommands;
             Watches = watches;
+            DeepTracks = deepTracks;
         }
     }
 

@@ -43,5 +43,21 @@ namespace EffectSharp.SourceGenerators
             category: "EffectSharp.ComputedList",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor DeepTargetMustBeReactive = new(
+            id: "EFSP5001",
+            title: "[Deep] target must be reactive",
+            messageFormat: "Member '{0}' is marked with [Deep] but its type is not reactive and cannot be tracked.",
+            category: "EffectSharp.Deep",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor DeepMethodMustBeComputed = new(
+            id: "EFSP5002",
+            title: "[Deep] on method requires [Computed] or [ComputedList]",
+            messageFormat: "Method '{0}' is marked with [Deep] but is neither [Computed] nor [ComputedList].",
+            category: "EffectSharp.Deep",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
     }
 }

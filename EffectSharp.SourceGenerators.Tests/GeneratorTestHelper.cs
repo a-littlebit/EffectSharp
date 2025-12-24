@@ -120,6 +120,9 @@ namespace EffectSharp.SourceGenerators
         public bool SuppressEquality { get; set; } = true;
         public string EqualityComparer { get; set; } = ""null"";
     }
+
+        [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Method, AllowMultiple = false)]
+        public sealed class DeepAttribute : Attribute { }
 }
 ";
 
@@ -138,6 +141,7 @@ namespace EffectSharp.SourceGenerators
     public interface IFunctionCommand<TParam, TResult> { }
     public interface IAsyncFunctionCommand<TParam> { }
     public interface IAsyncFunctionCommand<TParam, TResult> { }
+    public class ReactiveCollection<T> : System.Collections.ObjectModel.ObservableCollection<T>, IReactive { public void TrackDeep() { } }
     public static class FunctionCommand {
         public static IFunctionCommand<TParam> Create<TParam>(System.Action<TParam> e, System.Func<bool> c = null, bool allowConcurrentExecution = true) => default;
         public static IFunctionCommand<TParam, TResult> Create<TParam, TResult>(System.Func<TParam, TResult> e, System.Func<bool> c = null, bool allowConcurrentExecution = true) => default;

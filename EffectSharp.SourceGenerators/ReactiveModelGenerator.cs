@@ -73,13 +73,16 @@ namespace EffectSharp.SourceGenerators
 
             var watches = BuildWatches(modelSymbol, diagnostics);
 
+            var deepTracks = BuildDeepTracks(modelSymbol, compilation, diagnostics);
+
             var spec = new ModelSpec(
                 typeSpec,
                 reactiveFields,
                 computed,
                 computedLists,
                 functionCommands,
-                watches);
+                watches,
+                deepTracks);
 
             return new ModelSpecResult(spec, diagnostics.ToImmutable());
         }
@@ -130,6 +133,7 @@ namespace EffectSharp.SourceGenerators
             EmitComputedLists(spec, iw);
             EmitFunctionCommands(spec, iw);
             EmitWatches(spec, iw);
+            EmitTrackDeep(spec, iw);
             EmitLifecycle(spec, iw);
 
             iw.Indent--;
