@@ -28,7 +28,7 @@ namespace My.App
                 GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
                 src);
 
-            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("My.App.Outer.Inner.ReactiveModel.g.cs"));
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("My.App.Outer.Inner.1.ReactiveModel.g.cs"));
             Assert.NotNull(gen);
             var text = gen.GetText()!.ToString();
 

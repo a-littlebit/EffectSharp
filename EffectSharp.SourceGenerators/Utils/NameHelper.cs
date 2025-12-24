@@ -49,6 +49,11 @@ namespace EffectSharp.SourceGenerators.Utils
             if (string.IsNullOrEmpty(qualified))
                 qualified = symbol.Name.Replace('`', '_');
 
+            if (symbol.TypeParameters.Length > 0)
+            {
+                qualified += "." + symbol.TypeParameters.Length;
+            }
+
             return qualified + ".ReactiveModel.g.cs";
         }
     }
