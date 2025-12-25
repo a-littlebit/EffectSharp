@@ -56,7 +56,7 @@ public partial class CounterViewModel : IDisposable
 
     private ReactiveCollection<(int Count, DateTime Timestamp)> _records = new();
 
-    [Watch(Values =  [nameof(Count)])]
+    [Watch(nameof(Count))]
     private void OnCountChanged(int newCount, int oldCount)
     {
         if (MaxCount < newCount)
