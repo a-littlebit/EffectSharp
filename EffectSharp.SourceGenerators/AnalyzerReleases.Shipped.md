@@ -1,6 +1,16 @@
 ﻿; Shipped analyzer releases
 ; https://github.com/dotnet/roslyn-analyzers/blob/main/src/Microsoft.CodeAnalysis.Analyzers/ReleaseTrackingAnalyzers.Help.md
 
+## Release 1.3.2
+
+### New Rules
+Rule ID | Category | Severity | Notes
+--------|----------|----------|--------------------
+EFSP2002 | EffectSharp.Watch | Error | Watch must specify one or more values
+EFSP4002 | EffectSharp.ComputedList | Error | ComputedList method has parameters
+EFSP5001 | EffectSharp.Deep | Error | [Deep] target must be reactive
+EFSP5002 | EffectSharp.Deep | Error | [Deep] on method requires [Computed] or [ComputedList]
+
 ## Release 1.3.0
 
 ### New Rules
@@ -10,7 +20,7 @@ Rule ID | Category | Severity | Notes
 EFSP1001 | EffectSharp.FunctionCommand | Error | FunctionCommand method has too many parameters
 EFSP1002 | EffectSharp.FunctionCommand | Warning | FunctionCommand Scheduler is only valid for async methods
 EFSP2001 | EffectSharp.Watch | Error | Watch method has too many parameters
-EFSP3001 | EffectSharp.Computed | Error | Computed method has too many parameters
+EFSP3001 | EffectSharp.Computed | Error | Computed method has parameters
 EFSP4001 | EffectSharp.ComputedList | Error | ComputedList has invalid return type
 
 ## Rule Details
@@ -30,7 +40,12 @@ EFSP4001 | EffectSharp.ComputedList | Error | ComputedList has invalid return ty
 - Severity: Error
 - Description: Methods annotated with [Watch] can have at most two parameters: the new value and (optionally) the old value.
 
-#### EFSP3001: Computed method has too many parameters
+#### EFSP2002: Watch must specify one or more values
+- Category: EffectSharp.Watch
+- Severity: Error
+- Description: The [Watch] attribute must specify at least one value to watch.
+
+#### EFSP3001: Computed method has parameters
 - Category: EffectSharp.Computed
 - Severity: Error
 - Description: Methods annotated with [Computed] cannot have any parameters.
@@ -39,3 +54,18 @@ EFSP4001 | EffectSharp.ComputedList | Error | ComputedList has invalid return ty
 - Category: EffectSharp.ComputedList
 - Severity: Error
 - Description: Methods annotated with [ComputedList] must return a type assignable to IList<T>.
+
+#### EFSP4002: ComputedList method has parameters
+- Category: EffectSharp.ComputedList
+- Severity: Error
+- Description: Methods annotated with [ComputedList] cannot have any parameters.
+
+#### EFSP5001: [Deep] target must be reactive
+- Category: EffectSharp.Deep
+- Severity: Error
+- Description: The [Deep] attribute can only be applied to properties, fields, computed methods or computed list methods of types that implement IReactive.
+
+#### EFSP5002: [Deep] on method requires [Computed] or [ComputedList]
+- Category: EffectSharp.Deep
+- Severity: Error
+- Description: The [Deep] attribute can only be applied to methods that are also annotated with [Computed] or [ComputedList].
