@@ -2,8 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.ComponentModel;
 using System.Linq;
 
 
@@ -81,10 +79,34 @@ namespace EffectSharp
             }
         }
 
+        T IList<T>.this[int index]
+        {
+            get
+            {
+                TrackIndexDependency(index);
+                return base[index];
+            }
+            set
+            {
+                base[index] = value;
+                TriggerIndexDependency(index);
+                _listDependency.Trigger();
+            }
+        }
+
         /// <summary>
         /// Gets the number of elements in the collection and participates in dependency tracking.
         /// </summary>
         public new int Count
+        {
+            get
+            {
+                _listDependency.Track();
+                return base.Count;
+            }
+        }
+
+        int ICollection<T>.Count
         {
             get
             {
@@ -182,10 +204,31 @@ namespace EffectSharp
             }
         }
 
+        bool ICollection<T>.Contains(T item)
+        {
+            int index = base.IndexOf(item);
+            if (index >= 0)
+            {
+                TrackIndexDependency(index);
+                return true;
+            }
+            else
+            {
+                _listDependency.Track();
+                return false;
+            }
+        }
+
         /// <summary>
         /// Copies the elements to the specified array and tracks list dependency.
         /// </summary>
         public new void CopyTo(T[] array, int index)
+        {
+            _listDependency.Track();
+            base.CopyTo(array, index);
+        }
+
+        void ICollection<T>.CopyTo(T[] array, int index)
         {
             _listDependency.Track();
             base.CopyTo(array, index);
@@ -200,10 +243,34 @@ namespace EffectSharp
             return base.GetEnumerator();
 
         }
+
+        IEnumerator<T> IEnumerable<T>.GetEnumerator()
+        {
+            _listDependency.Track();
+            return base.GetEnumerator();
+        }
+
         /// <summary>
         /// Returns the index of the item and tracks affected index dependencies or list dependency if not found.
         /// </summary>
         public new int IndexOf(T item)
+        {
+            int index = base.IndexOf(item);
+            if (index >= 0)
+            {
+                for (int i = 0; i <= Math.Min(index, _indexDependencies.Count - 1); i++)
+                {
+                    _indexDependencies[i]?.Track();
+                }
+            }
+            else
+            {
+                _listDependency.Track();
+            }
+            return index;
+        }
+
+        int IList<T>.IndexOf(T item)
         {
             int index = base.IndexOf(item);
             if (index >= 0)
