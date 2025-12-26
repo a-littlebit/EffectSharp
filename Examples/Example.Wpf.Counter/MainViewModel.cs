@@ -67,6 +67,7 @@ namespace Example.Wpf.Counter
             }
         }
 
+        [Deep]
         public ReactiveCollection<CountRecord> CountRecords { get; } = [];
 
         [Watch(nameof(MaxCount))]
