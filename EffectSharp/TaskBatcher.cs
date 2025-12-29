@@ -525,31 +525,16 @@ namespace EffectSharp
 
         #region Disposal
         /// <summary>
-        /// Releases all resources used by the TaskBatcher&lt;T&gt;.
+        /// Releases all resources used by the <see cref="TaskBatcher{T}"/>.
         /// Does not wait for in-progress batches to complete (call FlushAsync first if needed).
         /// </summary>
         public void Dispose()
         {
-            Dispose(true);
+            if (Interlocked.Exchange(ref _disposed, 1) == 1)
+                return; // Already disposed
+            // Cancel any ongoing delay
+            CancelCurrentDelay();
             GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        /// Releases managed and unmanaged resources.
-        /// </summary>
-        /// <param name="disposing">True to release managed resources; false for unmanaged only</param>
-        protected virtual void Dispose(bool disposing)
-        {
-            var disposed = Interlocked.Exchange(ref _disposed, 1);
-
-            if (disposed == 0 && disposing)
-            {
-                // Speed cleanup
-                CancelCurrentDelay();
-
-                // Dispose the semaphore
-                _consumerSemaphore.Dispose();
-            }
         }
 
         /// <summary>
