@@ -1,6 +1,6 @@
 namespace EffectSharp.SourceGenerators.Model
 {
-    internal readonly struct FunctionCommandSpec
+    internal readonly record struct FunctionCommandSpec
     {
         public readonly string FieldName;
         public readonly string PropertyName;

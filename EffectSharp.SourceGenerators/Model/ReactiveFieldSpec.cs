@@ -7,7 +7,7 @@ namespace EffectSharp.SourceGenerators.Model
         Custom
     }
 
-    internal readonly struct ReactiveFieldSpec
+    internal readonly record struct ReactiveFieldSpec
     {
         public readonly string BackingFieldName;
         public readonly string DependencyFieldName;

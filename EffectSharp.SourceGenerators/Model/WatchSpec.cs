@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 
 namespace EffectSharp.SourceGenerators.Model
 {
-    internal readonly struct WatchSpec
+    internal readonly record struct WatchSpec
     {
         public readonly string FieldName;
         public readonly string MethodName;

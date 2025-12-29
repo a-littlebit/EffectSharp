@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 
 namespace EffectSharp.SourceGenerators.Model
 {
-    internal readonly struct TypeSpec
+    internal readonly record struct TypeSpec
     {
         public readonly string Namespace;
         public readonly ImmutableArray<ContainingTypeSpec> ContainingTypes;
@@ -31,7 +31,7 @@ namespace EffectSharp.SourceGenerators.Model
         }
     }
 
-    internal readonly struct ContainingTypeSpec
+    internal readonly record struct ContainingTypeSpec
     {
         public readonly string Header;
         public readonly ImmutableArray<string> Constraints;

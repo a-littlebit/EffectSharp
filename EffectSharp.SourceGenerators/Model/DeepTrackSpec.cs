@@ -1,6 +1,6 @@
 namespace EffectSharp.SourceGenerators.Model
 {
-    internal readonly struct DeepTrackSpec
+    internal readonly record struct DeepTrackSpec
     {
         public readonly string Expression;
         public readonly string TempName;

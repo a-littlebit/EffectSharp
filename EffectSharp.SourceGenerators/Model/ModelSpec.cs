@@ -1,9 +1,10 @@
 using Microsoft.CodeAnalysis;
+using System;
 using System.Collections.Immutable;
 
 namespace EffectSharp.SourceGenerators.Model
 {
-    internal readonly struct ModelSpec
+    internal readonly record struct ModelSpec
     {
         public readonly TypeSpec Type;
         public readonly ImmutableArray<ReactiveFieldSpec> ReactiveFields;
@@ -32,7 +33,7 @@ namespace EffectSharp.SourceGenerators.Model
         }
     }
 
-    internal readonly struct ModelSpecResult
+    internal readonly struct ModelSpecResult : IEquatable<ModelSpecResult>
     {
         public static readonly ModelSpecResult Empty = new ModelSpecResult(default, ImmutableArray<Diagnostic>.Empty);
 
@@ -45,6 +46,22 @@ namespace EffectSharp.SourceGenerators.Model
         {
             Spec = spec;
             Diagnostics = diagnostics;
+        }
+
+        public bool Equals(ModelSpecResult other)
+        {
+            return Spec.Equals(other.Spec);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is ModelSpecResult result &&
+                   Spec.Equals(result.Spec);
+        }
+
+        public override int GetHashCode()
+        {
+            return Spec.GetHashCode();
         }
     }
 }

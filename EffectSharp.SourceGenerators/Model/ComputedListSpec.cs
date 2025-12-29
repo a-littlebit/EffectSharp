@@ -1,6 +1,6 @@
 namespace EffectSharp.SourceGenerators.Model
 {
-    internal readonly struct ComputedListSpec
+    internal readonly record struct ComputedListSpec
     {
         public readonly string FieldName;
         public readonly string EffectFieldName;
