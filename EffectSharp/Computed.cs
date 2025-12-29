@@ -113,8 +113,7 @@ namespace EffectSharp
         /// </summary>
         public void TrackDeep()
         {
-            _dependency.Track();
-            var value = Value;
+            var value = Value; // Access latest value and track dependency
             if (value != null && value is IReactive reactiveValue)
             {
                 reactiveValue.TrackDeep();
