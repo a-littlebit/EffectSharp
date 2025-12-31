@@ -15,16 +15,13 @@ namespace EffectSharp
     {
         private ConcurrentDictionary<Effect, bool>? _subscribers;
 
-        private ConcurrentDictionary<Effect, bool> Subscribers
+        private ConcurrentDictionary<Effect, bool> GetOrCreateSubcriberDictionary()
         {
-            get
-            {
-                var s = _subscribers;
-                if (s != null) return s;
+            var s = _subscribers;
+            if (s != null) return s;
 
-                var created = new ConcurrentDictionary<Effect, bool>();
-                return Interlocked.CompareExchange(ref _subscribers, created, null) ?? created;
-            }
+            var created = new ConcurrentDictionary<Effect, bool>();
+            return Interlocked.CompareExchange(ref _subscribers, created, null) ?? created;
         }
 
         /// <summary>
@@ -34,7 +31,7 @@ namespace EffectSharp
         /// <returns>True if added; false if already present.</returns>
         public bool AddSubscriber(Effect effect)
         {
-            return Subscribers.TryAdd(effect, true);
+            return GetOrCreateSubcriberDictionary().TryAdd(effect, true);
         }
 
         /// <summary>
@@ -44,7 +41,11 @@ namespace EffectSharp
         /// <returns>True if removed; false if not found.</returns>
         public bool RemoveSubscriber(Effect effect)
         {
-            return Subscribers.TryRemove(effect, out _);
+            var subcribers = _subscribers;
+            if (subcribers == null)
+                return false;
+
+            return subcribers.TryRemove(effect, out _);
         }
 
         /// <summary>
@@ -66,7 +67,11 @@ namespace EffectSharp
         /// </summary>
         public void Trigger()
         {
-            foreach (var subscriber in Subscribers.Keys)
+            var subcribers = _subscribers;
+            if (subcribers == null)
+                return;
+
+            foreach (var subscriber in subcribers.Keys)
             {
                 subscriber.ScheduleExecution();
             }
