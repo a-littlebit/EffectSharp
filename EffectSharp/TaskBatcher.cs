@@ -352,7 +352,7 @@ namespace EffectSharp
                         if (Volatile.Read(ref _disposed) == 1) break;
 
                         // Start batch processing
-                        await StartBatchProcessingAsync();
+                        StartBatchProcessingAsync();
                     }
                 }
                 finally
@@ -362,20 +362,37 @@ namespace EffectSharp
             }
         }
 
-        public async Task StartBatchProcessingAsync()
+        public void StartBatchProcessingAsync()
         {
-            // Acquire semaphore to limit concurrent batch processing
-            await _consumerSemaphore.WaitAsync().ConfigureAwait(false);
+            _ = _consumerSemaphore.WaitAsync().ContinueWith(
+                t =>
+                {
+                    if (t.Status != TaskStatus.RanToCompletion)
+                        return;
 
-            // Capture the current scheduler for this batch
-            var scheduler = Volatile.Read(ref _scheduler);
+                    // Capture the current scheduler
+                    var scheduler = Volatile.Read(ref _scheduler);
 
-            // Schedule batch processing on the specified scheduler
-            _ = Task.Factory.StartNew(
-                ProcessBatchAsync,
+                    // Start the batch processing task on the captured scheduler
+                    var _ = Task.Factory.StartNew(
+                        async () =>
+                        {
+                            try
+                            {
+                                await ProcessBatchAsync().ConfigureAwait(false);
+                            }
+                            finally
+                            {
+                                _consumerSemaphore.Release();
+                            }
+                        },
+                        CancellationToken.None,
+                        TaskCreationOptions.DenyChildAttach,
+                        scheduler).Unwrap();
+                },
                 CancellationToken.None,
-                TaskCreationOptions.DenyChildAttach | TaskCreationOptions.RunContinuationsAsynchronously,
-                scheduler).Unwrap();
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
         }
 
         /// <summary>
@@ -384,10 +401,7 @@ namespace EffectSharp
         private async Task ProcessBatchAsync()
         {
             if (_taskQueue.IsEmpty)
-            {
-                _consumerSemaphore.Release();
                 return;
-            }
 
             // Dequeue all tasks currently in the queue and ensure sequence continuity
             var initialCapacity = _taskQueue.Count;
@@ -401,10 +415,7 @@ namespace EffectSharp
 
             // Exit if no tasks to process (queue emptied between IsEmpty check and Dequeue)
             if (batch.Count == 0)
-            {
-                _consumerSemaphore.Release();
                 return;
-            }
 
             // Run the synchronous batch processor on the specified scheduler
             try
@@ -421,9 +432,6 @@ namespace EffectSharp
 
         private async Task AfterBatchProcess(List<T>? batch, List<long> batchSeqs, Exception? ex = null)
         {
-            // Release the semaphore to allow other batch processing tasks
-            _consumerSemaphore.Release();
-
             // Ensure all prior batches are fully processed before updating the processed counter
             var minSeq = batchSeqs.Min();
             var oldTickState = Volatile.Read(ref _tickState);
