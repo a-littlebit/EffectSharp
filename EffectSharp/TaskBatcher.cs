@@ -12,7 +12,7 @@ namespace EffectSharp
     /// asynchronous batch completion waiting, and dynamic task scheduler switching.
     /// </summary>
     /// <typeparam name="T">Type of data structure for tasks to process</typeparam>
-    public class TaskBatcher<T> : IDisposable
+    public class TaskBatcher<T> : ITaskBatcher<T>, IDisposable
     {
         #region Private Fields
         private readonly Func<List<T>, Task> _batchProcessor; // Synchronous batch processing callback (must run sync)

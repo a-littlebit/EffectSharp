@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,28 +14,28 @@ namespace EffectSharp
     public static class TaskManager
     {
 
-        private static volatile TaskBatcher<Effect>? _effectBatcher = null;
+        private static volatile ITaskBatcher<Effect>? _effectBatcher = null;
         private static readonly object _effectBatcherLock = new();
 
-        private static volatile TaskBatcher<NotificationTask>? _notificationBatcher = null;
+        private static volatile ITaskBatcher<NotificationTask>? _notificationBatcher = null;
         private static readonly object _notificationBatcherLock = new();
 
         /// <summary>
         /// Gets the batcher responsible for processing queued <see cref="Effect"/> triggers.
         /// </summary>
-        public static TaskBatcher<Effect>? EffectBatcher => _effectBatcher;
+        public static ITaskBatcher<Effect>? EffectBatcher => _effectBatcher;
         /// <summary>
         /// Gets the batcher responsible for processing queued property change notifications.
         /// </summary>
-        public static TaskBatcher<NotificationTask>? NotificationBatcher => _notificationBatcher;
+        public static ITaskBatcher<NotificationTask>? NotificationBatcher => _notificationBatcher;
 
         /// <summary>
-        /// Create a <see cref="TaskBatcher{Effect}"/> for effect execution scheduling using the specified supplier function
+        /// Create a <see cref="ITaskBatcher{Effect}"/> for effect execution scheduling using the specified supplier function
         /// if it had not been created.
         /// </summary>
         /// <param name="supplier">Supplier invoked to create the batcher if not yet initialized.</param>
         /// <returns>true if a new effect batcher was created; otherwise, false.</returns>
-        public static bool CreateEffectBatcherIfAbsent(Func<TaskBatcher<Effect>> supplier)
+        public static bool CreateEffectBatcherIfAbsent(Func<ITaskBatcher<Effect>> supplier)
         {
             if (_effectBatcher == null)
             {
@@ -52,10 +52,10 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Gets the <see cref="TaskBatcher{Effect}"/> instance for processing effect tasks, creating a default one if it does not already exist.
+        /// Gets the <see cref="ITaskBatcher{Effect}"/> instance for processing effect tasks, creating a default one if it does not already exist.
         /// </summary>
-        /// <returns>The singleton <see cref="TaskBatcher{Effect}"/> instance used for batching and processing effect tasks.</returns>
-        public static TaskBatcher<Effect> GetOrCreateDefaultEffectBatcher()
+        /// <returns>The singleton <see cref="ITaskBatcher{Effect}"/> instance used for batching and processing effect tasks.</returns>
+        public static ITaskBatcher<Effect> GetOrCreateDefaultEffectBatcher()
         {
             CreateEffectBatcherIfAbsent(() =>
             {
@@ -79,12 +79,12 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Create a <see cref="TaskBatcher{Effect}"/> for notification batching using the specified supplier function
+        /// Create a <see cref="ITaskBatcher{Effect}"/> for notification batching using the specified supplier function
         /// if it has not already been created.
         /// </summary>
         /// <param name="supplier">Supplier invoked to create the batcher if not yet initialized.</param>
         /// <returns>true if the notification batcher was successfully created; otherwise, false.</returns>
-        public static bool CreateNotificationBatcherIfAbsent(Func<TaskBatcher<NotificationTask>> supplier)
+        public static bool CreateNotificationBatcherIfAbsent(Func<ITaskBatcher<NotificationTask>> supplier)
         {
             if (_notificationBatcher == null)
             {
@@ -101,11 +101,11 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Gets the <see cref="TaskBatcher{NotificationTask}"/> instance for processing notification tasks,
+        /// Gets the <see cref="ITaskBatcher{NotificationTask}"/> instance for processing notification tasks,
         /// creating a default one if it does not already exist.
         /// </summary>
-        /// <returns>The singleton <see cref="TaskBatcher{NotificationTask}"/> used for batching notifications.</returns>
-        public static TaskBatcher<NotificationTask> GetOrCreateDefaultNotificationBatcher()
+        /// <returns>The singleton <see cref="ITaskBatcher{NotificationTask}"/> used for batching notifications.</returns>
+        public static ITaskBatcher<NotificationTask> GetOrCreateDefaultNotificationBatcher()
         {
             CreateNotificationBatcherIfAbsent(() =>
             {
@@ -206,19 +206,44 @@ namespace EffectSharp
         /// </summary>
         public static void DefaultNotificationBatchProcessor(List<NotificationTask> tasks)
         {
-            var grouped = tasks.GroupBy(t => (t.Model, t.PropertyName));
-            foreach (var group in grouped)
+            var notificationSet = new HashSet<NotificationTask>(tasks);
+            foreach (var task in notificationSet)
             {
-                var (_, propName) = group.Key;
-                group.First().Notifier(new PropertyChangedEventArgs(propName));
+                var args = new PropertyChangedEventArgs(task.PropertyName);
+                task.Notifier(args);
             }
         }
     }
 
     /// <summary>
+    /// Interface for a batched task scheduler that supports enqueuing tasks, flushing, and awaiting completion.
+    /// </summary>
+    /// <typeparam name="T">Type of task.</typeparam>
+    public interface ITaskBatcher<T>
+    {
+        /// <summary>
+        /// Enqueue a task for batched execution.
+        /// </summary>
+        /// <param name="task">The task to enqueue.</param>
+        void Enqueue(T task);
+
+        /// <summary>
+        /// Asynchronously flush all currently enqueued tasks.
+        /// </summary>
+        /// <param name="cancellationToken">Optional cancellation token.</param>
+        Task FlushAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns a task that completes when all currently enqueued tasks are processed.
+        /// </summary>
+        /// <param name="cancellationToken">Optional cancellation token.</param>
+        Task NextTick(CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Represents a property change notification task.
     /// </summary>
-    public class NotificationTask
+    public readonly struct NotificationTask : IEquatable<NotificationTask>
     {
         /// <summary>
         /// The object whose property changed.
@@ -248,6 +273,28 @@ namespace EffectSharp
             Model = model;
             PropertyName = propertyName;
             Notifier = notifier;
+        }
+
+        public bool Equals(NotificationTask other)
+        {
+            return ReferenceEquals(Model, other.Model) &&
+                   PropertyName == other.PropertyName;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is NotificationTask task &&
+                   Equals(task);
+        }
+
+        public override int GetHashCode()
+        {
+            int modelHash = Model == null ? 0 : RuntimeHelpers.GetHashCode(Model);
+            int propertyHash = PropertyName == null ? 0 : PropertyName.GetHashCode();
+            unchecked
+            {
+                return ((modelHash << 5) + modelHash) ^ propertyHash;
+            }
         }
     }
 }
