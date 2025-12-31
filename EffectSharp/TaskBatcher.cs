@@ -442,20 +442,27 @@ namespace EffectSharp
 
             var processedSeq = oldTickState.ProcessedSequence;
             var discreteSeqSet = _discreteSequences;
+            var minDiscreteSeq = discreteSeqSet.Count > 0 ? discreteSeqSet.Min() : 0;
             foreach (var seq in batchSeqs)
             {
                 if (seq == processedSeq + 1)
                 {
                     processedSeq++;
-                    // Advance processed sequence for any contiguous discrete sequences
-                    while (discreteSeqSet.Remove(processedSeq + 1))
+                    if (minDiscreteSeq - processedSeq == 1)
                     {
-                        processedSeq++;
+                        // Advance processed sequence for any contiguous discrete sequences
+                        while (discreteSeqSet.Remove(processedSeq + 1))
+                        {
+                            processedSeq++;
+                        }
+                        minDiscreteSeq = discreteSeqSet.Count > 0 ? discreteSeqSet.Min() : 0;
                     }
                 }
-                else if (seq > processedSeq + 1)
+                else
                 {
                     discreteSeqSet.Add(seq);
+                    if (minDiscreteSeq == 0 || seq < minDiscreteSeq)
+                        minDiscreteSeq = seq;
                 }
             }
 
