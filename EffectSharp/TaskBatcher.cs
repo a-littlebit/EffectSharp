@@ -24,13 +24,14 @@ namespace EffectSharp
         private int _startLoopFlag; // Flag to ensure single batch processing loop
         private CancellationTokenSource? _currentDelayCts; // Cancellation source for the current interval delay
         private long _enqueueCounter; // Atomic counter for generating unique task sequence numbers
-        private long _dequeuedCounter; // Atomic counter for the highest dequeued sequence number
         private TickState _tickState = new(0); // State for NextTick tracking
+        private readonly HashSet<long> _discreteSequences = new(); // Set of discrete sequence numbers for tracking processed tasks
+                                                                   // Thread safety guarantee: only accessed by the consumer that completes _tickState.ProcessedSequence + 1
         private int _disposed; // Flag to track disposal state
         #endregion
 
         #region Internal Types
-        private class TickState
+        private sealed class TickState
         {
             internal readonly long ProcessedSequence;
             internal readonly TaskCompletionSource<bool> NextTickTcs;
@@ -368,70 +369,35 @@ namespace EffectSharp
 
             // Capture the current scheduler for this batch
             var scheduler = Volatile.Read(ref _scheduler);
-            // Create a TaskCompletionSource to signal when dequeuing is done
-            var dequeuedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             // Schedule batch processing on the specified scheduler
-            _ = Task.Factory.StartNew(async () =>
-            {
-                await ProcessBatchAsync(dequeuedTcs).ConfigureAwait(false);
-            },
-            CancellationToken.None,
-            TaskCreationOptions.DenyChildAttach | TaskCreationOptions.RunContinuationsAsynchronously,
-            scheduler).Unwrap();
-
-            // Wait for the batch to be dequeued before next batch dequeuing
-            await dequeuedTcs.Task.ConfigureAwait(false);
+            _ = Task.Factory.StartNew(
+                ProcessBatchAsync,
+                CancellationToken.None,
+                TaskCreationOptions.DenyChildAttach | TaskCreationOptions.RunContinuationsAsynchronously,
+                scheduler).Unwrap();
         }
 
         /// <summary>
         /// Processes a single batch of tasks from the queue.
         /// </summary>
-        private async Task ProcessBatchAsync(TaskCompletionSource<bool> dequeuedTcs)
+        private async Task ProcessBatchAsync()
         {
             if (_taskQueue.IsEmpty)
             {
-                dequeuedTcs.TrySetResult(true);
                 _consumerSemaphore.Release();
                 return;
             }
 
             // Dequeue all tasks currently in the queue and ensure sequence continuity
-            var batch = new List<T>(_taskQueue.Count);
-            var dequeuedSeq = _dequeuedCounter;
-            var expectedSeq = new HashSet<long>();
-            bool dequeuedAny;
-            while ((dequeuedAny = _taskQueue.TryDequeue(out var taskWithSeq)) || expectedSeq.Count != 0)
+            var initialCapacity = _taskQueue.Count;
+            var batch = new List<T>(initialCapacity);
+            var batchSeqs = new List<long>(initialCapacity);
+            while (_taskQueue.TryDequeue(out var item))
             {
-                if (!dequeuedAny)
-                {
-                    while (!_taskQueue.TryDequeue(out taskWithSeq))
-                    {
-                        // Wait for missing tasks to arrive
-                        await Task.Yield();
-                    }
-                }
-                var (task, seq) = taskWithSeq;
-                batch.Add(task);
-                if (seq < dequeuedSeq)
-                {
-                    expectedSeq.Remove(seq);
-                }
-                else
-                {
-                    if (seq != dequeuedSeq + 1)
-                    {
-                        for (long missingSeq = dequeuedSeq + 1; missingSeq < seq; missingSeq++)
-                        {
-                            expectedSeq.Add(missingSeq);
-                        }
-                    }
-                    dequeuedSeq = seq;
-                }
+                batch.Add(item.Item);
+                batchSeqs.Add(item.Sequence);
             }
-            var lastDequeuedSeq = _dequeuedCounter;
-            _dequeuedCounter = dequeuedSeq;
-            dequeuedTcs.TrySetResult(true);
 
             // Exit if no tasks to process (queue emptied between IsEmpty check and Dequeue)
             if (batch.Count == 0)
@@ -447,30 +413,50 @@ namespace EffectSharp
             }
             catch (Exception ex)
             {
-                await AfterBatchProcess(lastDequeuedSeq, dequeuedSeq, batch, ex).ConfigureAwait(false);
+                await AfterBatchProcess(batch, batchSeqs, ex).ConfigureAwait(false);
                 return;
             }
-            await AfterBatchProcess(lastDequeuedSeq, dequeuedSeq, batch).ConfigureAwait(false);
+            await AfterBatchProcess(batch, batchSeqs).ConfigureAwait(false);
         }
 
-        private async Task AfterBatchProcess(long beforeProcessSeq, long processedSeq, List<T>? batch = null, Exception? ex = null)
+        private async Task AfterBatchProcess(List<T>? batch, List<long> batchSeqs, Exception? ex = null)
         {
             // Release the semaphore to allow other batch processing tasks
             _consumerSemaphore.Release();
 
             // Ensure all prior batches are fully processed before updating the processed counter
+            var minSeq = batchSeqs.Min();
             var oldTickState = Volatile.Read(ref _tickState);
-            while (beforeProcessSeq != oldTickState.ProcessedSequence)
+            while (minSeq - oldTickState.ProcessedSequence > 1)
             {
                 try
                 {
-                    await NextTickInternal(beforeProcessSeq, CancellationToken.None).ConfigureAwait(false);
+                    await NextTickInternal(minSeq - 1, CancellationToken.None).ConfigureAwait(false);
                 }
                 catch
                 {
                     // Ignore exceptions here
                 }
                 oldTickState = Volatile.Read(ref _tickState);
+            }
+
+            var processedSeq = oldTickState.ProcessedSequence;
+            var discreteSeqSet = _discreteSequences;
+            foreach (var seq in batchSeqs)
+            {
+                if (seq == processedSeq + 1)
+                {
+                    processedSeq++;
+                    // Advance processed sequence for any contiguous discrete sequences
+                    while (discreteSeqSet.Remove(processedSeq + 1))
+                    {
+                        processedSeq++;
+                    }
+                }
+                else if (seq > processedSeq + 1)
+                {
+                    discreteSeqSet.Add(seq);
+                }
             }
 
             var newTickState = new TickState(processedSeq);

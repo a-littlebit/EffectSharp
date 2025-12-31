@@ -138,7 +138,7 @@ namespace EffectSharp.Tests
 
         /// <summary>
         /// Exception handling in batch processor:
-        /// - Exceptions should propagate to FlushAsync
+        /// - Exceptions should be captured and reported via BatchProcessingFailed event
         /// - Subsequent batches should still be processed correctly
         /// </summary>
         [Fact]
