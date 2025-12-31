@@ -440,6 +440,7 @@ namespace EffectSharp
                 oldTickState = Volatile.Read(ref _tickState);
             }
 
+            // Update processed sequence and discrete sequences
             var processedSeq = oldTickState.ProcessedSequence;
             var discreteSeqSet = _discreteSequences;
             var minDiscreteSeq = discreteSeqSet.Count > 0 ? discreteSeqSet.Min() : 0;
@@ -466,6 +467,7 @@ namespace EffectSharp
                 }
             }
 
+            // Update tick state and notify waiters
             var newTickState = new TickState(processedSeq);
             oldTickState = Interlocked.Exchange(ref _tickState, newTickState);
 
