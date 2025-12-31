@@ -12,34 +12,44 @@ namespace EffectSharp
     /// </summary>
     public class Effect : IDisposable
     {
-        internal static readonly ThreadLocal<Effect?> _current = new();
+        private static readonly ThreadLocal<Effect?> _current = new();
+
+        private readonly Action _action;
+
+        private readonly Action<Effect>? _scheduler;
+
+        private readonly AsyncLock _lock = new();
+
+        private readonly HashSet<Dependency> _dependencies = new();
+
+        private bool _isUntracked = false;
+
+        private bool _isDisposed = false;
+
+        // Allows direct access to the locked effect API during execution.
+        private AsyncLock.Scope? _executionScope;
 
         /// <summary>
         /// Gets the effect currently being executed (tracking dependencies), if any.
         /// </summary>
         public static Effect? Current => _current.Value;
 
-        private readonly Action _action;
-
-        private readonly Action<Effect>? _scheduler;
-
-        private volatile bool _isDisposed = false;
-
-        private readonly AsyncLock _lock = new();
-
-        // Allows direct access to the locked effect API during execution.
-        private readonly ThreadLocal<AsyncLock.Scope?> _executionScope = new();
-
         /// <summary>
         /// Gets the custom scheduler used to enqueue this effect, if provided.
         /// </summary>
         public Action<Effect>? Scheduler => _scheduler;
+
         /// <summary>
         /// Indicates whether this effect has been disposed.
         /// </summary>
         public bool IsDisposed => _isDisposed;
 
-        private readonly HashSet<Dependency> _dependencies = new();
+        /// <summary>
+        /// Internal lock used to synchronize effect lifecycle operations.
+        /// </summary>
+        public AsyncLock Lock => _lock;
+
+        private AsyncLock.Scope? ExecutionScope => _current.Value == this ? _executionScope : null;
 
         /// <summary>
         /// Creates a new reactive effect that tracks dependencies and re-executes when they change.
@@ -58,17 +68,12 @@ namespace EffectSharp
         }
 
         /// <summary>
-        /// Internal lock used to synchronize effect lifecycle operations.
-        /// </summary>
-        public AsyncLock Lock => _lock;
-
-        /// <summary>
         /// Executes the effect body, tracking dependencies encountered during execution.
         /// </summary>
         /// <param name="existingScope">Optional existing lock scope.</param>
         public void Execute(AsyncLock.Scope? existingScope = null)
         {
-            if (_executionScope.Value != null)
+            if (_current.Value == this)
             {
                 // recursive execution
                 Untracked(_action);
@@ -83,14 +88,14 @@ namespace EffectSharp
 
                 var previousEffect = _current.Value;
                 _current.Value = this;
-                _executionScope.Value = scope;
+                _executionScope = scope;
                 try
                 {
                     _action();
                 }
                 finally
                 {
-                    _executionScope.Value = null;
+                    _executionScope = null;
                     _current.Value = previousEffect;
                 }
             }
@@ -122,20 +127,20 @@ namespace EffectSharp
         /// <returns>Function result.</returns>
         public static T Untracked<T>(Func<T> getter)
         {
-            var previousEffect = _current.Value;
-            if (previousEffect == null)
+            var current = _current.Value;
+            if (current == null || current._isUntracked)
             {
                 return getter();
             }
 
-            _current.Value = null;
+            current._isUntracked = true;
             try
             {
                 return getter();
             }
             finally
             {
-                _current.Value = previousEffect;
+                current._isUntracked = false;
             }
         }
 
@@ -158,7 +163,7 @@ namespace EffectSharp
         /// <param name="existingScope">Optional existing lock scope.</param>
         public void Stop(AsyncLock.Scope? existingScope = null)
         {
-            using (var scope = _lock.Enter(existingScope ?? _executionScope.Value))
+            using (var scope = _lock.Enter(existingScope ?? ExecutionScope))
             {
                 foreach (var dependency in _dependencies)
                 {
@@ -168,11 +173,14 @@ namespace EffectSharp
             }
         }
 
-        internal void AddDependency(Dependency dependency)
+        /// <summary>
+        /// Adds a dependency to the effect's tracked dependencies.
+        /// Only called when locked for execution.
+        /// </summary>
+        internal bool AddDependency(Dependency dependency)
         {
-            // This function can only be called during execution, so no lock is needed here.
-            if (_isDisposed) return;
-            _dependencies.Add(dependency);
+            if (_isUntracked || _isDisposed) return false;
+            return _dependencies.Add(dependency);
         }
 
         /// <summary>
@@ -189,11 +197,10 @@ namespace EffectSharp
         /// <param name="existingScope">Existing lock scope.</param>
         public void Dispose(AsyncLock.Scope? existingScope)
         {
-            using (var scope = _lock.Enter(existingScope ?? _executionScope.Value))
+            using (var scope = _lock.Enter(existingScope ?? ExecutionScope))
             {
-                if (_isDisposed) return;
-                Stop(scope);
                 _isDisposed = true;
+                Stop(scope);
             }
         }
     }

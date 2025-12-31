@@ -54,12 +54,9 @@ namespace EffectSharp
         public Effect? Track()
         {
             var currentEffect = Effect.Current;
-            if (currentEffect != null)
+            if (currentEffect != null && currentEffect.AddDependency(this))
             {
-                if (AddSubscriber(currentEffect))
-                {
-                    currentEffect.AddDependency(this);
-                }
+                AddSubscriber(currentEffect);
             }
             return currentEffect;
         }
