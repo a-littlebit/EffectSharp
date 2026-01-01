@@ -46,10 +46,7 @@ namespace EffectSharp
                 if (batcher != null)
                     return batcher;
 
-                lock (_effectBatcherLock)
-                {
-                    return _effectBatcher;
-                }
+                return Volatile.Read(ref _effectBatcher);
             }
         }
 
@@ -64,10 +61,7 @@ namespace EffectSharp
                 if (batcher != null)
                     return batcher;
 
-                lock (_notificationBatcherLock)
-                {
-                    return _notificationBatcher;
-                }
+                return Volatile.Read(ref _notificationBatcher);
             }
         }
 
@@ -86,7 +80,8 @@ namespace EffectSharp
             {
                 if (_effectBatcher == null)
                 {
-                    _effectBatcher = supplier();
+                    var created = supplier();
+                    Interlocked.Exchange(ref _effectBatcher, created);
                     return true;
                 }
             }
@@ -135,7 +130,8 @@ namespace EffectSharp
             {
                 if (_notificationBatcher == null)
                 {
-                    _notificationBatcher = supplier();
+                    var created = supplier();
+                    Interlocked.Exchange(ref _notificationBatcher, created);
                     return true;
                 }
             }
