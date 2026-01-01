@@ -29,20 +29,47 @@ namespace EffectSharp
     public static class TaskManager
     {
 
-        private static volatile ITaskBatcher<Effect>? _effectBatcher = null;
+        private static ITaskBatcher<Effect>? _effectBatcher = null;
         private static readonly object _effectBatcherLock = new();
 
-        private static volatile ITaskBatcher<NotificationTask>? _notificationBatcher = null;
+        private static ITaskBatcher<NotificationTask>? _notificationBatcher = null;
         private static readonly object _notificationBatcherLock = new();
 
         /// <summary>
         /// Gets the batcher responsible for processing queued <see cref="Effect"/> triggers.
         /// </summary>
-        public static ITaskBatcher<Effect>? EffectBatcher => _effectBatcher;
+        public static ITaskBatcher<Effect>? EffectBatcher
+        {
+            get
+            {
+                var batcher = _effectBatcher;
+                if (batcher != null)
+                    return batcher;
+
+                lock (_effectBatcherLock)
+                {
+                    return _effectBatcher;
+                }
+            }
+        }
+
         /// <summary>
         /// Gets the batcher responsible for processing queued property change notifications.
         /// </summary>
-        public static ITaskBatcher<NotificationTask>? NotificationBatcher => _notificationBatcher;
+        public static ITaskBatcher<NotificationTask>? NotificationBatcher
+        {
+            get
+            {
+                var batcher = _notificationBatcher;
+                if (batcher != null)
+                    return batcher;
+
+                lock (_notificationBatcherLock)
+                {
+                    return _notificationBatcher;
+                }
+            }
+        }
 
         /// <summary>
         /// Create a <see cref="ITaskBatcher{Effect}"/> for effect execution scheduling using the specified supplier function
@@ -52,15 +79,15 @@ namespace EffectSharp
         /// <returns>true if a new effect batcher was created; otherwise, false.</returns>
         public static bool CreateEffectBatcherIfAbsent(Func<ITaskBatcher<Effect>> supplier)
         {
-            if (_effectBatcher == null)
+            if (_effectBatcher != null)
+                return false;
+
+            lock (_effectBatcherLock)
             {
-                lock (_effectBatcherLock)
+                if (_effectBatcher == null)
                 {
-                    if (_effectBatcher == null)
-                    {
-                        _effectBatcher = supplier();
-                        return true;
-                    }
+                    _effectBatcher = supplier();
+                    return true;
                 }
             }
             return false;
@@ -101,15 +128,15 @@ namespace EffectSharp
         /// <returns>true if the notification batcher was successfully created; otherwise, false.</returns>
         public static bool CreateNotificationBatcherIfAbsent(Func<ITaskBatcher<NotificationTask>> supplier)
         {
-            if (_notificationBatcher == null)
+            if (_notificationBatcher != null)
+                return false;
+
+            lock (_notificationBatcherLock)
             {
-                lock (_notificationBatcherLock)
+                if (_notificationBatcher == null)
                 {
-                    if (_notificationBatcher == null)
-                    {
-                        _notificationBatcher = supplier();
-                        return true;
-                    }
+                    _notificationBatcher = supplier();
+                    return true;
                 }
             }
             return false;
@@ -157,7 +184,7 @@ namespace EffectSharp
         /// </summary>
         public static async Task FlushEffectQueue()
         {
-            var effectBatcher = _effectBatcher;
+            var effectBatcher = EffectBatcher;
             if (effectBatcher != null)
                 await effectBatcher.FlushAsync().ConfigureAwait(false);
         }
@@ -167,7 +194,7 @@ namespace EffectSharp
         /// </summary>
         public static Task NextEffectTick(CancellationToken cancellationToken = default)
         {
-            var effectBatcher = _effectBatcher;
+            var effectBatcher = EffectBatcher;
             cancellationToken.ThrowIfCancellationRequested();
             return effectBatcher != null ? effectBatcher.NextTick(cancellationToken) : Task.CompletedTask;
         }
@@ -201,7 +228,7 @@ namespace EffectSharp
         /// </summary>
         public static async Task FlushNotificationQueue()
         {
-            var notificationBatcher = _notificationBatcher;
+            var notificationBatcher = NotificationBatcher;
             if (notificationBatcher != null)
                 await notificationBatcher.FlushAsync().ConfigureAwait(false);
         }
@@ -211,7 +238,7 @@ namespace EffectSharp
         /// </summary>
         public static Task NextNotificationTick(CancellationToken cancellationToken = default)
         {
-            var notificationBatcher = _notificationBatcher;
+            var notificationBatcher = NotificationBatcher;
             cancellationToken.ThrowIfCancellationRequested();
             return notificationBatcher != null ? notificationBatcher.NextTick(cancellationToken) : Task.CompletedTask;
         }
