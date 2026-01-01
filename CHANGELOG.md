@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Keep a Changelog and uses Semantic Versioning (when versions are published). For now, changes are grouped by version and date.
 
-## Unreleased
+## 1.3.2 - 2025-12-24
 
 ### Added
 
