@@ -36,32 +36,73 @@ namespace EffectSharp
         private static readonly object _notificationBatcherLock = new();
 
         /// <summary>
-        /// Gets the batcher responsible for processing queued <see cref="Effect"/> triggers.
+        /// Gets or sets the batcher responsible for processing queued <see cref="Effect"/> triggers.
         /// </summary>
+        /// <remarks>
+        /// Setting this property replaces the global effect batcher for all subsequent calls
+        /// (for example, <see cref="QueueEffectExecution(Effect)"/>, <see cref="FlushEffectQueue"/>, <see cref="NextEffectTick(CancellationToken)"/>).
+        /// The previous instance, if any, is <c>Dispose</c>d immediately. If you need to flush or otherwise
+        /// coordinate the old batcher before disposing it, use <see cref="ReplaceEffectBatcher(ITaskBatcher{Effect}?)"/>
+        /// instead and manage the returned instance explicitly.
+        /// </remarks>
         public static ITaskBatcher<Effect>? EffectBatcher
         {
-            get
-            {
-                var batcher = _effectBatcher;
-                if (batcher != null)
-                    return batcher;
+            get => Volatile.Read(ref _effectBatcher);
+            set => ReplaceEffectBatcher(value)?.Dispose();
+        }
 
-                return Volatile.Read(ref _effectBatcher);
+        /// <summary>
+        /// Gets or sets the batcher responsible for processing queued property change notifications.
+        /// </summary>
+        /// <remarks>
+        /// Setting this property replaces the global notification batcher for all subsequent calls
+        /// (for example, <see cref="QueueNotification(object, string, Action{PropertyChangedEventArgs})"/>,
+        /// <see cref="FlushNotificationQueue"/>, <see cref="NextNotificationTick(CancellationToken)"/>).
+        /// The previous instance, if any, is <c>Dispose</c>d immediately. If you need to flush or otherwise
+        /// coordinate the old batcher before disposing it, use <see cref="ReplaceNotificationBatcher(ITaskBatcher{NotificationTask}?)"/>
+        /// instead and manage the returned instance explicitly.
+        /// </remarks>
+        public static ITaskBatcher<NotificationTask>? NotificationBatcher
+        {
+            get => Volatile.Read(ref _notificationBatcher);
+            set => ReplaceNotificationBatcher(value)?.Dispose();
+        }
+
+        /// <summary>
+        /// Atomically replaces the global effect batcher and returns the previous instance without disposing it.
+        /// </summary>
+        /// <remarks>
+        /// This method is intended for hosts that need fine-grained control over migration between
+        /// batchers (for example, flushing or awaiting <see cref="ITaskBatcher{Effect}.NextTick(CancellationToken)"/>
+        /// on the old instance before disposing it). New calls to TaskManager APIs will immediately
+        /// observe the newly installed batcher, while any in-flight operations that already captured
+        /// the old batcher continue to use it safely.
+        /// </remarks>
+        public static ITaskBatcher<Effect>? ReplaceEffectBatcher(ITaskBatcher<Effect>? newBatcher)
+        {
+            lock (_effectBatcherLock)
+            {
+                var exchanged = Interlocked.Exchange(ref _effectBatcher, newBatcher);
+                return exchanged;
             }
         }
 
         /// <summary>
-        /// Gets the batcher responsible for processing queued property change notifications.
+        /// Atomically replaces the global notification batcher and returns the previous instance without disposing it.
         /// </summary>
-        public static ITaskBatcher<NotificationTask>? NotificationBatcher
+        /// <remarks>
+        /// When using the default configuration, the recommended pattern is to keep
+        /// <see cref="NotificationBatcher"/> throttled by <see cref="ITaskBatcher{Effect}.NextTick(CancellationToken)"/>
+        /// from the current effect batcher. If you replace <see cref="EffectBatcher"/>, consider also replacing
+        /// <see cref="NotificationBatcher"/> so that its throttler points at the new effect batcher to preserve
+        /// the "compute first, notify later" ordering.
+        /// </remarks>
+        public static ITaskBatcher<NotificationTask>? ReplaceNotificationBatcher(ITaskBatcher<NotificationTask>? newBatcher)
         {
-            get
+            lock (_notificationBatcherLock)
             {
-                var batcher = _notificationBatcher;
-                if (batcher != null)
-                    return batcher;
-
-                return Volatile.Read(ref _notificationBatcher);
+                var exchanged = Interlocked.Exchange(ref _notificationBatcher, newBatcher);
+                return exchanged;
             }
         }
 
@@ -257,7 +298,7 @@ namespace EffectSharp
     /// Interface for a batched task scheduler that supports enqueuing tasks, flushing, and awaiting completion.
     /// </summary>
     /// <typeparam name="T">Type of task.</typeparam>
-    public interface ITaskBatcher<T>
+    public interface ITaskBatcher<T> : IDisposable
     {
         /// <summary>
         /// Enqueue a task for batched execution.
