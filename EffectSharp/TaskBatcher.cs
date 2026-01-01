@@ -386,21 +386,29 @@ namespace EffectSharp
             var scheduler = Volatile.Read(ref _scheduler);
 
             // Start the batch processing task on the captured scheduler
-            _ = Task.Factory.StartNew(
-                async () =>
-                {
-                    try
+            try
+            {
+                _ = Task.Factory.StartNew(
+                    async () =>
                     {
-                        await ProcessBatchAsync().ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        _consumerSemaphore.Release();
-                    }
-                },
-                CancellationToken.None,
-                TaskCreationOptions.DenyChildAttach | TaskCreationOptions.RunContinuationsAsynchronously,
-                scheduler).Unwrap();
+                        try
+                        {
+                            await ProcessBatchAsync().ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            _consumerSemaphore.Release();
+                        }
+                    },
+                    CancellationToken.None,
+                    TaskCreationOptions.DenyChildAttach | TaskCreationOptions.RunContinuationsAsynchronously,
+                    scheduler).Unwrap();
+            }
+            catch
+            {
+                _consumerSemaphore.Release();
+                throw;
+            }
         }
 
         /// <summary>
