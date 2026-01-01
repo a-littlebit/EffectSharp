@@ -10,6 +10,7 @@ namespace EffectSharp.SourceGenerators.Model
         public readonly ImmutableArray<string> Constraints;
         public readonly bool EmitPropertyChangingEvent;
         public readonly bool EmitPropertyChangedEvent;
+        public readonly bool HasTrackDeep;
         public readonly string HintName;
 
         public TypeSpec(
@@ -19,6 +20,7 @@ namespace EffectSharp.SourceGenerators.Model
             ImmutableArray<string> constraints,
             bool emitPropertyChangingEvent,
             bool emitPropertyChangedEvent,
+            bool hasTrackDeep,
             string hintName)
         {
             Namespace = @namespace;
@@ -27,6 +29,7 @@ namespace EffectSharp.SourceGenerators.Model
             Constraints = constraints;
             EmitPropertyChangingEvent = emitPropertyChangingEvent;
             EmitPropertyChangedEvent = emitPropertyChangedEvent;
+            HasTrackDeep = hasTrackDeep;
             HintName = hintName;
         }
     }

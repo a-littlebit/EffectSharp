@@ -166,5 +166,108 @@ public class MyReactiveList : List<MyReactive>, IReactive { public void TrackDee
             var text = gen.GetText()!.ToString();
             Assert.Contains("this.Items?.TrackDeep();", text);
         }
+
+        [Fact]
+        public void Does_Not_Generate_TrackDeep_When_User_Defines_Public_TrackDeep()
+        {
+            var src = @"
+using EffectSharp.SourceGenerators;
+using EffectSharp;
+
+[ReactiveModel]
+public partial class Sample
+{
+    public void TrackDeep() { }
+
+    private MyReactive _custom = new MyReactive();
+    [Deep] public MyReactive Custom => _custom;
+}
+
+public class MyReactive : IReactive { public void TrackDeep() { } }
+";
+
+            var (_, result, _) = GeneratorTestHelper.RunGenerator(
+                GeneratorTestHelper.EffectSharpAttributeStubs,
+                GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
+                src);
+
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
+            Assert.NotNull(gen);
+            var text = gen.GetText()!.ToString();
+
+            // The generator should not emit another public void TrackDeep() implementation;
+            // instead it generates a helper method for deep tracking.
+            Assert.DoesNotContain("public void TrackDeep()", text);
+            Assert.Contains("public void TrackDeepReactiveModel()", text);
+        }
+
+        [Fact]
+        public void Does_Not_Generate_TrackDeep_When_User_Defines_Private_TrackDeep()
+        {
+            var src = @"
+using EffectSharp.SourceGenerators;
+using EffectSharp;
+
+[ReactiveModel]
+public partial class Sample
+{
+    private void TrackDeep() { }
+
+    private MyReactive _custom = new MyReactive();
+    [Deep] public MyReactive Custom => _custom;
+}
+
+public class MyReactive : IReactive { public void TrackDeep() { } }
+";
+
+            var (_, result, _) = GeneratorTestHelper.RunGenerator(
+                GeneratorTestHelper.EffectSharpAttributeStubs,
+                GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
+                src);
+
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
+            Assert.NotNull(gen);
+            var text = gen.GetText()!.ToString();
+
+            // The generator should not emit another public void TrackDeep() implementation;
+            // instead it generates a helper method for deep tracking.
+            Assert.DoesNotContain("public void TrackDeep()", text);
+            Assert.Contains("public void TrackDeepReactiveModel()", text);
+        }
+
+        [Fact]
+        public void Generates_TrackDeep_When_User_Defines_Overloaded_TrackDeep()
+        {
+            var src = @"
+using EffectSharp.SourceGenerators;
+using EffectSharp;
+
+[ReactiveModel]
+public partial class Sample
+{
+    public void TrackDeep(int level) { }
+
+    private MyReactive _custom = new MyReactive();
+    [Deep] public MyReactive Custom => _custom;
+}
+
+public class MyReactive : IReactive { public void TrackDeep() { } }
+";
+
+            var (_, result, _) = GeneratorTestHelper.RunGenerator(
+                GeneratorTestHelper.EffectSharpAttributeStubs,
+                GeneratorTestHelper.MinimalEffectSharpRuntimeStubs,
+                src);
+
+            var gen = result.GeneratedTrees.SingleOrDefault(t => t.FilePath.EndsWith("Sample.ReactiveModel.g.cs"));
+            Assert.NotNull(gen);
+            var text = gen.GetText()!.ToString();
+
+            // The generator should still emit its own parameterless TrackDeep implementation
+            Assert.Contains("public void TrackDeep()", text);
+
+            // And deep tracking for members should be emitted as usual
+            Assert.Contains("this.Custom?.TrackDeep();", text);
+        }
     }
 }

@@ -23,9 +23,17 @@ namespace EffectSharp.SourceGenerators
             var emitChanging = !SymbolHelper.HasMemberInHierarchy<IEventSymbol>(modelSymbol, "PropertyChanging");
             var emitChanged = !SymbolHelper.HasMemberInHierarchy<IEventSymbol>(modelSymbol, "PropertyChanged");
 
+            // If the user has already defined a parameterless TrackDeep method (any accessibility
+            // and any return type), we will still generate deep-tracking logic but under a
+            // different helper method name to avoid clashing with the user implementation.
+            var hasTrackDeep = SymbolHelper.HasMemberInHierarchy<IMethodSymbol>(
+                modelSymbol,
+                "TrackDeep",
+                m => m.Parameters.Length == 0);
+
             var hintName = NameHelper.GetReactiveHintFileName(modelSymbol);
 
-            return new TypeSpec(ns, containing, header, constraints, emitChanging, emitChanged, hintName);
+            return new TypeSpec(ns, containing, header, constraints, emitChanging, emitChanged, hasTrackDeep, hintName);
         }
 
         private static string ComposeTypeHeader(INamedTypeSymbol type, string baseList)

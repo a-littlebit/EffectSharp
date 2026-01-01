@@ -93,7 +93,12 @@ namespace EffectSharp.SourceGenerators
 
         private static void EmitTrackDeep(ModelSpec spec, IndentedTextWriter iw)
         {
-            iw.WriteLine("public void TrackDeep()");
+            // If the model (or its base types) already declares a parameterless TrackDeep
+            // method, we still generate the deep-tracking logic but expose it under a
+            // different helper name to avoid colliding with the user implementation.
+            var methodName = spec.Type.HasTrackDeep ? "TrackDeepReactiveModel" : "TrackDeep";
+
+            iw.WriteLine("public void " + methodName + "()" );
             iw.WriteLine("{");
             iw.Indent++;
 
