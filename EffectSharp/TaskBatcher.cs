@@ -303,6 +303,8 @@ namespace EffectSharp
         /// </summary>
         private async Task RunProcessingLoopAsync()
         {
+            // Keep track of the last batch processing start task
+            Task? lastStartTask = null;
             // Outermost loop: ensure continuous processing while there are tasks
             while (Volatile.Read(ref _disposed) == 0 && !_taskQueue.IsEmpty)
             {
@@ -348,11 +350,25 @@ namespace EffectSharp
                             delayCts.Dispose();
                         }
 
+                        if (lastStartTask != null)
+                        {
+                            // Ensure the last batch processing task has started before starting a new one
+                            await lastStartTask.ConfigureAwait(false);
+                            lastStartTask = null;
+                        }
+
                         // Exit loop if disposed during the delay
                         if (Volatile.Read(ref _disposed) == 1) break;
 
                         // Start batch processing
-                        StartBatchProcessingAsync();
+                        lastStartTask = StartBatchProcessingAsync();
+                    }
+
+                    if (lastStartTask != null)
+                    {
+                        // Ensure the last batch processing task has started before exiting
+                        await lastStartTask.ConfigureAwait(false);
+                        lastStartTask = null;
                     }
                 }
                 finally
@@ -362,37 +378,29 @@ namespace EffectSharp
             }
         }
 
-        public void StartBatchProcessingAsync()
+        public async Task StartBatchProcessingAsync()
         {
-            _ = _consumerSemaphore.WaitAsync().ContinueWith(
-                t =>
+            await _consumerSemaphore.WaitAsync();
+
+            // Capture the current scheduler
+            var scheduler = Volatile.Read(ref _scheduler);
+
+            // Start the batch processing task on the captured scheduler
+            _ = Task.Factory.StartNew(
+                async () =>
                 {
-                    if (t.Status != TaskStatus.RanToCompletion)
-                        return;
-
-                    // Capture the current scheduler
-                    var scheduler = Volatile.Read(ref _scheduler);
-
-                    // Start the batch processing task on the captured scheduler
-                    var _ = Task.Factory.StartNew(
-                        async () =>
-                        {
-                            try
-                            {
-                                await ProcessBatchAsync().ConfigureAwait(false);
-                            }
-                            finally
-                            {
-                                _consumerSemaphore.Release();
-                            }
-                        },
-                        CancellationToken.None,
-                        TaskCreationOptions.DenyChildAttach,
-                        scheduler).Unwrap();
+                    try
+                    {
+                        await ProcessBatchAsync().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        _consumerSemaphore.Release();
+                    }
                 },
                 CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default);
+                TaskCreationOptions.DenyChildAttach | TaskCreationOptions.RunContinuationsAsynchronously,
+                scheduler).Unwrap();
         }
 
         /// <summary>
