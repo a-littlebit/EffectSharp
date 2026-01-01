@@ -7,7 +7,7 @@ Incremental Roslyn source generator for EffectSharp that turns simple C# classes
 - `ReactiveCollection<T>` computed from methods annotated with `[ComputedList]` with minimal updates
 - Command properties from methods annotated with `[FunctionCommand]`
 - Watch/effect subscriptions from methods annotated with `[Watch]`
-- Boilerplate: `INotifyPropertyChanging`, `INotifyPropertyChanged`, `IReactive`, `InitializeReactiveModel()` and `TrackDeep()`
+- Boilerplate: `INotifyPropertyChanging`, `INotifyPropertyChanged`, `IReactive`, `InitializeReactiveModel()` and a deep-tracking method (`TrackDeep()` or `TrackDeepReactiveModel()`)
 
 This project is implemented as an Incremental Generator for fast, scalable builds and a smooth IDE experience.
 
@@ -96,7 +96,10 @@ public partial class CounterViewModel : IDisposable
 
 What gets generated (conceptually):
 - Implementation of `INotifyPropertyChanging` and `INotifyPropertyChanged`
-- Implementation of `IReactive` and `TrackDeep()` method for dependency tracking
+- Implementation of `IReactive` and a deep-tracking method for dependency tracking:
+  - If your type (or any base type) does *not* declare a parameterless `TrackDeep` method, the generator emits `public void TrackDeep()`.
+  - If your type *does* declare a parameterless `TrackDeep` method (any accessibility and any return type), the generator instead emits `public void TrackDeepReactiveModel()` containing the default deep-tracking logic.
+    You can call this helper from your own `TrackDeep` implementation to reuse the generated behavior.
 - `public void InitializeReactiveModel()` that creates computed values, subscribes watchers, and hooks change notifications
 - `public void DisposeReactiveModel()` that disposes computed values and watchers
 - `public int Count { get; set; }` with `PropertyChanging/Changed` notification and reactive dependency tracking
@@ -234,5 +237,7 @@ Generated files will appear under `obj/generated/`. Look for `*.ReactiveModel.g.
 ## Notes
 
 - Always invoke `InitializeReactiveModel()` once (e.g., in the constructor) to initialize computed values and watchers.
-- The generator implements `TrackDeep()` which calls `TrackDeep()` on nested `IReactive` members to propagate dependency tracking.
+- Deep tracking:
+  - By default the generator implements `TrackDeep()` which calls `TrackDeep()` on nested `IReactive` members to propagate dependency tracking.
+  - If you define your own parameterless `TrackDeep` method on the model (or a base type), the generator will emit `TrackDeepReactiveModel()` instead; your implementation can call this helper to compose custom logic with the default behavior.
 - This project is an Incremental Generator, making it efficient for large solutions and responsive in the IDE.
