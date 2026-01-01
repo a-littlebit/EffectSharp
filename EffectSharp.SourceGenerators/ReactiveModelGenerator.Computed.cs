@@ -25,6 +25,12 @@ namespace EffectSharp.SourceGenerators
                     continue;
                 }
 
+                if (method.ReturnsVoid)
+                {
+                    diagnostics.Add(Diagnostic.Create(DiagnosticDescriptors.ComputedMethodMustReturnValue, method.Locations.FirstOrDefault(), method.Name));
+                    continue;
+                }
+
                 var propertyName = method.Name.StartsWith("Compute", StringComparison.Ordinal)
                     ? method.Name.Substring("Compute".Length)
                     : "Computed" + method.Name;

@@ -44,6 +44,14 @@ namespace EffectSharp.SourceGenerators
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
+        public static readonly DiagnosticDescriptor ComputedMethodMustReturnValue = new(
+            id: "EFSP3002",
+            title: "Computed method must return a value",
+            messageFormat: "Method '{0}' is marked with [Computed] but returns void. Computed methods must return a non-void value type.",
+            category: "EffectSharp.Computed",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
         public static readonly DiagnosticDescriptor ComputedListInvalidReturnType = new(
             id: "EFSP4001",
             title: "ComputedList method must return IList<T>",
