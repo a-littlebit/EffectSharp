@@ -11,6 +11,28 @@ namespace EffectSharp
     /// Batch task processor that supports periodic execution, asynchronous immediate flushing,
     /// asynchronous batch completion waiting, and dynamic task scheduler switching.
     /// </summary>
+    /// <remarks>
+    /// Sequence / ordering model:
+    /// <list type="bullet">
+    /// <item>
+    /// <description>Each call to <see cref="Enqueue(T)"/> is assigned a monotonically increasing sequence number (1, 2, 3, ...).</description>
+    /// </item>
+    /// <item>
+    /// <description>Batches can dequeue any subset of queued items; there is no guarantee that a batch is contiguous in sequence space.</description>
+    /// </item>
+    /// <item>
+    /// <description><see cref="NextTick(CancellationToken)"/> and <see cref="FlushAsync(CancellationToken)"/>
+    /// wait until all items with sequence &lt;= a captured target sequence have been processed.</description>
+    /// </item>
+    /// <item>
+    /// <description>Internally, the highest fully processed contiguous sequence is tracked by <c>_tickState.ProcessedSequence</c>,
+    /// and any processed sequences beyond this value are stored in <c>_discreteSequences</c> until the gaps are filled.</description>
+    /// </item>
+    /// </list>
+    /// The combination of <c>_tickState</c>, <c>_discreteSequences</c> and <see cref="AfterBatchProcess(List{T}, List{long}, Exception?)"/>
+    /// ensures that callers observing <see cref="NextTick(CancellationToken)"/> see a strictly monotonic view of
+    /// "all items up to N have been processed", even when multiple consumers and arbitrary batch sizes are used.
+    /// </remarks>
     /// <typeparam name="T">Type of data structure for tasks to process</typeparam>
     public class TaskBatcher<T> : ITaskBatcher<T>, IDisposable
     {
@@ -24,9 +46,15 @@ namespace EffectSharp
         private int _startLoopFlag; // Flag to ensure single batch processing loop
         private CancellationTokenSource? _currentDelayCts; // Cancellation source for the current interval delay
         private long _enqueueCounter; // Atomic counter for generating unique task sequence numbers
+        // Tick / sequence tracking:
+        // - _tickState.ProcessedSequence stores the highest contiguous sequence that is known to be fully processed.
+        // - _discreteSequences holds processed sequence numbers that are greater than ProcessedSequence but for which there are
+        //   still gaps; once the gaps are later filled, ProcessedSequence is advanced and the corresponding entries are removed.
+        //   This allows batches to process items out of order while preserving a simple "all items &lt;= N are done" view
+        //   for callers awaiting NextTick / FlushAsync.
         private TickState _tickState = new(0); // State for NextTick tracking
-        private readonly HashSet<long> _discreteSequences = new(); // Set of discrete sequence numbers for tracking processed tasks
-                                                                   // Thread safety guarantee: only accessed by the consumer that completes _tickState.ProcessedSequence + 1
+        private readonly HashSet<long> _discreteSequences = new(); // Set of discrete (non-contiguous) processed sequence numbers
+                                       // Thread safety guarantee: only accessed by the consumer that advances _tickState.ProcessedSequence
         private int _disposed; // Flag to track disposal state
         #endregion
 
@@ -38,6 +66,8 @@ namespace EffectSharp
             internal TickState(long processedSequence)
             {
                 ProcessedSequence = processedSequence;
+                // NextTickTcs is completed exactly once when a newer TickState is installed,
+                // waking up all waiters that were blocked on the previous ProcessedSequence value.
                 NextTickTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             }
         }
@@ -243,11 +273,13 @@ namespace EffectSharp
 
         #region Core Logic (Internal)
         /// <summary>
-        /// Internal implementation to wait for tasks with sequence ≤ targetSequence.
-        /// Reused by both NextTick (public) and FlushAsync (to ensure consistency).
+        /// Internal implementation to wait for tasks with sequence ≤ <paramref name="targetSequence"/>.
+        /// This method repeatedly observes the current <see cref="TickState"/> and waits on its
+        /// <see cref="TickState.NextTickTcs"/> until <see cref="TickState.ProcessedSequence"/>
+        /// has advanced to cover the requested target.
         /// </summary>
-        /// <param name="targetSequence">Maximum sequence number to wait for</param>
-        /// <param name="cancellationToken">Cancellation token</param>
+        /// <param name="targetSequence">Maximum sequence number to wait for.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         private async Task NextTickInternal(long targetSequence, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -446,6 +478,31 @@ namespace EffectSharp
             await AfterBatchProcess(batch, batchSeqs).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Updates the global processed sequence state after a batch has been executed and
+        /// completes any <see cref="NextTick(System.Threading.CancellationToken)"/> waiters
+        /// that can now make progress.
+        /// </summary>
+        /// <remarks>
+        /// The algorithm works in two stages:
+        /// <list type="number">
+        /// <item><description>First, it waits (via <see cref="NextTickInternal(long, System.Threading.CancellationToken)"/>)
+        /// until all sequences strictly smaller than the minimum sequence in this batch have been fully processed,
+        /// ensuring we never "jump over" an earlier gap.</description></item>
+        /// <item><description>Then it merges the batch's sequence numbers into the global view:
+        /// contiguous ranges directly advance <c>ProcessedSequence</c>, while out-of-order items are
+        /// placed into <c>_discreteSequences</c> until their predecessors are processed.</description></item>
+        /// </list>
+        /// Example:
+        /// <code>
+        /// // Existing state: ProcessedSequence = 3
+        /// // New batch processed: sequences {5, 6}
+        /// //   - 4 is still pending, so 5 and 6 are stored in _discreteSequences.
+        /// // Later batch: {4}
+        /// //   - ProcessedSequence advances 3 -> 4, then consumes 5,6 from _discreteSequences and
+        /// //     finally becomes 6. Any NextTick waiters watching up to 6 are then unblocked.
+        /// </code>
+        /// </remarks>
         private async Task AfterBatchProcess(List<T>? batch, List<long> batchSeqs, Exception? ex = null)
         {
             // Ensure all prior batches are fully processed before updating the processed counter

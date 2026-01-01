@@ -5,8 +5,39 @@ using System.Threading.Tasks;
 namespace EffectSharp
 {
     /// <summary>
-    /// Async reentrant lock using explicit Scope passing.
+    /// Async reentrant lock using explicit <see cref="Scope"/> passing.
     /// </summary>
+    /// <remarks>
+    /// Usage pattern:
+    /// <code>
+    /// var asyncLock = new AsyncLock();
+    /// AsyncLock.Scope? scope = null;
+    /// try
+    /// {
+    ///     scope = await asyncLock.EnterAsync(ct);          // first acquisition
+    ///     using (await asyncLock.EnterAsync(scope, ct))    // reenter: ref-count++ (released at end of using)
+    ///     {
+    ///         // ... work under the lock, possibly nested ...
+    ///     }
+    /// }
+    /// finally
+    /// {
+    ///     scope?.Dispose(); // outer acquisition release; total Dispose calls == total successful Enters for this scope
+    /// }
+    /// </code>
+    /// Key properties:
+    /// <list type="bullet">
+    /// <item><description>Reentrancy is tied to the lifetime of a <see cref="Scope"/> instance, not the current thread.</description></item>
+    /// <item><description>Passing an existing <see cref="Scope"/> back into <see cref="EnterAsync(Scope?, CancellationToken)"/>
+    /// or <see cref="Enter(Scope?)"/> safely increments the reference count while the scope is still held.</description></item>
+    /// <item><description>Every successful call to <see cref="Enter(Scope?)"/> / <see cref="EnterAsync(Scope?, CancellationToken)"/>
+    /// for a given <see cref="Scope"/> must eventually be paired with a <see cref="Scope.Dispose"/> (directly or via <c>using</c>);
+    /// only the transition from count 1 → 0 releases the lock, and further calls throw <see cref="ObjectDisposedException"/>.</description></item>
+    /// <item><description>Each <see cref="AsyncLock"/> instance must only be used with scopes it created; mixing scopes between locks throws.</description></item>
+    /// </list>
+    /// This design makes it easy to plumb a "lock scope" through async call chains without resorting to
+    /// ambient state such as <see cref="AsyncLocal{T}"/>, while still supporting explicit, deterministic release.
+    /// </remarks>
     public sealed class AsyncLock
     {
         private readonly SemaphoreSlim _semaphore;

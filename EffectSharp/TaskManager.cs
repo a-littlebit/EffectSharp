@@ -11,6 +11,21 @@ namespace EffectSharp
     /// Global task manager coordinating batched processing of reactive effects and property change notifications.
     /// Provides static methods and properties for batching, scheduling, and triggering tasks.
     /// </summary>
+    /// <remarks>
+    /// Default configuration:
+    /// <list type="bullet">
+    /// <item><description><see cref="EffectBatcher"/>: queues <see cref="Effect"/> execution and processes them in batches
+    /// on a scheduler (typically the current <see cref="SynchronizationContext"/>).</description></item>
+    /// <item><description><see cref="NotificationBatcher"/>: queues <see cref="NotificationTask"/> (property change notifications)
+    /// and uses <see cref="ITaskBatcher{Effect}.NextTick(CancellationToken)"/> from the effect batcher as its throttler,
+    /// so that notifications are naturally delayed until the current effect tick has fully settled.</description></item>
+    /// </list>
+    /// This default coupling ensures a "compute first, notify later" ordering: updates triggered by effects are observed by
+    /// property change listeners only after the corresponding effect batch has completed.
+    /// Hosts can customize this behavior by calling <see cref="CreateEffectBatcherIfAbsent"/> and
+    /// <see cref="CreateNotificationBatcherIfAbsent"/> early in application startup to supply their own
+    /// <see cref="ITaskBatcher{T}"/> implementations or throttling strategies.
+    /// </remarks>
     public static class TaskManager
     {
 
