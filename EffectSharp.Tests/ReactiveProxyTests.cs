@@ -52,7 +52,7 @@ namespace EffectSharp.Tests
         }
 
         [Fact]
-        public async Task Reactive_WhenSetProperty_TriggerSubcribers()
+        public async Task Reactive_WhenSetProperty_TriggerSubscribers()
         {
             var product = Reactive.Create<IProduct>();
             product.Name = "Laptop";
