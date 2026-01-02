@@ -18,7 +18,7 @@ This project adheres to Keep a Changelog and uses Semantic Versioning (when vers
 
 ### Fixed
 
-- Fixed dispoging `TaskBatcher<T>` may cause unexpected behavior when there are pending tasks.
+- Fixed disposing `TaskBatcher<T>` may cause unexpected behavior when there are pending tasks.
 
 ### Enhancement
 
