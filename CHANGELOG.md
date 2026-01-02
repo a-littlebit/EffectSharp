@@ -19,6 +19,7 @@ This project adheres to Keep a Changelog and uses Semantic Versioning (when vers
 ### Fixed
 
 - Fixed disposing `TaskBatcher<T>` may cause unexpected behavior when there are pending tasks.
+- Fixed `ReactiveProxy<T>` may cause unexpected behavior when used before initialization is complete.
 
 ### Enhancement
 
