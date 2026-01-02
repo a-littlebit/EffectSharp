@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Keep a Changelog and uses Semantic Versioning (when versions are published). For now, changes are grouped by version and date.
 
+## Unreleased
+
+### Added
+
+- `ITaskBatcher<T>` interface for custom task batcher implementations.
+- Source generator diagnostics for invalid [Computed] methods that do not return a value (EFSP3002).
+- Source generator now supports customing `IReactive.TrackDeep` implementation and generating default implementation methods named `TrackDeepReactiveModel` if `TrackDeep` is already defined.
+
+### Changed
+
+- `TaskManager` now accepts custom `ITaskBatcher<T>` implementations for notification and effect scheduling and supports dynamic replacement at runtime.
+
+### Fixed
+
+- Fixed dispoging `TaskBatcher<T>` may cause unexpected behavior when there are pending tasks.
+
+### Enhancement
+
+- `Dependency` now lazily initializes its internal subscription dictionary to reduce memory overhead for reactive values that are not tracked by any effects.
+- Removed per-effect `ThreadLocal<AsyncLock.Scope>` storage; `Effect` now directly manages its own lock scope stack to reduce memory usage and improve performance.
+- Improved `TaskBatcher<T>` task merging performance under high concurrency scenarios.
+- Improved source generator performance when processing large reactive models with many members.
+
 ## 1.3.2 - 2025-12-24
 
 ### Added
