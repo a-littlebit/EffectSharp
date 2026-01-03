@@ -168,12 +168,8 @@ namespace EffectSharp
         /// </summary>
         public Func<CancellationToken, Task> Throttler
         {
-            get => _throttler;
-            set
-            {
-                ThrowIfDisposed();
-                _throttler = value ?? throw new ArgumentNullException(nameof(value), "Delay function cannot be null");
-            }
+            get => Volatile.Read(ref _throttler);
+            set => Interlocked.Exchange(ref _throttler, value ?? throw new ArgumentNullException(nameof(value), "Throttler cannot be null"));
         }
 
         /// <summary>
@@ -181,20 +177,8 @@ namespace EffectSharp
         /// </summary>
         public TaskScheduler Scheduler
         {
-            get => Volatile.Read(ref _scheduler); // Ensure latest value is read across threads
-            set
-            {
-                ThrowIfDisposed();
-                if (value == null)
-                    throw new ArgumentNullException(nameof(value), "Scheduler cannot be null");
-
-                // Avoid unnecessary atomic operations if setting the same scheduler
-                var currentScheduler = Volatile.Read(ref _scheduler);
-                if (currentScheduler != value)
-                {
-                    Interlocked.Exchange(ref _scheduler, value);
-                }
-            }
+            get => Volatile.Read(ref _scheduler);
+            set => Interlocked.Exchange(ref _scheduler, value ?? throw new ArgumentNullException(nameof(value), "Scheduler cannot be null"));
         }
         #endregion
 
@@ -358,7 +342,8 @@ namespace EffectSharp
                             // Check for cancellation before starting the delay
                             delayCts.Token.ThrowIfCancellationRequested();
                             // Wait for both the delay and the last batch dequeuing to complete
-                            await _throttler(delayCts.Token).ConfigureAwait(false);
+                            var throttler = Volatile.Read(ref _throttler);
+                            await throttler(delayCts.Token).ConfigureAwait(false);
                         }
                         catch (OperationCanceledException)
                         {
