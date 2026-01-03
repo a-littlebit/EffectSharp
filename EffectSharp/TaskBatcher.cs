@@ -37,9 +37,9 @@ namespace EffectSharp
     public class TaskBatcher<T> : ITaskBatcher<T>, IDisposable
     {
         #region Private Fields
-        private readonly Func<List<T>, Task> _batchProcessor; // Synchronous batch processing callback (must run sync)
+        private readonly Func<List<T>, Task> _batchProcessor; // Asynchronous batch processing callback
         private Func<CancellationToken, Task> _throttler; // Asynchronous delay function for interval waiting
-        private TaskScheduler _scheduler; // Task scheduler (supports dynamic switching with eventual consistency)
+        private TaskScheduler _scheduler; // Task scheduler
         private readonly SemaphoreSlim _consumerSemaphore;
         private readonly ConcurrentQueue<(T Item, long Sequence)> _taskQueue = new(); // Task queue with sequence numbers for NextTick tracking
 
@@ -53,8 +53,9 @@ namespace EffectSharp
         //   This allows batches to process items out of order while preserving a simple "all items &lt;= N are done" view
         //   for callers awaiting NextTick / FlushAsync.
         private TickState _tickState = new(0); // State for NextTick tracking
-        private readonly HashSet<long> _discreteSequences = new(); // Set of discrete (non-contiguous) processed sequence numbers
-                                       // Thread safety guarantee: only accessed by the consumer that advances _tickState.ProcessedSequence
+        // Set of discrete (non-contiguous) processed sequence numbers
+        // Thread safety guarantee: only accessed by the consumer that advances _tickState.ProcessedSequence
+        private readonly HashSet<long> _discreteSequences = new();
         private int _disposed; // Flag to track disposal state
         #endregion
 
