@@ -1,6 +1,14 @@
 ﻿; Shipped analyzer releases
 ; https://github.com/dotnet/roslyn-analyzers/blob/main/src/Microsoft.CodeAnalysis.Analyzers/ReleaseTrackingAnalyzers.Help.md
 
+## Release 1.4.0
+
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|--------------------
+EFSP3002 | EffectSharp.Computed | Error | Computed methods must return a value
+
 ## Release 1.3.2
 
 ### New Rules
@@ -49,6 +57,11 @@ EFSP4001 | EffectSharp.ComputedList | Error | ComputedList has invalid return ty
 - Category: EffectSharp.Computed
 - Severity: Error
 - Description: Methods annotated with [Computed] cannot have any parameters.
+- 
+#### EFSP3002: Computed methods must return a value
+- Category: EffectSharp.Computed
+- Severity: Error
+- Description: Methods annotated with [Computed] must return a value.
 
 #### EFSP4001: ComputedList has invalid return type
 - Category: EffectSharp.ComputedList
